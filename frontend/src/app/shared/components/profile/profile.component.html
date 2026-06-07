@@ -1,0 +1,86 @@
+<p-toast />
+
+<div style="max-width: 680px">
+  <div class="mb-4">
+    <h2 class="text-2xl font-bold text-900 m-0">My Profile</h2>
+    <p class="text-600 text-sm m-0 mt-1">View and update your account information</p>
+  </div>
+
+  <!-- Avatar + photo upload -->
+  <p-card styleClass="mb-4">
+    <div class="flex align-items-center gap-4 flex-wrap">
+      @if (photoUrl) {
+        <img [src]="photoUrl" alt="Profile photo" class="border-circle" style="width: 80px; height: 80px; object-fit: cover" />
+      } @else {
+        <p-avatar [label]="initials" size="xlarge" shape="circle" styleClass="bg-primary text-white font-bold text-2xl" />
+      }
+
+      <div>
+        <div class="font-semibold text-900 text-lg">{{ user?.first_name }} {{ user?.last_name }}</div>
+        <div class="text-500 text-sm mb-3">{{ user?.email }}</div>
+        <p-fileUpload
+          mode="basic"
+          name="photo"
+          url="/api/v1/auth/profile/photo"
+          accept="image/*"
+          [maxFileSize]="5000000"
+          chooseLabel="Change Photo"
+          chooseIcon="pi pi-camera"
+          [auto]="true"
+          styleClass="p-button-sm p-button-outlined p-button-secondary"
+          (onUpload)="onPhotoUpload($event)"
+          (onError)="onPhotoError()"
+        />
+      </div>
+    </div>
+  </p-card>
+
+  <!-- Profile form -->
+  <p-card header="Personal Information">
+    <form [formGroup]="form" (ngSubmit)="onSave()">
+      <div class="flex flex-column gap-4">
+
+        <div class="grid">
+          <div class="col-12 md:col-6">
+            <div class="flex flex-column gap-2">
+              <label class="font-semibold text-900">First Name <span class="text-red-500">*</span></label>
+              <input pInputText formControlName="first_name" placeholder="First name" class="w-full" />
+              @if (form.controls.first_name.touched && form.controls.first_name.errors?.['required']) {
+                <small class="text-red-500">First name is required</small>
+              }
+            </div>
+          </div>
+          <div class="col-12 md:col-6">
+            <div class="flex flex-column gap-2">
+              <label class="font-semibold text-900">Last Name <span class="text-red-500">*</span></label>
+              <input pInputText formControlName="last_name" placeholder="Last name" class="w-full" />
+              @if (form.controls.last_name.touched && form.controls.last_name.errors?.['required']) {
+                <small class="text-red-500">Last name is required</small>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-column gap-2">
+          <label class="font-semibold text-500">Email Address</label>
+          <input pInputText [value]="user?.email || ''" class="w-full" [disabled]="true" style="opacity: 0.6" />
+          <small class="text-400">Email cannot be changed. Contact an administrator.</small>
+        </div>
+
+        <div class="flex flex-column gap-2">
+          <label class="font-semibold text-900">Phone Number</label>
+          <input pInputText formControlName="phone" placeholder="+91 98765 43210" class="w-full" />
+        </div>
+
+        <div class="flex flex-column gap-2">
+          <label class="font-semibold text-900">Address</label>
+          <input pInputText formControlName="address" placeholder="Your address" class="w-full" />
+        </div>
+
+        <div class="flex justify-content-end pt-2 border-top-1 surface-border">
+          <p-button label="Save Changes" icon="pi pi-check" type="button" [loading]="loading" (onClick)="onSave()" />
+        </div>
+      </div>
+    </form>
+  </p-card>
+</div>

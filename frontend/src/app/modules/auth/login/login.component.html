@@ -1,0 +1,76 @@
+<div class="flex align-items-center justify-content-center min-h-screen" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%)">
+  <div class="w-full mx-3" style="max-width: 440px">
+  <p-card>
+    <ng-template pTemplate="header">
+      <div class="text-center px-5 pt-5 pb-2">
+        <div class="flex align-items-center justify-content-center gap-2 mb-3">
+          <i class="pi pi-book text-3xl text-primary"></i>
+          <span class="text-3xl font-bold text-primary">SMS</span>
+        </div>
+        <div class="text-xl font-semibold text-900 mb-1">School Management System</div>
+        <p class="text-500 m-0 text-sm">Sign in to your account</p>
+      </div>
+    </ng-template>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <div class="flex flex-column gap-4 px-1">
+
+        @if (errorMessage) {
+          <p-message severity="error" [text]="errorMessage" styleClass="w-full" />
+        }
+
+        <div class="flex flex-column gap-2">
+          <label for="email" class="font-semibold text-900">Email address</label>
+          <input
+            id="email"
+            type="email"
+            pInputText
+            formControlName="email"
+            placeholder="admin@school.sms"
+            class="w-full"
+            autocomplete="email"
+          />
+          @if (emailCtrl.touched && emailCtrl.errors?.['required']) {
+            <small class="text-red-500">Email is required</small>
+          }
+          @if (emailCtrl.touched && emailCtrl.errors?.['email']) {
+            <small class="text-red-500">Enter a valid email address</small>
+          }
+        </div>
+
+        <div class="flex flex-column gap-2">
+          <div class="flex justify-content-between align-items-center">
+            <label for="password" class="font-semibold text-900">Password</label>
+            <a routerLink="/forgot-password" class="text-primary text-sm font-medium no-underline hover:underline">
+              Forgot password?
+            </a>
+          </div>
+          <p-password
+            formControlName="password"
+            [feedback]="false"
+            [toggleMask]="true"
+            inputId="password"
+            styleClass="w-full"
+            inputStyleClass="w-full"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+          />
+          @if (passwordCtrl.touched && passwordCtrl.errors?.['required']) {
+            <small class="text-red-500">Password is required</small>
+          }
+        </div>
+
+        <button
+          type="submit"
+          class="p-button p-component w-full justify-content-center"
+          [disabled]="loading"
+        >
+          <i *ngIf="loading" class="pi pi-spin pi-spinner p-button-icon p-button-icon-left"></i>
+          <i *ngIf="!loading" class="pi pi-sign-in p-button-icon p-button-icon-left"></i>
+          <span class="p-button-label">{{ loading ? 'Signing in...' : 'Sign In' }}</span>
+        </button>
+      </div>
+    </form>
+  </p-card>
+  </div>
+</div>

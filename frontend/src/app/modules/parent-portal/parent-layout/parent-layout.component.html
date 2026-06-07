@@ -1,0 +1,39 @@
+<!-- Parent Portal: mobile-first layout with top nav + bottom tab bar -->
+<div class="flex flex-column min-h-screen" style="background: #f1f5f9; max-width: 640px; margin: 0 auto; position: relative">
+
+  <!-- Top bar -->
+  <header class="sms-topbar" style="position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #e2e8f0">
+    <div class="flex align-items-center gap-2 flex-1">
+      <i class="pi pi-book text-primary"></i>
+      <span class="font-bold text-primary">SMS Parent</span>
+    </div>
+    <p-menu #profileMenu [model]="profileMenuItems" [popup]="true" appendTo="body" />
+    <p-avatar
+      [label]="initials"
+      styleClass="bg-primary font-bold text-white cursor-pointer"
+      size="normal"
+      shape="circle"
+      (click)="profileMenu.toggle($event)"
+    />
+  </header>
+
+  <!-- Page content -->
+  <main style="flex: 1; padding: 1rem; padding-bottom: 5rem; overflow-y: auto">
+    <router-outlet />
+  </main>
+
+  <!-- Bottom tab bar (mobile nav) -->
+  <nav style="position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 640px; background: white; border-top: 1px solid #e2e8f0; display: flex; z-index: 10">
+    @for (item of navItems; track item.label) {
+      <a
+        [routerLink]="item.route"
+        routerLinkActive="text-primary"
+        class="flex flex-column align-items-center justify-content-center gap-1 flex-1 py-2 no-underline text-600 hover:text-primary transition-colors transition-duration-200"
+        style="font-size: 0.65rem; min-height: 56px"
+      >
+        <i class="{{ item.icon }} text-lg"></i>
+        <span>{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+</div>

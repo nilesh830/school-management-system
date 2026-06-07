@@ -1,0 +1,44 @@
+<div class="sms-layout">
+  <aside class="sms-sidebar" style="background: #1e3a5f">
+    <div class="sms-sidebar-brand">
+      <div class="flex align-items-center gap-2">
+        <i class="pi pi-graduation-cap" style="color: #93c5fd; font-size: 1.25rem"></i>
+        <div>
+          <div class="brand-title">SMS Student</div>
+          <div class="brand-subtitle">Student Portal</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex flex-column gap-1 p-3 flex-1">
+      @for (item of navItems; track item.label) {
+        <a [routerLink]="item.route" routerLinkActive="active" class="sms-nav-link">
+          <i class="pi {{ item.icon }} text-sm"></i>
+          <span class="text-sm">{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+
+    <div class="sms-sidebar-footer">
+      <div class="flex align-items-center gap-2">
+        <p-avatar [label]="initials" styleClass="font-bold text-white" [style]="{ background: '#1d4ed8' }" size="normal" shape="circle" />
+        <div class="flex flex-column min-w-0 flex-1">
+          <span class="text-white text-sm font-medium white-space-nowrap overflow-hidden text-overflow-ellipsis">{{ fullName }}</span>
+          <span style="color: rgba(255,255,255,0.5); font-size: 0.7rem">Student</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="sms-main">
+    <header class="sms-topbar">
+      <div class="flex-1"><span class="text-600 text-sm">Student Portal</span></div>
+      <p-menu #profileMenu [model]="profileMenuItems" [popup]="true" appendTo="body" />
+      <p-button [label]="fullName" icon="pi pi-user" severity="secondary" [text]="true" size="small" (onClick)="profileMenu.toggle($event)" />
+      <p-button icon="pi pi-sign-out" severity="secondary" [text]="true" size="small" (onClick)="auth.logout()" />
+    </header>
+    <main class="sms-content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

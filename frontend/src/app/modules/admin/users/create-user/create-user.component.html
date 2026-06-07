@@ -1,0 +1,121 @@
+<p-toast />
+
+<div style="max-width: 680px">
+  <div class="flex align-items-center gap-3 mb-4">
+    <p-button icon="pi pi-arrow-left" severity="secondary" [text]="true" routerLink="/admin/dashboard" />
+    <div>
+      <h2 class="text-2xl font-bold text-900 m-0">Create User</h2>
+      <p class="text-600 text-sm m-0">Add a new user account to the system</p>
+    </div>
+  </div>
+
+  <p-card>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <div class="flex flex-column gap-4">
+
+        <!-- Name row -->
+        <div class="grid">
+          <div class="col-12 md:col-6">
+            <div class="flex flex-column gap-2">
+              <label class="font-semibold text-900">First Name <span class="text-red-500">*</span></label>
+              <input pInputText formControlName="first_name" placeholder="e.g. Priya" class="w-full" />
+              @if (f.first_name.touched && f.first_name.errors?.['required']) {
+                <small class="text-red-500">First name is required</small>
+              }
+            </div>
+          </div>
+          <div class="col-12 md:col-6">
+            <div class="flex flex-column gap-2">
+              <label class="font-semibold text-900">Last Name <span class="text-red-500">*</span></label>
+              <input pInputText formControlName="last_name" placeholder="e.g. Sharma" class="w-full" />
+              @if (f.last_name.touched && f.last_name.errors?.['required']) {
+                <small class="text-red-500">Last name is required</small>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="flex flex-column gap-2">
+          <label class="font-semibold text-900">Email Address <span class="text-red-500">*</span></label>
+          <input type="email" pInputText formControlName="email" placeholder="user@school.sms" class="w-full" autocomplete="off" />
+          @if (f.email.touched && f.email.errors?.['required']) {
+            <small class="text-red-500">Email is required</small>
+          }
+          @if (f.email.touched && f.email.errors?.['email']) {
+            <small class="text-red-500">Enter a valid email address</small>
+          }
+        </div>
+
+        <!-- Role -->
+        <div class="flex flex-column gap-2">
+          <label class="font-semibold text-900">Role <span class="text-red-500">*</span></label>
+          <p-dropdown
+            formControlName="role"
+            [options]="roles"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select a role"
+            styleClass="w-full"
+          />
+          @if (f.role.touched && f.role.errors?.['required']) {
+            <small class="text-red-500">Role is required</small>
+          }
+          @if (f.role.value === 'parent') {
+            <small class="text-blue-600">
+              <i class="pi pi-info-circle mr-1"></i>A Parent profile will be automatically created and linked.
+            </small>
+          }
+          @if (f.role.value === 'student') {
+            <small class="text-blue-600">
+              <i class="pi pi-info-circle mr-1"></i>A Student shell record will be created for enrollment.
+            </small>
+          }
+        </div>
+
+        <!-- Password -->
+        <div class="flex flex-column gap-2">
+          <div class="flex justify-content-between align-items-center">
+            <label class="font-semibold text-900">Password <span class="text-red-500">*</span></label>
+            <p-button
+              label="Auto-generate"
+              icon="pi pi-refresh"
+              severity="secondary"
+              size="small"
+              [text]="true"
+              type="button"
+              (onClick)="generatePassword()"
+            />
+          </div>
+          <p-password
+            formControlName="password"
+            [feedback]="true"
+            [toggleMask]="true"
+            styleClass="w-full"
+            inputStyleClass="w-full"
+            placeholder="Min 8 characters"
+            autocomplete="new-password"
+          />
+          @if (f.password.touched && f.password.errors?.['required']) {
+            <small class="text-red-500">Password is required</small>
+          }
+          @if (f.password.touched && f.password.errors?.['minlength']) {
+            <small class="text-red-500">Minimum 8 characters required</small>
+          }
+          @if (f.password.value) {
+            <small class="text-500">
+              <i class="pi pi-exclamation-triangle mr-1 text-orange-500"></i>
+              Share this password with the user securely — it will not be shown again.
+            </small>
+          }
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 justify-content-end pt-2 border-top-1 surface-border">
+          <p-button label="Cancel" severity="secondary" [outlined]="true" type="button" routerLink="/admin/dashboard" />
+          <p-button label="Create User" icon="pi pi-check" type="button" [loading]="loading" (onClick)="onSubmit()" />
+        </div>
+      </div>
+    </form>
+  </p-card>
+</div>

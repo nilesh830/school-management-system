@@ -1,0 +1,1141 @@
+swagger: "2.0"
+info:
+  title: School Management System API
+  description: |
+    REST API for the School Management System (SMS).
+
+    ## Authentication
+    Most endpoints require a JWT Bearer token. Log in via **POST /auth/login** to obtain
+    `access_token` and `refresh_token`. Pass the access token as:
+    ```
+    Authorization: Bearer <access_token>
+    ```
+    The access token expires in **15 minutes**. Use **POST /auth/refresh** with the refresh token
+    to get a new access token (refresh tokens expire in 7 days).
+
+    ## Roles
+    | Role | Access |
+    |------|--------|
+    | `admin` | All endpoints |
+    | `teacher` | Students, attendance, grades, leave review |
+    | `student` | Own data only |
+    | `parent` | Parent portal, leave submissions, notifications |
+
+    ## Response Envelope
+    All responses follow:
+    ```json
+    { "success": true, "data": {}, "message": "...", "errors": null }
+    ```
+
+    ## Dev Seed Credentials
+    | Role | Email | Password |
+    |------|-------|----------|
+    | Admin | admin@school.sms | Admin@1234 |
+    | Teacher | priya.sharma@school.sms | Teacher@123 |
+    | Student | alice.johnson@school.sms | Student@123 |
+    | Parent | robert.johnson@parents.school.sms | Parent@123 |
+
+  version: "1.0.0"
+  contact:
+    email: admin@school.sms
+
+basePath: /api/v1
+schemes:
+  - http
+  - https
+consumes:
+  - application/json
+produces:
+  - application/json
+
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    name: Authorization
+    in: header
+    description: "Format: Bearer <JWT access token>"
+
+tags:
+  - name: Health
+    description: Server health check
+  - name: Auth
+    description: Login, logout, token refresh, password reset, profile
+  - name: Users
+    description: User account management (admin only)
+  - name: Students
+    description: Student profile management
+  - name: Parent Portal
+    description: Parent-facing read-only views of children's data
+  - name: Leave Applications
+    description: Student leave requests submitted by parents
+  - name: Notifications
+    description: In-app notifications
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Reusable definitions
+# ─────────────────────────────────────────────────────────────────────────────
+definitions:
+  SuccessEnvelope:
+    type: object
+    properties:
+      success:
+        type: boolean
+        example: true
+      message:
+        type: string
+      data:
+        type: object
+      errors:
+        type: object
+        nullable: true
+
+  ErrorEnvelope:
+    type: object
+    properties:
+      success:
+        type: boolean
+        example: false
+      message:
+        type: string
+      data:
+        type: object
+        nullable: true
+      errors:
+        type: object
+        nullable: true
+
+  User:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      email:
+        type: string
+        example: admin@school.sms
+      role:
+        type: string
+        enum: [admin, teacher, student, parent]
+        example: admin
+      first_name:
+        type: string
+        example: Rahul
+      last_name:
+        type: string
+        example: Verma
+      full_name:
+        type: string
+        example: Rahul Verma
+      photo_url:
+        type: string
+        nullable: true
+        example: /uploads/profile_photos/user_1_abc123.jpg
+      is_active:
+        type: boolean
+        example: true
+      last_login:
+        type: string
+        format: date-time
+        nullable: true
+      created_at:
+        type: string
+        format: date-time
+
+  Student:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      admission_no:
+        type: string
+        example: ADM2024001
+      first_name:
+        type: string
+        example: Alice
+      last_name:
+        type: string
+        example: Johnson
+      full_name:
+        type: string
+        example: Alice Johnson
+      date_of_birth:
+        type: string
+        format: date
+        example: "2012-03-15"
+      gender:
+        type: string
+        enum: [Male, Female, Other]
+        example: Female
+      admission_date:
+        type: string
+        format: date
+        example: "2024-06-01"
+      blood_group:
+        type: string
+        example: A+
+        nullable: true
+      address:
+        type: string
+        nullable: true
+      phone:
+        type: string
+        nullable: true
+      is_active:
+        type: boolean
+        example: true
+
+  LeaveApplication:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      student_id:
+        type: integer
+        example: 1
+      parent_id:
+        type: integer
+        example: 1
+      from_date:
+        type: string
+        format: date
+        example: "2026-06-10"
+      to_date:
+        type: string
+        format: date
+        example: "2026-06-10"
+      duration_days:
+        type: integer
+        example: 1
+      reason:
+        type: string
+        example: Doctor appointment for annual check-up
+      leave_type:
+        type: string
+        enum: [sick, family, personal, other]
+        example: sick
+      status:
+        type: string
+        enum: [pending, approved, rejected]
+        example: pending
+      reviewer_remarks:
+        type: string
+        nullable: true
+      reviewed_at:
+        type: string
+        format: date-time
+        nullable: true
+      created_at:
+        type: string
+        format: date-time
+
+  Notification:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      type:
+        type: string
+        enum: [absence, low_marks, fee_due, message, announcement, leave_update]
+        example: announcement
+      title:
+        type: string
+        example: School Annual Day 2024
+      body:
+        type: string
+        example: Annual Day function scheduled on 25th December.
+      reference_id:
+        type: integer
+        nullable: true
+      reference_type:
+        type: string
+        nullable: true
+      is_read:
+        type: boolean
+        example: false
+      created_at:
+        type: string
+        format: date-time
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Paths
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── Health ──────────────────────────────────────────────────────────────────
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns 200 if the server is running. No auth required.
+      responses:
+        200:
+          description: Server is healthy
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: SMS API is running
+              version:
+                type: string
+                example: "1.0.0"
+
+  # ── Auth ─────────────────────────────────────────────────────────────────────
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      description: Authenticate with email and password. Returns JWT access + refresh tokens.
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [email, password]
+            properties:
+              email:
+                type: string
+                example: admin@school.sms
+              password:
+                type: string
+                example: Admin@1234
+      responses:
+        200:
+          description: Login successful
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              data:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    example: eyJhbGci...
+                  refresh_token:
+                    type: string
+                    example: eyJhbGci...
+                  user:
+                    $ref: '#/definitions/User'
+        400:
+          description: Missing email or password
+        401:
+          description: Invalid credentials or inactive account
+        429:
+          description: Rate limit exceeded (5 requests/minute)
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      description: |
+        Use the **refresh token** (not the access token) in the Authorization header to get
+        a new access token. Rate limited to 10/minute.
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: New access token issued
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              data:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+        401:
+          description: Invalid or expired refresh token
+
+  /auth/logout:
+    delete:
+      tags: [Auth]
+      summary: Logout (revoke token)
+      description: Adds the current access token's JTI to the revocation blocklist.
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: Logged out successfully
+        401:
+          description: Missing or invalid token
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      description: Returns the authenticated user's profile. Works for all roles.
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: User profile
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+              data:
+                $ref: '#/definitions/User'
+        401:
+          description: Unauthorized
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset
+      description: |
+        Sends a password reset link to the email address. Always returns 200 to prevent
+        email enumeration. In dev mode, the link is logged to console.
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [email]
+            properties:
+              email:
+                type: string
+                example: admin@school.sms
+      responses:
+        200:
+          description: Reset email sent (or silently skipped if email not found)
+        400:
+          description: Email field missing
+        429:
+          description: Rate limit exceeded (3/minute)
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using token
+      description: |
+        Provide the token from the reset email link plus the new password.
+        Password must be 8+ chars with uppercase, lowercase, digit, and special character.
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [token, password]
+            properties:
+              token:
+                type: string
+                example: abc123xyz...
+              password:
+                type: string
+                example: NewPass@5678
+      responses:
+        200:
+          description: Password reset successfully
+        400:
+          description: Missing fields or invalid/expired token
+        422:
+          description: Password does not meet requirements
+
+  /auth/profile:
+    patch:
+      tags: [Auth]
+      summary: Update own profile
+      description: Update first_name and/or last_name of the authenticated user.
+      security:
+        - Bearer: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              first_name:
+                type: string
+                example: Rahul
+              last_name:
+                type: string
+                example: Verma
+      responses:
+        200:
+          description: Profile updated
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/definitions/User'
+        400:
+          description: No valid fields to update
+        401:
+          description: Unauthorized
+
+  /auth/profile/photo:
+    post:
+      tags: [Auth]
+      summary: Upload profile photo
+      description: Upload a profile photo (PNG, JPG, JPEG, GIF, WEBP). Max 5MB.
+      security:
+        - Bearer: []
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: formData
+          name: photo
+          type: file
+          required: true
+          description: Image file (PNG, JPG, JPEG, GIF, WEBP — max 5MB)
+      responses:
+        200:
+          description: Photo uploaded
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  photo_url:
+                    type: string
+                    example: /uploads/profile_photos/user_1_abc123.jpg
+        400:
+          description: No file, invalid extension, or file too large
+        401:
+          description: Unauthorized
+
+  # ── Users ────────────────────────────────────────────────────────────────────
+  /users:
+    get:
+      tags: [Users]
+      summary: List all users
+      description: Paginated list of users with optional role/search filter. **Admin only.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: query
+          name: page
+          type: integer
+          default: 1
+        - in: query
+          name: per_page
+          type: integer
+          default: 20
+          maximum: 100
+        - in: query
+          name: role
+          type: string
+          enum: [admin, teacher, student, parent]
+          description: Filter by role
+        - in: query
+          name: q
+          type: string
+          description: Search by email, first_name, or last_name
+        - in: query
+          name: is_active
+          type: boolean
+          description: Filter active/inactive users
+      responses:
+        200:
+          description: List of users
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: '#/definitions/User'
+        401:
+          description: Unauthorized
+        403:
+          description: Admin access required
+
+    post:
+      tags: [Users]
+      summary: Create a new user
+      description: |
+        Create a user account. **Admin only.**
+
+        - For `role=parent`: also requires `relationship_type` and `phone_primary` — a Parent profile is auto-created.
+        - For `role=teacher` or `role=student`: only the User record is created (full profiles via their own endpoints).
+
+        **Password requirements:** 8+ chars, uppercase, lowercase, digit, special character.
+      security:
+        - Bearer: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [email, password, role, first_name, last_name]
+            properties:
+              email:
+                type: string
+                example: teacher1@school.sms
+              password:
+                type: string
+                example: Teacher@123
+              role:
+                type: string
+                enum: [admin, teacher, student, parent]
+                example: teacher
+              first_name:
+                type: string
+                example: Priya
+              last_name:
+                type: string
+                example: Sharma
+              relationship_type:
+                type: string
+                enum: [Father, Mother, Guardian]
+                description: Required if role=parent
+              phone_primary:
+                type: string
+                description: Required if role=parent
+                example: "+91-9988776655"
+              phone_secondary:
+                type: string
+              occupation:
+                type: string
+              address:
+                type: string
+      responses:
+        201:
+          description: User created
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/definitions/User'
+        400:
+          description: Missing required fields or invalid role
+        401:
+          description: Unauthorized
+        403:
+          description: Admin access required
+        409:
+          description: Email already exists
+        422:
+          description: Weak password or invalid email format
+
+  /users/{user_id}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      description: Retrieve a single user by ID. **Admin only.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: user_id
+          type: integer
+          required: true
+          example: 1
+      responses:
+        200:
+          description: User found
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/definitions/User'
+        401:
+          description: Unauthorized
+        403:
+          description: Admin access required
+        404:
+          description: User not found
+
+    delete:
+      tags: [Users]
+      summary: Deactivate a user (soft delete)
+      description: |
+        Sets `is_active=false` on the user. Does not delete the record.
+        **Admin only.** Cannot deactivate your own account.
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: user_id
+          type: integer
+          required: true
+          example: 3
+      responses:
+        200:
+          description: User deactivated
+        400:
+          description: Cannot deactivate own account or already inactive
+        401:
+          description: Unauthorized
+        403:
+          description: Admin access required
+        404:
+          description: User not found
+
+  # ── Students ─────────────────────────────────────────────────────────────────
+  /students:
+    get:
+      tags: [Students]
+      summary: List students
+      description: Paginated, searchable list. **Admin or Teacher only.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: query
+          name: page
+          type: integer
+          default: 1
+        - in: query
+          name: per_page
+          type: integer
+          default: 20
+        - in: query
+          name: search
+          type: string
+          description: Search by name or admission number
+      responses:
+        200:
+          description: List of students
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: '#/definitions/Student'
+        401:
+          description: Unauthorized
+        403:
+          description: Insufficient permissions
+
+    post:
+      tags: [Students]
+      summary: Enroll a new student
+      description: Creates a full student profile. **Admin only.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [admission_no, first_name, last_name, date_of_birth, gender, admission_date, user_id]
+            properties:
+              user_id:
+                type: integer
+                description: ID of the existing user with role=student
+                example: 4
+              admission_no:
+                type: string
+                example: ADM2024001
+              first_name:
+                type: string
+                example: Alice
+              last_name:
+                type: string
+                example: Johnson
+              date_of_birth:
+                type: string
+                format: date
+                example: "2012-03-15"
+              gender:
+                type: string
+                enum: [Male, Female, Other]
+                example: Female
+              admission_date:
+                type: string
+                format: date
+                example: "2024-06-01"
+              blood_group:
+                type: string
+                example: A+
+              address:
+                type: string
+              phone:
+                type: string
+      responses:
+        201:
+          description: Student enrolled
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/definitions/Student'
+        400:
+          description: Invalid input
+        401:
+          description: Unauthorized
+        403:
+          description: Admin access required
+        409:
+          description: Admission number already exists
+
+  /students/{student_id}:
+    get:
+      tags: [Students]
+      summary: Get student by ID
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: student_id
+          type: integer
+          required: true
+          example: 1
+      responses:
+        200:
+          description: Student found
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/definitions/Student'
+        404:
+          description: Student not found
+
+    put:
+      tags: [Students]
+      summary: Update student profile
+      description: Update editable student fields. **Admin only.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: student_id
+          type: integer
+          required: true
+          example: 1
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              first_name:
+                type: string
+              last_name:
+                type: string
+              address:
+                type: string
+              phone:
+                type: string
+              blood_group:
+                type: string
+      responses:
+        200:
+          description: Student updated
+        404:
+          description: Student not found
+
+    delete:
+      tags: [Students]
+      summary: Deactivate student (soft delete)
+      description: Sets `is_active=false`. **Admin only.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: student_id
+          type: integer
+          required: true
+          example: 1
+      responses:
+        200:
+          description: Student deactivated
+        404:
+          description: Student not found
+
+  # ── Parent Portal ─────────────────────────────────────────────────────────────
+  /parent-portal/dashboard:
+    get:
+      tags: [Parent Portal]
+      summary: Parent dashboard
+      description: |
+        Overview of all children linked to the authenticated parent.
+        Returns summary cards for each child (attendance %, latest fee status, pending leaves).
+        **Parent role only.**
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: Dashboard data
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  children:
+                    type: array
+                    items:
+                      type: object
+        401:
+          description: Unauthorized
+        403:
+          description: Parent access required or parent profile not linked
+
+  /parent-portal/children:
+    get:
+      tags: [Parent Portal]
+      summary: List linked children
+      description: Returns all students linked to the authenticated parent. **Parent only.**
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: Children list
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  children:
+                    type: array
+                    items:
+                      $ref: '#/definitions/Student'
+        403:
+          description: Access denied
+
+  /parent-portal/children/{child_id}/attendance:
+    get:
+      tags: [Parent Portal]
+      summary: Child attendance
+      description: Monthly attendance calendar for a specific child. **Parent only.** 403 if not your child.
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: child_id
+          type: integer
+          required: true
+          example: 1
+        - in: query
+          name: month
+          type: integer
+          example: 6
+          description: Month (1-12). Defaults to current month.
+        - in: query
+          name: year
+          type: integer
+          example: 2026
+          description: Year. Defaults to current year.
+      responses:
+        200:
+          description: Attendance records
+        403:
+          description: Not your child
+
+  /parent-portal/children/{child_id}/grades:
+    get:
+      tags: [Parent Portal]
+      summary: Child grades
+      description: Exam results and report card for a specific child. **Parent only.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: child_id
+          type: integer
+          required: true
+          example: 1
+      responses:
+        200:
+          description: Grade records
+        403:
+          description: Not your child
+
+  /parent-portal/children/{child_id}/fees:
+    get:
+      tags: [Parent Portal]
+      summary: Child fee status
+      description: Fee records and payment history for a specific child. **Parent only.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: child_id
+          type: integer
+          required: true
+          example: 1
+      responses:
+        200:
+          description: Fee records
+        403:
+          description: Not your child
+
+  # ── Leave Applications ────────────────────────────────────────────────────────
+  /leave-applications:
+    get:
+      tags: [Leave Applications]
+      summary: List leave applications
+      description: Returns all leave applications submitted by the authenticated parent. **Parent only.**
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: Leave applications
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  leaves:
+                    type: array
+                    items:
+                      $ref: '#/definitions/LeaveApplication'
+        403:
+          description: Parent access required
+
+    post:
+      tags: [Leave Applications]
+      summary: Submit leave application
+      description: |
+        Parent submits a leave request for their child. The child must be linked to the parent.
+        `from_date` cannot be in the past. **Parent only.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [student_id, from_date, to_date, leave_type, reason]
+            properties:
+              student_id:
+                type: integer
+                description: Must be one of your linked children
+                example: 1
+              from_date:
+                type: string
+                format: date
+                example: "2026-06-15"
+              to_date:
+                type: string
+                format: date
+                example: "2026-06-15"
+              leave_type:
+                type: string
+                enum: [sick, family, personal, other]
+                example: sick
+              reason:
+                type: string
+                example: Child has fever and requires rest
+      responses:
+        201:
+          description: Leave application submitted
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/definitions/LeaveApplication'
+        400:
+          description: Missing fields or date in the past
+        403:
+          description: Not your child
+
+  /leave-applications/{leave_id}/review:
+    put:
+      tags: [Leave Applications]
+      summary: Approve or reject a leave application
+      description: Admin or Teacher reviews a pending leave application. **Admin or Teacher only.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: leave_id
+          type: integer
+          required: true
+          example: 1
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [status]
+            properties:
+              status:
+                type: string
+                enum: [approved, rejected]
+                example: approved
+              remarks:
+                type: string
+                example: Approved. Please submit medical certificate on return.
+      responses:
+        200:
+          description: Leave reviewed
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/definitions/LeaveApplication'
+        400:
+          description: Invalid status
+        403:
+          description: Admin or Teacher access required
+        404:
+          description: Leave application not found
+
+  # ── Notifications ─────────────────────────────────────────────────────────────
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications
+      description: Returns notifications for the authenticated user. Supports filtering by unread. **All roles.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: query
+          name: unread
+          type: boolean
+          default: false
+          description: If true, return only unread notifications
+      responses:
+        200:
+          description: Notifications list
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/definitions/Notification'
+        401:
+          description: Unauthorized
+
+  /notifications/{notification_id}/read:
+    put:
+      tags: [Notifications]
+      summary: Mark notification as read
+      description: Marks a specific notification as read. Only the notification owner can mark it. **All roles.**
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: notification_id
+          type: integer
+          required: true
+          example: 1
+      responses:
+        200:
+          description: Notification marked as read
+        404:
+          description: Notification not found or not yours
