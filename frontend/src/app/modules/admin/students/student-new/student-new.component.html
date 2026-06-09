@@ -1,0 +1,303 @@
+<p-toast position="top-right" />
+
+<div class="flex flex-column gap-3">
+  <!-- Page header -->
+  <div class="flex align-items-center justify-content-between">
+    <div>
+      <h2 class="text-2xl font-bold text-900 m-0">Enroll New Student</h2>
+      <p class="text-600 mt-1 mb-0 text-sm">Complete the 3-step form to register a new student.</p>
+    </div>
+    <p-button
+      label="Back to Students"
+      icon="pi pi-arrow-left"
+      severity="secondary"
+      [text]="true"
+      routerLink="/admin/students"
+    />
+  </div>
+
+  <!-- Stepper card -->
+  <p-card>
+    <p-stepper [(activeStep)]="activeStep" [linear]="true">
+
+      <!-- ═══ Step 1: Personal Info ═══════════════════════════════════════ -->
+      <p-stepperPanel header="Personal Info">
+        <ng-template pTemplate="content" let-nextCallback="nextCallback">
+          <div class="p-3">
+            <div class="grid formgrid">
+
+              <!-- First Name -->
+              <div class="field col-12 md:col-6">
+                <label class="font-semibold text-sm mb-1 block" for="first_name">
+                  First Name <span class="text-red-500">*</span>
+                </label>
+                <input
+                  id="first_name"
+                  type="text"
+                  pInputText
+                  class="w-full"
+                  [class.ng-invalid]="isInvalid(f1.first_name)"
+                  [class.ng-dirty]="isInvalid(f1.first_name)"
+                  [formControl]="f1.first_name"
+                  placeholder="Alice"
+                  maxlength="100"
+                />
+                <small class="p-error block mt-1" *ngIf="isInvalid(f1.first_name)">
+                  <ng-container *ngIf="f1.first_name.errors?.['required']">First name is required.</ng-container>
+                  <ng-container *ngIf="f1.first_name.errors?.['maxlength']">Max 100 characters.</ng-container>
+                </small>
+              </div>
+
+              <!-- Last Name -->
+              <div class="field col-12 md:col-6">
+                <label class="font-semibold text-sm mb-1 block" for="last_name">
+                  Last Name <span class="text-red-500">*</span>
+                </label>
+                <input
+                  id="last_name"
+                  type="text"
+                  pInputText
+                  class="w-full"
+                  [class.ng-invalid]="isInvalid(f1.last_name)"
+                  [class.ng-dirty]="isInvalid(f1.last_name)"
+                  [formControl]="f1.last_name"
+                  placeholder="Johnson"
+                  maxlength="100"
+                />
+                <small class="p-error block mt-1" *ngIf="isInvalid(f1.last_name)">
+                  <ng-container *ngIf="f1.last_name.errors?.['required']">Last name is required.</ng-container>
+                  <ng-container *ngIf="f1.last_name.errors?.['maxlength']">Max 100 characters.</ng-container>
+                </small>
+              </div>
+
+              <!-- Date of Birth -->
+              <div class="field col-12 md:col-6">
+                <label class="font-semibold text-sm mb-1 block" for="date_of_birth">
+                  Date of Birth <span class="text-red-500">*</span>
+                </label>
+                <p-calendar
+                  inputId="date_of_birth"
+                  [formControl]="f1.date_of_birth"
+                  [maxDate]="maxDate"
+                  dateFormat="yy-mm-dd"
+                  [showIcon]="true"
+                  [class.ng-invalid]="isInvalid(f1.date_of_birth)"
+                  [class.ng-dirty]="isInvalid(f1.date_of_birth)"
+                  styleClass="w-full"
+                  placeholder="YYYY-MM-DD"
+                />
+                <small class="p-error block mt-1" *ngIf="isInvalid(f1.date_of_birth)">
+                  <ng-container *ngIf="f1.date_of_birth.errors?.['required']">Date of birth is required.</ng-container>
+                  <ng-container *ngIf="f1.date_of_birth.errors?.['futureDate']">Date of birth cannot be in the future.</ng-container>
+                </small>
+              </div>
+
+              <!-- Gender -->
+              <div class="field col-12 md:col-6">
+                <label class="font-semibold text-sm mb-1 block" for="gender">
+                  Gender <span class="text-red-500">*</span>
+                </label>
+                <p-dropdown
+                  inputId="gender"
+                  [options]="genderOptions"
+                  [formControl]="f1.gender"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Select gender"
+                  styleClass="w-full"
+                  [class.ng-invalid]="isInvalid(f1.gender)"
+                  [class.ng-dirty]="isInvalid(f1.gender)"
+                />
+                <small class="p-error block mt-1" *ngIf="isInvalid(f1.gender)">
+                  Gender is required.
+                </small>
+              </div>
+
+              <!-- Blood Group (optional) -->
+              <div class="field col-12 md:col-6">
+                <label class="font-semibold text-sm mb-1 block" for="blood_group">
+                  Blood Group <span class="text-500 text-xs">(optional)</span>
+                </label>
+                <p-dropdown
+                  inputId="blood_group"
+                  [options]="bloodGroupOptions"
+                  [formControl]="f1.blood_group"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Select blood group"
+                  styleClass="w-full"
+                  [showClear]="true"
+                />
+              </div>
+
+            </div>
+
+            <!-- Step 1 footer -->
+            <p-divider />
+            <div class="flex justify-content-end">
+              <p-button
+                label="Next: Admission Info"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                (onClick)="nextStep(nextCallback)"
+              />
+            </div>
+          </div>
+        </ng-template>
+      </p-stepperPanel>
+
+      <!-- ═══ Step 2: Admission Info ═══════════════════════════════════════ -->
+      <p-stepperPanel header="Admission Info">
+        <ng-template pTemplate="content" let-prevCallback="prevCallback" let-nextCallback="nextCallback">
+          <div class="p-3">
+            <div class="grid formgrid">
+
+              <!-- Admission No -->
+              <div class="field col-12 md:col-6">
+                <label class="font-semibold text-sm mb-1 block" for="admission_no">
+                  Admission No <span class="text-red-500">*</span>
+                </label>
+                <input
+                  id="admission_no"
+                  type="text"
+                  pInputText
+                  class="w-full"
+                  [class.ng-invalid]="isInvalid(f2.admission_no)"
+                  [class.ng-dirty]="isInvalid(f2.admission_no)"
+                  [formControl]="f2.admission_no"
+                  placeholder="ADM2024001"
+                  maxlength="20"
+                />
+                <small class="p-error block mt-1" *ngIf="isInvalid(f2.admission_no)">
+                  <ng-container *ngIf="f2.admission_no.errors?.['required']">Admission number is required.</ng-container>
+                  <ng-container *ngIf="f2.admission_no.errors?.['maxlength']">Max 20 characters.</ng-container>
+                </small>
+              </div>
+
+              <!-- Admission Date -->
+              <div class="field col-12 md:col-6">
+                <label class="font-semibold text-sm mb-1 block" for="admission_date">
+                  Admission Date <span class="text-red-500">*</span>
+                </label>
+                <p-calendar
+                  inputId="admission_date"
+                  [formControl]="f2.admission_date"
+                  [maxDate]="maxDate"
+                  dateFormat="yy-mm-dd"
+                  [showIcon]="true"
+                  [class.ng-invalid]="isInvalid(f2.admission_date)"
+                  [class.ng-dirty]="isInvalid(f2.admission_date)"
+                  styleClass="w-full"
+                  placeholder="YYYY-MM-DD"
+                />
+                <small class="p-error block mt-1" *ngIf="isInvalid(f2.admission_date)">
+                  <ng-container *ngIf="f2.admission_date.errors?.['required']">Admission date is required.</ng-container>
+                  <ng-container *ngIf="f2.admission_date.errors?.['futureDate']">Admission date cannot be in the future.</ng-container>
+                </small>
+              </div>
+
+            </div>
+
+            <!-- Step 2 footer -->
+            <p-divider />
+            <div class="flex justify-content-between">
+              <p-button
+                label="Back"
+                icon="pi pi-arrow-left"
+                severity="secondary"
+                (onClick)="prevStep(prevCallback)"
+              />
+              <p-button
+                label="Next: Contact Details"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                (onClick)="nextStep(nextCallback)"
+              />
+            </div>
+          </div>
+        </ng-template>
+      </p-stepperPanel>
+
+      <!-- ═══ Step 3: Contact Details ══════════════════════════════════════ -->
+      <p-stepperPanel header="Contact Details">
+        <ng-template pTemplate="content" let-prevCallback="prevCallback">
+          <div class="p-3">
+            <div class="grid formgrid">
+
+              <!-- Address -->
+              <div class="field col-12">
+                <label class="font-semibold text-sm mb-1 block" for="address">
+                  Address <span class="text-500 text-xs">(optional)</span>
+                </label>
+                <textarea
+                  id="address"
+                  pInputTextarea
+                  [autoResize]="true"
+                  rows="3"
+                  class="w-full"
+                  [formControl]="f3.address"
+                  placeholder="123 Main Street, City, State"
+                ></textarea>
+              </div>
+
+              <!-- Phone -->
+              <div class="field col-12 md:col-6">
+                <label class="font-semibold text-sm mb-1 block" for="phone">
+                  Phone <span class="text-500 text-xs">(optional)</span>
+                </label>
+                <input
+                  id="phone"
+                  type="text"
+                  pInputText
+                  class="w-full"
+                  [class.ng-invalid]="isInvalid(f3.phone)"
+                  [class.ng-dirty]="isInvalid(f3.phone)"
+                  [formControl]="f3.phone"
+                  placeholder="9876543210"
+                  maxlength="20"
+                />
+                <small class="p-error block mt-1" *ngIf="isInvalid(f3.phone)">
+                  <ng-container *ngIf="f3.phone.errors?.['maxlength']">Max 20 characters.</ng-container>
+                </small>
+              </div>
+
+              <!-- User ID -->
+              <div class="field col-12 md:col-6">
+                <label class="font-semibold text-sm mb-1 block" for="user_id">
+                  User ID <span class="text-500 text-xs">(optional — links to existing user account)</span>
+                </label>
+                <p-inputNumber
+                  inputId="user_id"
+                  [formControl]="f3.user_id"
+                  [useGrouping]="false"
+                  [min]="1"
+                  placeholder="e.g. 5"
+                  styleClass="w-full"
+                />
+              </div>
+
+            </div>
+
+            <!-- Step 3 footer -->
+            <p-divider />
+            <div class="flex justify-content-between">
+              <p-button
+                label="Back"
+                icon="pi pi-arrow-left"
+                severity="secondary"
+                (onClick)="prevStep(prevCallback)"
+              />
+              <p-button
+                label="Enroll Student"
+                icon="pi pi-graduation-cap"
+                [loading]="loading"
+                (onClick)="onSubmit()"
+              />
+            </div>
+          </div>
+        </ng-template>
+      </p-stepperPanel>
+
+    </p-stepper>
+  </p-card>
+</div>

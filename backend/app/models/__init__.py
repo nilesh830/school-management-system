@@ -6,3 +6,5 @@ from app.models.parent import Parent, student_parent
 from app.models.leave_application import LeaveApplication
 from app.models.notification import Notification
 from app.models.parent_message import MessageThread, ParentMessage
+from app.models.student_section import StudentSection
+from app.models.student_document import StudentDocument

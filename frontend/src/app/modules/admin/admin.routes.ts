@@ -16,6 +16,18 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./users/create-user/create-user.component').then(m => m.CreateUserComponent)
       },
       {
+        path: 'students',
+        loadComponent: () => import('./students/student-list/student-list.component').then(m => m.StudentListComponent)
+      },
+      {
+        path: 'students/new',
+        loadComponent: () => import('./students/student-new/student-new.component').then(m => m.StudentNewComponent)
+      },
+      {
+        path: 'students/:id',
+        loadComponent: () => import('./students/student-detail/student-detail.component').then(m => m.StudentDetailComponent)
+      },
+      {
         path: 'profile',
         loadComponent: () => import('../../shared/components/profile/profile.component').then(m => m.ProfileComponent)
       }

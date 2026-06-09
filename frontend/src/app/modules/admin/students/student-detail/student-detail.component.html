@@ -1,0 +1,683 @@
+<p-toast position="top-right" />
+<p-confirmDialog />
+
+<!-- ── Loading skeleton ── -->
+<ng-container *ngIf="loading">
+  <p-card>
+    <div class="flex align-items-center gap-3 mb-4">
+      <p-skeleton shape="circle" size="4rem" />
+      <div class="flex flex-column gap-2 flex-1">
+        <p-skeleton width="14rem" height="1.5rem" />
+        <p-skeleton width="10rem" height="1rem" />
+      </div>
+    </div>
+    <p-skeleton height="12rem" />
+  </p-card>
+</ng-container>
+
+<!-- ── Main content ── -->
+<ng-container *ngIf="!loading && student">
+
+  <!-- Back link -->
+  <div class="mb-3">
+    <p-button
+      label="Back to Students"
+      icon="pi pi-arrow-left"
+      severity="secondary"
+      [text]="true"
+      size="small"
+      routerLink="/admin/students"
+    />
+  </div>
+
+  <!-- Profile header card -->
+  <p-card styleClass="mb-3">
+    <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-3">
+
+      <!-- Avatar + Identity -->
+      <div class="flex align-items-center gap-3">
+        <p-avatar
+          [label]="avatarLabel"
+          size="xlarge"
+          shape="circle"
+          styleClass="text-xl font-bold bg-primary text-white"
+        />
+        <div>
+          <h2 class="text-2xl font-bold text-900 m-0">{{ fullName }}</h2>
+          <div class="flex flex-wrap align-items-center gap-2 mt-1">
+            <span class="text-600 text-sm font-medium">{{ student.admission_no }}</span>
+            <span class="text-300">·</span>
+            <span class="text-600 text-sm">{{ student.gender }}</span>
+            <span class="text-300">·</span>
+            <p-tag
+              [value]="(student.status | titlecase) || ''"
+              [severity]="statusSeverity"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex align-items-center gap-2 flex-wrap">
+        <ng-container *ngIf="!editMode">
+          <p-button
+            label="Edit"
+            icon="pi pi-pencil"
+            severity="secondary"
+            (onClick)="enterEditMode()"
+          />
+        </ng-container>
+        <ng-container *ngIf="editMode">
+          <p-button
+            label="Cancel"
+            icon="pi pi-times"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="cancelEdit()"
+          />
+          <p-button
+            label="Save Changes"
+            icon="pi pi-check"
+            [loading]="savingEdit"
+            (onClick)="saveEdit()"
+          />
+        </ng-container>
+        <p-button
+          label="Transfer"
+          icon="pi pi-arrow-right-arrow-left"
+          severity="warning"
+          [outlined]="true"
+          (onClick)="openTransferDialog()"
+        />
+        <p-button
+          label="Deactivate"
+          icon="pi pi-user-minus"
+          severity="danger"
+          [outlined]="true"
+          (onClick)="quickDeactivate()"
+          [disabled]="student.status === 'alumni'"
+          pTooltip="Set status to Alumni with today's date"
+        />
+      </div>
+
+    </div>
+  </p-card>
+
+  <!-- Tabbed content -->
+  <p-card>
+    <p-tabView>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB 1 — Personal Info                                             -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <p-tabPanel header="Personal Info" leftIcon="pi pi-user">
+
+        <!-- READ VIEW -->
+        <ng-container *ngIf="!editMode">
+          <div class="grid formgrid mt-2">
+
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm text-600 block mb-1">First Name</label>
+              <span class="text-900">{{ student.first_name }}</span>
+            </div>
+
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm text-600 block mb-1">Last Name</label>
+              <span class="text-900">{{ student.last_name }}</span>
+            </div>
+
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm text-600 block mb-1">Date of Birth</label>
+              <span class="text-900">{{ student.date_of_birth || '—' }}</span>
+            </div>
+
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm text-600 block mb-1">Gender</label>
+              <span class="text-900">{{ student.gender }}</span>
+            </div>
+
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm text-600 block mb-1">Blood Group</label>
+              <span class="text-900">{{ student.blood_group || '—' }}</span>
+            </div>
+
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm text-600 block mb-1">Phone</label>
+              <span class="text-900">{{ student.phone || '—' }}</span>
+            </div>
+
+            <div class="field col-12">
+              <label class="font-semibold text-sm text-600 block mb-1">Address</label>
+              <span class="text-900" style="white-space: pre-line;">{{ student.address || '—' }}</span>
+            </div>
+
+          </div>
+        </ng-container>
+
+        <!-- EDIT VIEW -->
+        <ng-container *ngIf="editMode">
+          <form [formGroup]="editForm" class="grid formgrid mt-2">
+
+            <!-- First Name -->
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm mb-1 block" for="ef_first_name">
+                First Name <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="ef_first_name"
+                type="text"
+                pInputText
+                class="w-full"
+                [class.ng-invalid]="isInvalid(ef.first_name)"
+                [class.ng-dirty]="isInvalid(ef.first_name)"
+                formControlName="first_name"
+                maxlength="100"
+              />
+              <small class="p-error block mt-1" *ngIf="isInvalid(ef.first_name)">
+                <ng-container *ngIf="ef.first_name.errors?.['required']">First name is required.</ng-container>
+                <ng-container *ngIf="ef.first_name.errors?.['maxlength']">Max 100 characters.</ng-container>
+              </small>
+            </div>
+
+            <!-- Last Name -->
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm mb-1 block" for="ef_last_name">
+                Last Name <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="ef_last_name"
+                type="text"
+                pInputText
+                class="w-full"
+                [class.ng-invalid]="isInvalid(ef.last_name)"
+                [class.ng-dirty]="isInvalid(ef.last_name)"
+                formControlName="last_name"
+                maxlength="100"
+              />
+              <small class="p-error block mt-1" *ngIf="isInvalid(ef.last_name)">
+                <ng-container *ngIf="ef.last_name.errors?.['required']">Last name is required.</ng-container>
+                <ng-container *ngIf="ef.last_name.errors?.['maxlength']">Max 100 characters.</ng-container>
+              </small>
+            </div>
+
+            <!-- Date of Birth -->
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm mb-1 block" for="ef_dob">
+                Date of Birth <span class="text-red-500">*</span>
+              </label>
+              <p-calendar
+                inputId="ef_dob"
+                formControlName="date_of_birth"
+                [maxDate]="maxDate"
+                dateFormat="yy-mm-dd"
+                [showIcon]="true"
+                [class.ng-invalid]="isInvalid(ef.date_of_birth)"
+                [class.ng-dirty]="isInvalid(ef.date_of_birth)"
+                styleClass="w-full"
+                placeholder="YYYY-MM-DD"
+              />
+              <small class="p-error block mt-1" *ngIf="isInvalid(ef.date_of_birth)">
+                <ng-container *ngIf="ef.date_of_birth.errors?.['required']">Date of birth is required.</ng-container>
+                <ng-container *ngIf="ef.date_of_birth.errors?.['futureDate']">Date cannot be in the future.</ng-container>
+              </small>
+            </div>
+
+            <!-- Gender -->
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm mb-1 block" for="ef_gender">
+                Gender <span class="text-red-500">*</span>
+              </label>
+              <p-dropdown
+                inputId="ef_gender"
+                [options]="genderOptions"
+                formControlName="gender"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select gender"
+                styleClass="w-full"
+                [class.ng-invalid]="isInvalid(ef.gender)"
+                [class.ng-dirty]="isInvalid(ef.gender)"
+              />
+              <small class="p-error block mt-1" *ngIf="isInvalid(ef.gender)">Gender is required.</small>
+            </div>
+
+            <!-- Blood Group -->
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm mb-1 block" for="ef_blood_group">
+                Blood Group <span class="text-500 text-xs">(optional)</span>
+              </label>
+              <p-dropdown
+                inputId="ef_blood_group"
+                [options]="bloodGroupOptions"
+                formControlName="blood_group"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select blood group"
+                styleClass="w-full"
+                [showClear]="true"
+              />
+            </div>
+
+            <!-- Phone -->
+            <div class="field col-12 md:col-6">
+              <label class="font-semibold text-sm mb-1 block" for="ef_phone">
+                Phone <span class="text-500 text-xs">(optional)</span>
+              </label>
+              <input
+                id="ef_phone"
+                type="text"
+                pInputText
+                class="w-full"
+                [class.ng-invalid]="isInvalid(ef.phone)"
+                [class.ng-dirty]="isInvalid(ef.phone)"
+                formControlName="phone"
+                maxlength="20"
+                placeholder="9876543210"
+              />
+              <small class="p-error block mt-1" *ngIf="isInvalid(ef.phone)">
+                <ng-container *ngIf="ef.phone.errors?.['maxlength']">Max 20 characters.</ng-container>
+              </small>
+            </div>
+
+            <!-- Address -->
+            <div class="field col-12">
+              <label class="font-semibold text-sm mb-1 block" for="ef_address">
+                Address <span class="text-500 text-xs">(optional)</span>
+              </label>
+              <textarea
+                id="ef_address"
+                pInputTextarea
+                [autoResize]="true"
+                rows="3"
+                class="w-full"
+                formControlName="address"
+                placeholder="123 Main Street, City, State"
+              ></textarea>
+            </div>
+
+          </form>
+        </ng-container>
+
+      </p-tabPanel>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB 2 — Academic Info                                             -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <p-tabPanel header="Academic Info" leftIcon="pi pi-graduation-cap">
+
+        <div class="grid formgrid mt-2">
+
+          <div class="field col-12 md:col-6">
+            <label class="font-semibold text-sm text-600 block mb-1">Admission No</label>
+            <span class="text-900 font-medium">{{ student.admission_no }}</span>
+          </div>
+
+          <div class="field col-12 md:col-6">
+            <label class="font-semibold text-sm text-600 block mb-1">Admission Date</label>
+            <span class="text-900">{{ student.admission_date }}</span>
+          </div>
+
+          <div class="field col-12 md:col-6">
+            <label class="font-semibold text-sm text-600 block mb-1">Status</label>
+            <p-tag [value]="(student.status | titlecase) || ''" [severity]="statusSeverity" />
+          </div>
+
+          <div class="field col-12 md:col-6" *ngIf="student.leaving_date">
+            <label class="font-semibold text-sm text-600 block mb-1">Leaving Date</label>
+            <span class="text-900">{{ student.leaving_date }}</span>
+          </div>
+
+          <div class="field col-12 md:col-6" *ngIf="student.current_section">
+            <label class="font-semibold text-sm text-600 block mb-1">Current Section</label>
+            <span class="text-900">{{ student.current_section }}</span>
+          </div>
+
+        </div>
+
+        <p-divider />
+
+        <div class="flex align-items-center justify-content-between">
+          <span class="text-600 text-sm">Change the student's enrollment status</span>
+          <p-button
+            label="Change Status"
+            icon="pi pi-refresh"
+            severity="secondary"
+            [outlined]="true"
+            size="small"
+            (onClick)="openStatusDialog()"
+          />
+        </div>
+
+      </p-tabPanel>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB 3 — Documents                                                 -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <p-tabPanel header="Documents" leftIcon="pi pi-file">
+
+        <!-- Upload section -->
+        <div class="flex flex-column md:flex-row align-items-start md:align-items-end gap-3 mb-4 mt-2">
+          <div class="flex flex-column gap-1">
+            <label class="font-semibold text-sm text-600 mb-1">Document Type</label>
+            <p-dropdown
+              [options]="documentTypeOptions"
+              [formControl]="docTypeControl"
+              optionLabel="label"
+              optionValue="value"
+              styleClass="w-14rem"
+            />
+          </div>
+          <p-fileUpload
+            mode="basic"
+            chooseLabel="Upload Document"
+            chooseIcon="pi pi-upload"
+            accept=".pdf,.jpg,.jpeg,.png"
+            [maxFileSize]="5242880"
+            [auto]="true"
+            (onSelect)="onFileSelect($event)"
+            [disabled]="uploadingDoc"
+          />
+          <small class="text-500 text-xs">Max 5 MB · PDF, JPG, PNG</small>
+        </div>
+
+        <!-- Documents table -->
+        <p-table
+          [value]="documents"
+          [loading]="loadingDocs"
+          dataKey="id"
+          responsiveLayout="scroll"
+          styleClass="p-datatable-sm"
+          [rowHover]="true"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Document Type</th>
+              <th>File Name</th>
+              <th>Uploaded At</th>
+              <th style="width: 80px">Actions</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-doc>
+            <tr>
+              <td>
+                <span class="font-medium">{{ docTypeLabel(doc.document_type) }}</span>
+              </td>
+              <td>{{ doc.file_name }}</td>
+              <td>{{ doc.created_at | date:'dd MMM yyyy' }}</td>
+              <td>
+                <p-button
+                  icon="pi pi-trash"
+                  [rounded]="true"
+                  [text]="true"
+                  severity="danger"
+                  size="small"
+                  pTooltip="Delete"
+                  (onClick)="confirmDeleteDocument(doc)"
+                />
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="4" class="text-center text-600 py-4">
+                No documents uploaded yet.
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+
+      </p-tabPanel>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB 4 — Parents / Guardians                                       -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <p-tabPanel header="Parents / Guardians" leftIcon="pi pi-users">
+
+        <!-- Link Parent form -->
+        <div class="p-3 border-1 border-round surface-border mb-4 mt-2">
+          <h4 class="text-900 font-semibold mt-0 mb-3">Link a Parent / Guardian</h4>
+          <form [formGroup]="linkParentForm" class="flex flex-column md:flex-row align-items-start md:align-items-end gap-3">
+
+            <div class="flex flex-column gap-1">
+              <label class="font-semibold text-sm text-600" for="lf_parent_id">
+                Parent ID <span class="text-red-500">*</span>
+              </label>
+              <p-inputNumber
+                inputId="lf_parent_id"
+                formControlName="parent_id"
+                [useGrouping]="false"
+                [min]="1"
+                placeholder="e.g. 7"
+                styleClass="w-10rem"
+                [class.ng-invalid]="isInvalid(lf.parent_id)"
+                [class.ng-dirty]="isInvalid(lf.parent_id)"
+              />
+              <small class="p-error" *ngIf="isInvalid(lf.parent_id)">Valid parent ID required.</small>
+            </div>
+
+            <div class="flex align-items-center gap-2 mt-2 md:mt-0" style="padding-bottom: 0.25rem">
+              <p-toggleButton
+                formControlName="is_primary_contact"
+                onLabel="Primary Contact"
+                offLabel="Secondary Contact"
+                onIcon="pi pi-star-fill"
+                offIcon="pi pi-star"
+                styleClass="w-12rem"
+              />
+            </div>
+
+            <div style="padding-bottom: 0.25rem">
+              <p-button
+                label="Link Parent"
+                icon="pi pi-link"
+                [loading]="linkingParent"
+                (onClick)="linkParent()"
+              />
+            </div>
+
+          </form>
+        </div>
+
+        <!-- Parents table -->
+        <p-table
+          [value]="parents"
+          [loading]="loadingParents"
+          dataKey="id"
+          responsiveLayout="scroll"
+          styleClass="p-datatable-sm"
+          [rowHover]="true"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Name</th>
+              <th>Relationship</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Contact</th>
+              <th style="width: 80px">Actions</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-parent>
+            <tr>
+              <td class="font-medium">{{ parent.first_name }} {{ parent.last_name }}</td>
+              <td>{{ parent.relationship_type | titlecase }}</td>
+              <td>{{ parent.phone_primary }}</td>
+              <td>{{ parent.email || '—' }}</td>
+              <td>
+                <p-tag
+                  *ngIf="parent.is_primary_contact"
+                  value="Primary"
+                  severity="success"
+                />
+                <span *ngIf="!parent.is_primary_contact" class="text-500 text-sm">Secondary</span>
+              </td>
+              <td>
+                <p-button
+                  icon="pi pi-user-minus"
+                  [rounded]="true"
+                  [text]="true"
+                  severity="danger"
+                  size="small"
+                  pTooltip="Unlink"
+                  (onClick)="confirmUnlinkParent(parent)"
+                />
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="6" class="text-center text-600 py-4">
+                No parents or guardians linked yet.
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+
+      </p-tabPanel>
+
+    </p-tabView>
+  </p-card>
+
+</ng-container>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TRANSFER DIALOG                                                           -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<p-dialog
+  header="Transfer Student"
+  [(visible)]="showTransferDialog"
+  [modal]="true"
+  [style]="{ width: '28rem' }"
+  [closable]="true"
+>
+  <form [formGroup]="transferForm" class="flex flex-column gap-3 pt-2">
+
+    <div class="flex flex-column gap-1">
+      <label class="font-semibold text-sm" for="tf_section_id">
+        New Section ID <span class="text-red-500">*</span>
+      </label>
+      <p-inputNumber
+        inputId="tf_section_id"
+        formControlName="new_section_id"
+        [useGrouping]="false"
+        [min]="1"
+        placeholder="e.g. 3"
+        styleClass="w-full"
+        [class.ng-invalid]="isInvalid(tf.new_section_id)"
+        [class.ng-dirty]="isInvalid(tf.new_section_id)"
+      />
+      <small class="p-error" *ngIf="isInvalid(tf.new_section_id)">Section ID is required.</small>
+    </div>
+
+    <div class="flex flex-column gap-1">
+      <label class="font-semibold text-sm" for="tf_eff_date">
+        Effective Date <span class="text-red-500">*</span>
+      </label>
+      <p-calendar
+        inputId="tf_eff_date"
+        formControlName="effective_date"
+        dateFormat="yy-mm-dd"
+        [showIcon]="true"
+        styleClass="w-full"
+        placeholder="YYYY-MM-DD"
+        [class.ng-invalid]="isInvalid(tf.effective_date)"
+        [class.ng-dirty]="isInvalid(tf.effective_date)"
+      />
+      <small class="p-error" *ngIf="isInvalid(tf.effective_date)">Effective date is required.</small>
+    </div>
+
+    <div class="flex flex-column gap-1">
+      <label class="font-semibold text-sm" for="tf_reason">
+        Reason <span class="text-500 text-xs">(optional)</span>
+      </label>
+      <textarea
+        id="tf_reason"
+        pInputTextarea
+        [autoResize]="true"
+        rows="3"
+        class="w-full"
+        formControlName="reason"
+        placeholder="Reason for transfer..."
+      ></textarea>
+    </div>
+
+  </form>
+
+  <ng-template pTemplate="footer">
+    <p-button
+      label="Cancel"
+      severity="secondary"
+      [outlined]="true"
+      (onClick)="showTransferDialog = false"
+    />
+    <p-button
+      label="Confirm Transfer"
+      icon="pi pi-arrow-right-arrow-left"
+      severity="warning"
+      [loading]="transferring"
+      (onClick)="confirmTransfer()"
+    />
+  </ng-template>
+</p-dialog>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- STATUS CHANGE DIALOG                                                      -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<p-dialog
+  header="Change Enrollment Status"
+  [(visible)]="showStatusDialog"
+  [modal]="true"
+  [style]="{ width: '26rem' }"
+  [closable]="true"
+>
+  <form [formGroup]="statusForm" class="flex flex-column gap-3 pt-2">
+
+    <div class="flex flex-column gap-1">
+      <label class="font-semibold text-sm" for="sf_status">
+        New Status <span class="text-red-500">*</span>
+      </label>
+      <p-dropdown
+        inputId="sf_status"
+        [options]="statusOptions"
+        formControlName="status"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select status"
+        styleClass="w-full"
+        [class.ng-invalid]="isInvalid(sf.status)"
+        [class.ng-dirty]="isInvalid(sf.status)"
+      />
+      <small class="p-error" *ngIf="isInvalid(sf.status)">Status is required.</small>
+    </div>
+
+    <div class="flex flex-column gap-1">
+      <label class="font-semibold text-sm" for="sf_leaving_date">
+        Leaving Date <span class="text-500 text-xs">(optional)</span>
+      </label>
+      <p-calendar
+        inputId="sf_leaving_date"
+        formControlName="leaving_date"
+        dateFormat="yy-mm-dd"
+        [showIcon]="true"
+        styleClass="w-full"
+        placeholder="YYYY-MM-DD"
+      />
+    </div>
+
+  </form>
+
+  <ng-template pTemplate="footer">
+    <p-button
+      label="Cancel"
+      severity="secondary"
+      [outlined]="true"
+      (onClick)="showStatusDialog = false"
+    />
+    <p-button
+      label="Update Status"
+      icon="pi pi-check"
+      [loading]="updatingStatus"
+      (onClick)="confirmStatusChange()"
+    />
+  </ng-template>
+</p-dialog>

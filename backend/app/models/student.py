@@ -16,11 +16,20 @@ class Student(db.Model):
     blood_group = db.Column(db.String(5))
     address = db.Column(db.Text)
     phone = db.Column(db.String(20))
+    photo_url = db.Column(db.String(500), nullable=True)
+    status = db.Column(
+        db.Enum('active', 'alumni', 'transferred', 'expelled', name='student_status'),
+        nullable=False,
+        default='active',
+    )
+    leaving_date = db.Column(db.Date, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     user = db.relationship('User', backref=db.backref('student', uselist=False))
+    sections = db.relationship('StudentSection', backref='student', lazy='dynamic')
+    documents = db.relationship('StudentDocument', backref='student', lazy='dynamic')
 
     def to_dict(self):
         return {
@@ -35,6 +44,9 @@ class Student(db.Model):
             'blood_group': self.blood_group,
             'address': self.address,
             'phone': self.phone,
+            'photo_url': self.photo_url,
+            'status': self.status,
+            'leaving_date': self.leaving_date.isoformat() if self.leaving_date else None,
             'is_active': self.is_active,
         }
 
