@@ -16,14 +16,14 @@
 |-------|-------|--------|--------|
 | ERP-001 | Master DB & School Registry | 8 | ✅ Done |
 | ERP-002 | Super Admin Auth | 3 | ✅ Done |
-| ERP-003 | School Provisioning API | 5 | ❌ Next |
-| ERP-004 | Super Admin Frontend Portal | 8 | ❌ |
+| ERP-003 | School Provisioning API | 5 | ✅ Done |
+| ERP-004 | Super Admin Frontend Portal | 8 | ❌ Next |
 | ERP-005 | JWT `school_slug` Enrichment | 3 | ❌ |
 | ERP-006 | TenantMiddleware & Dynamic Sessions | 8 | ❌ ⚠️ Riskiest |
 | ERP-007 | Migrate existing sms.db → school_demo.db | 3 | ✅ Done (part of ERP-001) |
 | ERP-008 | `flask db upgrade-all` CLI | 3 | ❌ |
 
-**Tests passing: 90/90** | **Committed through: ERP-002 (`a228b8d`)**
+**Tests passing: 112/112** | **Committed through: ERP-002 (`a228b8d`)** | **ERP-003 staged, pending commit**
 
 ---
 
@@ -59,18 +59,21 @@
 
 ---
 
-## Uncommitted Files (need to commit before ERP-003)
+## ERP-003 — School Provisioning API ✅ COMPLETE
 
-```
-M  .claude/agents/github-agent.md       ← CI/CD removed from branch protection
-M  backend/config.py                    ← ERP-001: SQLALCHEMY_BINDS, SCHOOLS_DB_DIR
-?? backend/app/models/master/__init__.py
-?? backend/app/models/master/school.py
-?? backend/app/models/master/super_admin.py
-?? backend/database/                    ← seed scripts
-?? backend/instance/                    ← .gitkeep + school_demo.db (db files gitignored)
-?? backend/_verify_output.txt           ← DELETE this temp file
-```
+| Task | Status | Notes |
+|------|--------|-------|
+| `POST /api/v1/superadmin/schools` — provision new school | ✅ | Creates school record + `school_<slug>.db` |
+| `GET /api/v1/superadmin/schools` — paginated list | ✅ | Optional `?search=` filter |
+| `GET /api/v1/superadmin/schools/:id` — single school | ✅ | |
+| `PATCH /api/v1/superadmin/schools/:id` — update / deactivate | ✅ | |
+| `_create_school_db` — schema + Alembic stamp | ✅ | Uses `db.metadata.create_all()` + direct engine, no `env.py` |
+| `_seed_school_admin` — first admin user in school DB | ✅ | Dedicated `sessionmaker` on school engine |
+| `SchoolCreateSchema` / `SchoolUpdateSchema` | ✅ | `backend/app/schemas/superadmin_schema.py` |
+| `superadmin_schools_bp` blueprint | ✅ | `backend/app/routes/superadmin_schools.py` |
+| `SuperAdminService` | ✅ | `backend/app/services/superadmin_service.py` |
+| 22 tests (`test_superadmin_schools.py`) | ✅ | Covers success, 409 duplicate, 422 invalid slug, PATCH, 401/403 |
+| Full regression | ✅ | **112/112 pass** |
 
 ---
 

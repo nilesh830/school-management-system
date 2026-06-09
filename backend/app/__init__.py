@@ -60,6 +60,7 @@ def create_app(config_name='default'):
     from app.routes.teachers import teachers_bp
     from app.routes.parent_portal import parent_portal_bp, leave_bp, notifications_bp
     from app.routes.superadmin_auth import superadmin_auth_bp
+    from app.routes.superadmin_schools import superadmin_schools_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
@@ -69,6 +70,7 @@ def create_app(config_name='default'):
     app.register_blueprint(leave_bp)
     app.register_blueprint(notifications_bp)
     app.register_blueprint(superadmin_auth_bp)
+    app.register_blueprint(superadmin_schools_bp)
 
     # Ensure master models are imported so SQLAlchemy includes them in metadata,
     # then create their tables (no Flask-Migrate for the simple master schema).
