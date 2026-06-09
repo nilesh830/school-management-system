@@ -129,6 +129,109 @@ All routes require `@roles_required('parent')` — a parent can ONLY access thei
 5. **Parent Portal is role-scoped** — same codebase, different layout/routes based on JWT role claim; no separate app needed
 6. **Parent data isolation** — every parent portal service method filters by `parent_id` from JWT; cross-child access is impossible at ORM layer
 
+---
+
+## Multi-Tenancy Architecture (ERP Mode)
+
+The platform has pivoted to a **Database-per-School** multi-tenancy model (Option B). Each school is a fully isolated tenant with its own database. A `master.db` holds the school registry and super admin accounts.
+
+### Overview
+
+```
+[Angular SPA]
+  ├── /superadmin/*    → SuperAdmin layout (super_admin role)
+  ├── /admin/*         → Admin layout (admin role, school-scoped)
+  ├── /teacher/*       → Teacher layout (teacher role, school-scoped)
+  ├── /student/*       → Student layout (student role, school-scoped)
+  └── /parent/*        → Parent Portal (parent role, school-scoped)
+        ↓ HTTP/REST + JWT (contains school_slug claim)
+[Flask REST API]
+  ├── TenantMiddleware  ← resolves school_slug → loads school DB session into g.db
+  ├── MasterDB routes   ← /api/v1/superadmin/* (uses master.db, no tenant)
+  └── Tenant routes     ← /api/v1/* (uses g.db for current school)
+        ↓
+  ┌─────────────────────┐    ┌──────────────────────┐
+  │   master.db         │    │  school_greenwood.db  │
+  │  - schools          │    │  - users              │
+  │  - super_admins     │    │  - students           │
+  └─────────────────────┘    │  - teachers ...       │
+                              └──────────────────────┘
+                              ┌──────────────────────┐
+                              │  school_riverside.db  │
+                              │  - users              │
+                              │  - students ...       │
+                              └──────────────────────┘
+```
+
+### Key Components
+
+**1. Master Database (`master.db`)**
+- Tables: `schools`, `super_admins`
+- Never mixed with tenant data
+- Managed by a separate SQLAlchemy engine (`master_db`)
+
+**2. Tenant Middleware**
+- Reads `school_slug` from JWT claims on every request (after login)
+- Looks up school in master DB → gets `db_url`
+- Creates/reuses SQLAlchemy session for that school → stores in `flask.g.db`
+- All existing services/routes use `g.db.session` instead of `db.session`
+- SuperAdmin routes skip this middleware (they use master_db directly)
+
+**3. School Provisioning Flow**
+```
+POST /api/v1/superadmin/schools
+  → create schools record in master.db
+  → create school_<slug>.db
+  → run Flask-Migrate upgrade on new DB
+  → seed first admin user
+  → return school details + admin credentials
+```
+
+**4. URL Structure**
+- All existing API routes remain at `/api/v1/*` — school resolved from JWT, not URL
+- Super admin routes at `/api/v1/superadmin/*` — no school context needed
+- Frontend: school slug stored in localStorage after login, sent in JWT
+
+**5. JWT Changes**
+- School user JWT gains `school_slug` claim: `{"role": "admin", "school_slug": "greenwood", ...}`
+- Super admin JWT has `role: "super_admin"`, no `school_slug`
+
+**6. Dynamic Session Management**
+```python
+# utils/tenant.py
+def get_tenant_db():
+    if 'db' not in g:
+        school_slug = get_jwt().get('school_slug')
+        school = School.query.filter_by(slug=school_slug).first()
+        g.db = create_scoped_session(school.db_url)
+    return g.db
+```
+
+**7. Migration Strategy**
+- New CLI: `flask db upgrade-all` — runs Alembic on every school DB in master registry
+- New school provisioning automatically runs migrations on creation
+
+### ADR-001: Database-per-School Multi-Tenancy
+
+```
+ADR-001: Database-per-School Multi-Tenancy
+Date: 2026-06-09
+Status: Accepted
+Context: Platform needs to support multiple schools with data isolation.
+Decision: Each school gets its own SQLite (dev) / PostgreSQL (prod) database.
+          A master.db holds school registry and super admin accounts.
+          TenantMiddleware resolves school from JWT on every request.
+Consequences:
+  + Complete data isolation per school
+  + Independent school backups
+  + One school's issues can't affect another
+  - Migrations must run on every school DB
+  - Super admin cross-school reporting requires querying each DB
+  - More complex Flask setup (dynamic session switching)
+```
+
+---
+
 ## Your Behavior
 - Always think in trade-offs: "Option A gives X but costs Y"
 - Draw ASCII architecture diagrams when explaining systems

@@ -254,6 +254,108 @@ if __name__ == '__main__':
 - Soft delete (`is_active = False`) not hard delete — preserve audit trail
 - All monetary values stored as `db.Numeric(10, 2)` — never Float
 
+## Multi-Tenancy Schema
+
+The platform uses **Option B: Database-per-School** multi-tenancy. There are two distinct database tiers:
+
+- `master.db` — global school registry and super admin accounts
+- `school_<slug>.db` — one isolated database per school, containing the full SMS schema
+
+No `school_id` column is needed anywhere in tenant databases — isolation is enforced at the DB connection level. `TenantMiddleware` resolves the school from the request (subdomain or header) and injects the correct SQLAlchemy session into `flask.g.db`.
+
+### Master Database Models
+
+```python
+# models/master/school.py  (uses master_db, NOT app db)
+class School(master_db.Model):
+    __tablename__ = 'schools'
+    id = master_db.Column(master_db.Integer, primary_key=True)
+    name = master_db.Column(master_db.String(200), nullable=False)
+    slug = master_db.Column(master_db.String(50), unique=True, nullable=False, index=True)
+    db_url = master_db.Column(master_db.String(500), nullable=False)  # e.g. sqlite:///school_greenwood.db
+    address = master_db.Column(master_db.Text)
+    phone = master_db.Column(master_db.String(20))
+    email = master_db.Column(master_db.String(255))
+    logo_url = master_db.Column(master_db.String(500))
+    is_active = master_db.Column(master_db.Boolean, default=True)
+    created_at = master_db.Column(master_db.DateTime, default=datetime.utcnow)
+    # academic_year_start: month number (e.g. 6 = June)
+    academic_year_start_month = master_db.Column(master_db.Integer, default=6)
+
+# models/master/super_admin.py
+class SuperAdmin(master_db.Model):
+    __tablename__ = 'super_admins'
+    id = master_db.Column(master_db.Integer, primary_key=True)
+    email = master_db.Column(master_db.String(255), unique=True, nullable=False)
+    password_hash = master_db.Column(master_db.String(255), nullable=False)
+    first_name = master_db.Column(master_db.String(100), nullable=False)
+    last_name = master_db.Column(master_db.String(100), nullable=False)
+    is_active = master_db.Column(master_db.Boolean, default=True)
+    created_at = master_db.Column(master_db.DateTime, default=datetime.utcnow)
+```
+
+### Tenant Database
+
+- No changes to the existing schema (users, students, teachers, etc.)
+- No `school_id` column needed — each school's DB is already isolated
+- `db_url` in `master.db` points to: `sqlite:///instance/schools/school_<slug>.db` (dev)
+
+### Migration Strategy for Multi-Tenancy
+
+```bash
+# New CLI command — run migrations on ALL school DBs
+flask db upgrade-all
+
+# Provision a new school (creates DB + runs migrations + seeds admin)
+flask provision-school --name "Greenwood High" --slug greenwood --admin-email admin@greenwood.sms
+
+# Run migration on a specific school only
+flask db upgrade-school --slug greenwood
+```
+
+Implementation pattern for `upgrade-all`:
+```python
+@app.cli.command('db-upgrade-all')
+def upgrade_all_schools():
+    schools = School.query.filter_by(is_active=True).all()
+    for school in schools:
+        engine = create_engine(school.db_url)
+        with engine.connect() as conn:
+            # Run alembic upgrade to head on this engine
+            alembic_cfg.set_main_option('sqlalchemy.url', school.db_url)
+            command.upgrade(alembic_cfg, 'head')
+        print(f"Upgraded {school.slug}")
+```
+
+### Two SQLAlchemy Instances
+
+```python
+# app/__init__.py
+db = SQLAlchemy()           # tenant DB — bound dynamically per request via g.db
+master_db = SQLAlchemy()    # master DB — always connected to master.db
+```
+
+Models in `app/models/master/` use `master_db`. All existing models (users, students, etc.) continue using `db` but are accessed via `g.db.session` at runtime.
+
+### Seed Data for Master DB
+
+```python
+# database/seeds/seed_master.py
+def seed_master():
+    # Create first super admin
+    SuperAdmin(email='superadmin@sms.com', password_hash=bcrypt.hash('SuperAdmin@1234'), ...)
+    
+    # Create a demo school
+    School(name='Demo School', slug='demo', db_url='sqlite:///instance/schools/school_demo.db', ...)
+```
+
+### Multi-Tenancy Data Integrity Rules
+- `slug` in `schools` must be URL-safe lowercase alphanumeric + hyphens — validate before DB insert
+- `db_url` must never be user-supplied directly — always constructed by the provisioning service from the validated `slug`
+- Master DB migrations (`models/master/`) and tenant DB migrations (`models/`) are tracked in separate Alembic environments
+- When provisioning a new school, wrap DB file creation + master record insert + `upgrade head` in a transaction — roll back all three if any step fails
+- Never run `upgrade-all` during a deployment if the migration contains destructive column changes — use a maintenance window or blue-green per school
+
 ## Your Behavior
 - Never write raw SQL — always use SQLAlchemy ORM
 - Every schema change requires a migration — never modify DB directly
