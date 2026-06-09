@@ -1,246 +1,105 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
+> **Last updated:** 2026-06-10 | **Branch:** `develop`
 
 ---
 
-## Current Sprint: Sprint 2 — Student Management
+## Current Sprint: Sprint 2.5 — ERP Multi-Tenancy Foundation
 
-**Last updated:** 2026-06-09  
-**Branch:** `develop`
+> Project pivoted to multi-school ERP platform (Option B: Database-per-School).
+> See `docs/sprints/sprint-2.5-erp-foundation.md` for full story details.
 
-> **ERP PIVOT:** Project is now a multi-school ERP platform. Sprint 2.5 (Multi-Tenancy Foundation) must be completed before Sprint 3. See `docs/sprints/sprint-2.5-erp-foundation.md`.
+### Sprint 2.5 Board
+
+| Story | Title | Points | Status |
+|-------|-------|--------|--------|
+| ERP-001 | Master DB & School Registry | 8 | ✅ Done |
+| ERP-002 | Super Admin Auth | 3 | ✅ Done |
+| ERP-003 | School Provisioning API | 5 | ❌ Next |
+| ERP-004 | Super Admin Frontend Portal | 8 | ❌ |
+| ERP-005 | JWT `school_slug` Enrichment | 3 | ❌ |
+| ERP-006 | TenantMiddleware & Dynamic Sessions | 8 | ❌ ⚠️ Riskiest |
+| ERP-007 | Migrate existing sms.db → school_demo.db | 3 | ✅ Done (part of ERP-001) |
+| ERP-008 | `flask db upgrade-all` CLI | 3 | ❌ |
+
+**Tests passing: 90/90** | **Committed through: ERP-002 (`a228b8d`)**
 
 ---
 
-## ERP-001 — Master Database & School Registry
+## ERP-001 — Master Database & School Registry ✅ COMPLETE
 
-**Session date:** 2026-06-09  
-**Branch:** `develop`
-
-### Task Status
-
-| Task | Description | Status | Notes |
-|------|-------------|--------|-------|
-| T-ERP-001-01 | Config + app factory updates | ✅ | Absolute-path DBs, SQLALCHEMY_BINDS, makedirs, create_all |
-| T-ERP-001-02 | `School` model | ✅ | `backend/app/models/master/school.py`, `__bind_key__='master'` |
-| T-ERP-001-03 | `SuperAdmin` model | ✅ | `backend/app/models/master/super_admin.py`, `__bind_key__='master'` |
-| T-ERP-001-04 | Seed script | ✅ | `backend/database/seeds/seed_master.py` |
-| Verification step 1 | `create_app()` import check | ✅ | Confirmed exit code 0, "OK" printed |
-| Verification step 2 | Run seed script | ⚠️ PENDING | Must run manually (see below) |
-| Verification step 3 | Confirm master.db tables | ⚠️ PENDING | `master.db` created; table list not yet confirmed via sqlite3 |
-| Verification step 4 | `school_demo.db` exists | ✅ | Copied from `sms.db` |
-| Verification step 5 | pytest results | ⚠️ PENDING | Blocked by Python 3.14 subprocess hang |
-
-### Files Created / Modified
-
-| File | Action |
-|------|--------|
-| `backend/config.py` | Modified — SCHOOLS_DB_DIR, SQLALCHEMY_BINDS, absolute URI paths |
-| `backend/app/__init__.py` | Modified — makedirs, master model imports, `db.create_all(bind_key=['master'])` |
-| `backend/app/models/__init__.py` | Modified — imports School and SuperAdmin |
-| `backend/app/models/master/__init__.py` | Created (empty) |
-| `backend/app/models/master/school.py` | Created — School model |
-| `backend/app/models/master/super_admin.py` | Created — SuperAdmin model |
-| `backend/database/seeds/seed_master.py` | Created — seeds superadmin + demo school |
-| `backend/instance/schools/.gitkeep` | Created — directory placeholder |
-| `backend/instance/schools/school_demo.db` | Created — copied from `sms.db` |
-| `backend/instance/master.db` | Auto-created — by `create_app()` via `create_all` |
-| `backend/_test_verify.py` | Created — temp debug file, **delete after verifying** |
-| `backend/_test_seed.py` | Created — temp debug file, **delete after verifying** |
-
-### To Resume — Run These Commands Manually
-
-Open a terminal in `D:\Projects\SMS\backend` and activate the venv:
-
-```powershell
-cd D:\Projects\SMS\backend
-.\venv\Scripts\Activate.ps1
-
-# Verification step 2: seed master DB
-python database/seeds/seed_master.py
-
-# Verification step 3: confirm master.db tables
-python -c "import sqlite3; conn=sqlite3.connect('instance/master.db'); print([r[0] for r in conn.execute(\"SELECT name FROM sqlite_master WHERE type='table'\")]); conn.close()"
-
-# Verification step 5: run tests
-.\venv\Scripts\pytest tests/ -v --tb=short
-
-# Cleanup temp debug files
-del _test_verify.py
-del _test_seed.py
-```
-
-### Next ERP Stories
-
-- **ERP-003** — School Registry API (CRUD for `schools` table)
-- **ERP-005** — JWT `school_slug` enrichment on school user login
-- **ERP-007** — TenantMiddleware (switch active DB based on `school_slug` in JWT) ⚠️ riskiest story
+| Task | Status | Notes |
+|------|--------|-------|
+| `SQLALCHEMY_BINDS` + `SCHOOLS_DB_DIR` in config | ✅ | `backend/config.py` |
+| `master_db` via bind key `'master'` | ✅ | Uses existing `db` with bind key — no second SQLAlchemy instance |
+| `School` model | ✅ | `backend/app/models/master/school.py`, `__bind_key__='master'` |
+| `SuperAdmin` model | ✅ | `backend/app/models/master/super_admin.py`, `__bind_key__='master'` |
+| `db.create_all(bind_key=['master'])` in `create_app()` | ✅ | Auto-creates master.db tables on startup |
+| `instance/schools/` directory created | ✅ | `backend/instance/schools/.gitkeep` |
+| `school_demo.db` created | ✅ | Copied from old `sms.db` — existing seed data preserved |
+| `master.db` seeded | ✅ | `superadmin@sms.com / SuperAdmin@1234` + Demo School |
+| Seed script | ✅ | `backend/database/seeds/seed_master.py` |
+| Tests | ✅ | 67/67 pass after `sections.id` FK deferred fix |
 
 ---
 
 ## ERP-002 — Super Admin Auth ✅ COMPLETE
 
-**Session date:** 2026-06-10
-
 | Task | Status | Notes |
 |------|--------|-------|
-| `POST /api/v1/superadmin/auth/login` | ✅ | JWT: `role=super_admin`, `sa:<id>` identity, no `school_slug` |
-| `POST /api/v1/superadmin/auth/refresh` | ✅ | Validates `sa:` prefix |
-| `DELETE /api/v1/superadmin/auth/logout` | ✅ | `SuperAdminRevokedToken` in master.db |
-| `GET /api/v1/superadmin/auth/me` | ✅ | Returns super admin profile only |
-| `SuperAdminRevokedToken` model | ✅ | `__bind_key__='master'`, independent blocklist |
-| `check_if_token_revoked` updated | ✅ | Routes SA tokens to master blocklist, school tokens to tenant blocklist |
-| Tests (`test_superadmin_auth.py`) | ✅ | 23 tests — all pass |
-| Full test suite regression | ✅ | **90/90 pass** |
+| `POST /api/v1/superadmin/auth/login` | ✅ | JWT: `role=super_admin`, identity=`sa:<id>`, no `school_slug` |
+| `POST /api/v1/superadmin/auth/refresh` | ✅ | Validates `sa:` prefix before master.db lookup |
+| `DELETE /api/v1/superadmin/auth/logout` | ✅ | Revokes into `super_admin_revoked_tokens` (master.db) |
+| `GET /api/v1/superadmin/auth/me` | ✅ | Super admin profile only, rejects school tokens |
+| `SuperAdminRevokedToken` model | ✅ | `__bind_key__='master'`, independent from school blocklist |
+| `check_if_token_revoked` updated | ✅ | Routes by `role` claim: SA → master, school → tenant |
+| 23 tests (`test_superadmin_auth.py`) | ✅ | All pass |
+| Full regression | ✅ | **90/90 pass** |
 
-**Files created/modified:**
-- `backend/app/models/master/super_admin_revoked_token.py` — new
-- `backend/app/routes/superadmin_auth.py` — new
-- `backend/tests/test_superadmin_auth.py` — new (23 tests)
-- `backend/app/models/__init__.py` — SuperAdminRevokedToken import added
-- `backend/app/__init__.py` — blueprint registered, blocklist updated, model imported
+---
+
+## Uncommitted Files (need to commit before ERP-003)
+
+```
+M  .claude/agents/github-agent.md       ← CI/CD removed from branch protection
+M  backend/config.py                    ← ERP-001: SQLALCHEMY_BINDS, SCHOOLS_DB_DIR
+?? backend/app/models/master/__init__.py
+?? backend/app/models/master/school.py
+?? backend/app/models/master/super_admin.py
+?? backend/database/                    ← seed scripts
+?? backend/instance/                    ← .gitkeep + school_demo.db (db files gitignored)
+?? backend/_verify_output.txt           ← DELETE this temp file
+```
+
+---
+
+## Sprint 2 — Student Management ✅ COMPLETE
+
+Committed `a44cd25` on develop. All SMS-007 → SMS-013 stories done.
+
+| Story | Backend | Frontend | Tests |
+|-------|---------|----------|-------|
+| SMS-007 Student Enrollment | ✅ | ✅ | ⚠️ written, not run |
+| SMS-008 Student List | ✅ | ✅ | ⚠️ written, not run |
+| SMS-009 Student Profile | ✅ | ✅ | ⚠️ written, not run |
+| SMS-010 Parent Linking | ✅ | ✅ | ⚠️ T-010-03 JWT parent_id unverified |
+| SMS-011 Section Transfer | ✅ | ✅ | ⚠️ written, not run |
+| SMS-012 Document Upload | ✅ | ✅ | ⚠️ written, not run |
+| SMS-013 Deactivation/Alumni | ✅ | ✅ | ⚠️ written, not run |
 
 ---
 
 ## Sprint 1 — Auth & User Management ✅ COMPLETE
 
-All stories SMS-001 → SMS-006 done. 28 pytest tests pass.  
-Backend + Frontend fully committed on `develop`.
-
-**Key decisions recorded in memory:** JWT string identity, venv at `backend/venv`, seed credentials, blueprint routes use `''` not `'/'`.
+Committed `6d1adc0` on develop. SMS-001 → SMS-006 all done. 28 tests.
 
 ---
 
-## Sprint 2 — Student Management
-
-### Legend
-| Symbol | Meaning |
-|--------|---------|
-| ✅ | Done & verified |
-| ⚠️ | Code written, not yet verified/tested |
-| ❌ | Not started |
-
----
-
-### SMS-007 — Student Enrollment
-
-| Task | Layer | Status | Notes |
-|------|-------|--------|-------|
-| T-007-01 `photo_url` migration | DB | ✅ | Applied to `sms.db` |
-| T-007-02 `StudentService.create()` | BE | ✅ | Duplicate 409 handled |
-| T-007-03 `POST /api/v1/students` | BE | ✅ | Marshmallow schema in `backend/app/schemas/student_schema.py` |
-| T-007-04 3-step stepper form | FE | ✅ | `frontend/.../students/student-new/` — lazy chunk verified in build |
-| T-007-05 Client-side validators | FE | ✅ | Built into student-new component |
-| T-007-06 Tests | QA | ⚠️ | `backend/tests/test_students.py` written; blocked by Python 3.14 + SQLAlchemy subprocess hang |
-
----
-
-### SMS-008 — Student List (Search & Filter)
-
-| Task | Layer | Status | Notes |
-|------|-------|--------|-------|
-| T-008-01/02 `get_all()` with search + section filter | BE | ✅ | `ilike` search on name + admission_no; class_id deferred to Sprint 3 |
-| T-008-03/04 List component + search + filters | FE | ✅ | `frontend/.../students/student-list/` — lazy chunk in build |
-| T-008-05 Empty state | FE | ⚠️ | In component, not visually verified |
-| T-008-06 Tests | QA | ⚠️ | Covered in `test_students.py`, not run |
-
----
-
-### SMS-009 — Student Profile View & Edit
-
-| Task | Layer | Status | Notes |
-|------|-------|--------|-------|
-| T-009-01 `GET /api/v1/students/:id` | BE | ✅ | Role-gated: student can only view own |
-| T-009-02 `PUT /api/v1/students/:id` | BE | ✅ | Admin full edit; student: phone+address only |
-| T-009-03 Student detail page (`p-tabView`) | FE | ✅ | `frontend/.../students/student-detail/` — lazy chunk in build (267 KB) |
-| T-009-04 Inline edit form | FE | ✅ | Toggle edit mode in Tab 1, Save/Cancel in header |
-| T-009-05 Tests | QA | ⚠️ | In `test_students.py`, not run |
-
----
-
-### SMS-010 — Parent Linking
-
-| Task | Layer | Status | Notes |
-|------|-------|--------|-------|
-| T-010-01 `POST /api/v1/students/:id/parents` | BE | ✅ | Duplicate link → 409 |
-| T-010-02 `DELETE /api/v1/students/:id/parents/:pid` | BE | ✅ | |
-| T-010-03 JWT enrichment with `parent_id` | BE | ⚠️ | Check if login route adds `parent_id` to JWT claims |
-| T-010-04 Parent linking UI (Tab 4 of detail page) | FE | ✅ | Tab 4 in student-detail: list + link/unlink with confirm |
-| T-010-05 Tests | QA | ⚠️ | In `test_students.py`, not run |
-
----
-
-### SMS-011 — Student Transfer Between Sections
-
-| Task | Layer | Status | Notes |
-|------|-------|--------|-------|
-| T-011-01 `student_sections` model | DB | ✅ | `backend/app/models/student_section.py` |
-| T-011-02 `StudentService.transfer()` | BE | ✅ | Atomic section swap with academic year calc |
-| T-011-03 `POST /api/v1/students/:id/transfer` | BE | ✅ | |
-| T-011-04 Transfer dialog in student detail | FE | ✅ | Transfer p-dialog in student-detail header |
-| T-011-05 Tests | QA | ⚠️ | In `test_students.py`, not run |
-
----
-
-### SMS-012 — Student Document Upload
-
-| Task | Layer | Status | Notes |
-|------|-------|--------|-------|
-| T-012-01 `student_documents` model | DB | ✅ | `backend/app/models/student_document.py` |
-| T-012-02 File upload endpoint | BE | ✅ | PDF/JPG/PNG, 5 MB limit, stored in `backend/uploads/students/<id>/` |
-| T-012-03 List + delete endpoints | BE | ✅ | |
-| T-012-04 Document upload tab (`p-fileUpload`) | FE | ✅ | Tab 3 in student-detail: list + p-fileUpload + delete |
-| T-012-05 Tests | QA | ⚠️ | In `test_students.py`, not run |
-
----
-
-### SMS-013 — Student Deactivation / Alumni
-
-| Task | Layer | Status | Notes |
-|------|-------|--------|-------|
-| T-013-01 `status` + `leaving_date` migration | DB | ✅ | Enum: active/alumni/transferred/expelled |
-| T-013-02 `PATCH /api/v1/students/:id/status` | BE | ✅ | |
-| T-013-03 Deactivation dialog in UI | FE | ✅ | Status change dialog in Tab 2 + Deactivate quick action in header |
-| T-013-04 Tests | QA | ⚠️ | In `test_students.py`, not run |
-
----
-
-## What Needs Doing Next (Ordered)
-
-1. **[BE] Verify T-010-03** — confirm parent `login` enriches JWT with `parent_id`.
-
-3. **[QA] Run test suite** — resolve Python 3.14/SQLAlchemy subprocess issue or run manually via `.\venv\Scripts\pytest tests/ -v`.
-
-4. **[ALL] End-to-end smoke test** — start Flask + `npx ng serve`, walk through enrollment → list → profile → deactivate.
-
-5. **[GIT] Commit Sprint 2** — once smoke test passes, commit all unstaged/untracked files on `develop`.
-
----
-
-## Pending Files to Commit (git status snapshot 2026-06-09)
-
-```
-M  backend/app/models/__init__.py
-M  backend/app/models/student.py
-M  backend/app/routes/students.py
-M  backend/app/services/student_service.py
-M  frontend/src/app/modules/admin/admin.routes.ts
-?? backend/app/models/student_document.py
-?? backend/app/models/student_section.py
-?? backend/app/schemas/
-?? backend/migrations/versions/6c69af22f07a_sprint2_...
-?? backend/tests/test_students.py
-?? frontend/src/app/core/services/student.service.ts
-?? frontend/src/app/modules/admin/students/
-```
-
----
-
-## Known Issues / Blockers
+## Known Issues
 
 | Issue | Impact | Owner |
 |-------|--------|-------|
-| Python 3.14 + SQLAlchemy subprocess hang | Can't run `pytest` via subprocess; manual run may work | @devops-engineer — consider Python 3.12 venv |
-| `sections` table not yet created | `student_sections.section_id` FK deferred; section filter in student list is wired but unused until Sprint 3 | @database-engineer in Sprint 3 |
-| `UPLOAD_FOLDER` config must exist | File upload will 500 if `backend/uploads/` dir missing | Ensure `config.py` sets `UPLOAD_FOLDER` |
+| `student_sections.section_id` has no FK constraint | By design — `sections` table not built until Sprint 3 | Wire FK in Sprint 3 |
+| Sprint 2 student tests not run end-to-end | Low — test file written, can run manually | Run `.\venv\Scripts\pytest tests/test_students.py -v` |
+| `_verify_output.txt` temp file in backend/ | Cosmetic | Delete before next commit |

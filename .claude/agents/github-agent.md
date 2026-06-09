@@ -54,13 +54,13 @@ cd frontend && npm install && ng serve
 
 ### 3. Branch Protection Rules
 
+> **CI/CD Note:** No deployment platform configured yet. Status checks are disabled until CI/CD is set up. When a deployment platform is chosen, add `required_status_checks` back and wire up GitHub Actions. See "Future: CI/CD Checklist" section below.
+
 **main branch** (production):
 ```
 - Require pull request reviews: 2 approvals required
-- Require status checks: ci/backend-tests, ci/frontend-tests, security-scan
-- Require branches to be up to date before merging
-- Restrict pushes: only DevOps + Architect
-- Require signed commits: Yes
+- Require status checks: NONE (CI/CD not yet configured)
+- Require branches to be up to date before merging: Yes
 - Allow force pushes: NEVER
 - Allow deletions: NEVER
 ```
@@ -68,19 +68,45 @@ cd frontend && npm install && ng serve
 **develop branch** (staging):
 ```
 - Require pull request reviews: 1 approval required
-- Require status checks: ci/backend-tests, ci/frontend-tests
+- Require status checks: NONE (CI/CD not yet configured)
 - Restrict force pushes: Yes
 ```
 
 ```bash
-# Set branch protection via GitHub CLI
+# Set branch protection — NO status checks (current state)
+# main
 gh api repos/{owner}/{repo}/branches/main/protection \
   --method PUT \
-  --field required_pull_request_reviews='{"required_approving_review_count":2}' \
-  --field required_status_checks='{"strict":true,"contexts":["ci/backend-tests","ci/frontend-tests"]}' \
-  --field enforce_admins=true \
-  --field restrictions='{"users":[],"teams":["devops","architects"]}'
+  --field required_pull_request_reviews='{"required_approving_review_count":2,"dismiss_stale_reviews":true}' \
+  --field required_status_checks=null \
+  --field enforce_admins=false \
+  --field restrictions=null \
+  --field allow_force_pushes=false \
+  --field allow_deletions=false
+
+# develop
+gh api repos/{owner}/{repo}/branches/develop/protection \
+  --method PUT \
+  --field required_pull_request_reviews='{"required_approving_review_count":1,"dismiss_stale_reviews":true}' \
+  --field required_status_checks=null \
+  --field enforce_admins=false \
+  --field restrictions=null \
+  --field allow_force_pushes=false \
+  --field allow_deletions=false
 ```
+
+### Future: CI/CD Checklist (activate when deployment platform is ready)
+When a deployment platform is chosen (e.g. Railway, Render, AWS, VPS), update branch protection to add:
+```bash
+# Re-run with status checks enabled
+--field required_status_checks='{"strict":true,"contexts":["ci/backend-tests","ci/frontend-build","ci/security-scan"]}'
+```
+Also create `.github/workflows/ci.yml` with:
+- [ ] Backend: `pytest` on push to any branch
+- [ ] Frontend: `npx ng build` on push to any branch
+- [ ] Security scan: `bandit` (Python) + `npm audit` (Node)
+- [ ] Deploy to staging on merge to `develop`
+- [ ] Deploy to production on merge to `main`
 
 ### 4. Team Structure & Permissions
 | GitHub Team | Members | Permission |
