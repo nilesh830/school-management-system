@@ -13,6 +13,96 @@
 
 ---
 
+## ERP-001 — Master Database & School Registry
+
+**Session date:** 2026-06-09  
+**Branch:** `develop`
+
+### Task Status
+
+| Task | Description | Status | Notes |
+|------|-------------|--------|-------|
+| T-ERP-001-01 | Config + app factory updates | ✅ | Absolute-path DBs, SQLALCHEMY_BINDS, makedirs, create_all |
+| T-ERP-001-02 | `School` model | ✅ | `backend/app/models/master/school.py`, `__bind_key__='master'` |
+| T-ERP-001-03 | `SuperAdmin` model | ✅ | `backend/app/models/master/super_admin.py`, `__bind_key__='master'` |
+| T-ERP-001-04 | Seed script | ✅ | `backend/database/seeds/seed_master.py` |
+| Verification step 1 | `create_app()` import check | ✅ | Confirmed exit code 0, "OK" printed |
+| Verification step 2 | Run seed script | ⚠️ PENDING | Must run manually (see below) |
+| Verification step 3 | Confirm master.db tables | ⚠️ PENDING | `master.db` created; table list not yet confirmed via sqlite3 |
+| Verification step 4 | `school_demo.db` exists | ✅ | Copied from `sms.db` |
+| Verification step 5 | pytest results | ⚠️ PENDING | Blocked by Python 3.14 subprocess hang |
+
+### Files Created / Modified
+
+| File | Action |
+|------|--------|
+| `backend/config.py` | Modified — SCHOOLS_DB_DIR, SQLALCHEMY_BINDS, absolute URI paths |
+| `backend/app/__init__.py` | Modified — makedirs, master model imports, `db.create_all(bind_key=['master'])` |
+| `backend/app/models/__init__.py` | Modified — imports School and SuperAdmin |
+| `backend/app/models/master/__init__.py` | Created (empty) |
+| `backend/app/models/master/school.py` | Created — School model |
+| `backend/app/models/master/super_admin.py` | Created — SuperAdmin model |
+| `backend/database/seeds/seed_master.py` | Created — seeds superadmin + demo school |
+| `backend/instance/schools/.gitkeep` | Created — directory placeholder |
+| `backend/instance/schools/school_demo.db` | Created — copied from `sms.db` |
+| `backend/instance/master.db` | Auto-created — by `create_app()` via `create_all` |
+| `backend/_test_verify.py` | Created — temp debug file, **delete after verifying** |
+| `backend/_test_seed.py` | Created — temp debug file, **delete after verifying** |
+
+### To Resume — Run These Commands Manually
+
+Open a terminal in `D:\Projects\SMS\backend` and activate the venv:
+
+```powershell
+cd D:\Projects\SMS\backend
+.\venv\Scripts\Activate.ps1
+
+# Verification step 2: seed master DB
+python database/seeds/seed_master.py
+
+# Verification step 3: confirm master.db tables
+python -c "import sqlite3; conn=sqlite3.connect('instance/master.db'); print([r[0] for r in conn.execute(\"SELECT name FROM sqlite_master WHERE type='table'\")]); conn.close()"
+
+# Verification step 5: run tests
+.\venv\Scripts\pytest tests/ -v --tb=short
+
+# Cleanup temp debug files
+del _test_verify.py
+del _test_seed.py
+```
+
+### Next ERP Stories
+
+- **ERP-003** — School Registry API (CRUD for `schools` table)
+- **ERP-005** — JWT `school_slug` enrichment on school user login
+- **ERP-007** — TenantMiddleware (switch active DB based on `school_slug` in JWT) ⚠️ riskiest story
+
+---
+
+## ERP-002 — Super Admin Auth ✅ COMPLETE
+
+**Session date:** 2026-06-10
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `POST /api/v1/superadmin/auth/login` | ✅ | JWT: `role=super_admin`, `sa:<id>` identity, no `school_slug` |
+| `POST /api/v1/superadmin/auth/refresh` | ✅ | Validates `sa:` prefix |
+| `DELETE /api/v1/superadmin/auth/logout` | ✅ | `SuperAdminRevokedToken` in master.db |
+| `GET /api/v1/superadmin/auth/me` | ✅ | Returns super admin profile only |
+| `SuperAdminRevokedToken` model | ✅ | `__bind_key__='master'`, independent blocklist |
+| `check_if_token_revoked` updated | ✅ | Routes SA tokens to master blocklist, school tokens to tenant blocklist |
+| Tests (`test_superadmin_auth.py`) | ✅ | 23 tests — all pass |
+| Full test suite regression | ✅ | **90/90 pass** |
+
+**Files created/modified:**
+- `backend/app/models/master/super_admin_revoked_token.py` — new
+- `backend/app/routes/superadmin_auth.py` — new
+- `backend/tests/test_superadmin_auth.py` — new (23 tests)
+- `backend/app/models/__init__.py` — SuperAdminRevokedToken import added
+- `backend/app/__init__.py` — blueprint registered, blocklist updated, model imported
+
+---
+
 ## Sprint 1 — Auth & User Management ✅ COMPLETE
 
 All stories SMS-001 → SMS-006 done. 28 pytest tests pass.  

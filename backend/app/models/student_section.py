@@ -15,9 +15,8 @@ class StudentSection(db.Model):
     student_id = db.Column(
         db.Integer, db.ForeignKey('students.id'), nullable=False, index=True
     )
-    section_id = db.Column(
-        db.Integer, db.ForeignKey('sections.id'), nullable=False, index=True
-    )
+    # FK to sections.id deferred until Sprint 3 (sections table not yet created)
+    section_id = db.Column(db.Integer, nullable=False, index=True)
     academic_year = db.Column(db.String(9), nullable=False)   # e.g. "2024-2025"
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=True)

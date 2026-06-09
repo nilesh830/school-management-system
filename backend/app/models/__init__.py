@@ -8,3 +8,6 @@ from app.models.notification import Notification
 from app.models.parent_message import MessageThread, ParentMessage
 from app.models.student_section import StudentSection
 from app.models.student_document import StudentDocument
+from app.models.master.school import School
+from app.models.master.super_admin import SuperAdmin
+from app.models.master.super_admin_revoked_token import SuperAdminRevokedToken
