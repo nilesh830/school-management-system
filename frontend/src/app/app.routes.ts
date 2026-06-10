@@ -40,5 +40,9 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard(['parent'])],
     loadChildren: () => import('./modules/parent-portal/parent-portal.routes').then(m => m.PARENT_ROUTES)
   },
+  {
+    path: 'superadmin',
+    loadChildren: () => import('./modules/superadmin/superadmin.routes').then(m => m.SUPERADMIN_ROUTES)
+  },
   { path: '**', redirectTo: '/login' }
 ];

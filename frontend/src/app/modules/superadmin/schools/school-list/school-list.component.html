@@ -1,0 +1,93 @@
+<p-toast position="top-right" />
+
+<p-card>
+  <p-toolbar styleClass="mb-4">
+    <ng-template pTemplate="left">
+      <h2 class="text-xl font-bold text-900 m-0">Schools</h2>
+    </ng-template>
+    <ng-template pTemplate="right">
+      <div class="flex align-items-center gap-2">
+        <span class="p-input-icon-left">
+          <i class="pi pi-search"></i>
+          <input
+            type="text"
+            pInputText
+            [formControl]="searchCtrl"
+            placeholder="Search schools..."
+            class="p-inputtext-sm"
+            style="min-width: 200px"
+          />
+        </span>
+        <p-button
+          label="Add School"
+          icon="pi pi-plus"
+          routerLink="/superadmin/schools/new"
+        />
+      </div>
+    </ng-template>
+  </p-toolbar>
+
+  <p-table
+    [value]="schools"
+    [lazy]="true"
+    (onLazyLoad)="loadSchools($event)"
+    [totalRecords]="totalRecords"
+    [rows]="rows"
+    [paginator]="true"
+    [loading]="loading"
+    dataKey="id"
+    responsiveLayout="scroll"
+    [rowHover]="true"
+    styleClass="p-datatable-sm"
+  >
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
+        <th>Slug</th>
+        <th>Status</th>
+        <th>Email</th>
+        <th pSortableColumn="created_at">Created At <p-sortIcon field="created_at" /></th>
+        <th>Actions</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-school>
+      <tr>
+        <td>
+          <span class="font-medium text-900">{{ school.name }}</span>
+        </td>
+        <td>
+          <code class="text-500 text-sm bg-gray-100 px-2 py-1 border-round">{{ school.slug }}</code>
+        </td>
+        <td>
+          <p-tag
+            [value]="school.is_active ? 'Active' : 'Inactive'"
+            [severity]="school.is_active ? 'success' : 'danger'"
+          />
+        </td>
+        <td>{{ school.email || '—' }}</td>
+        <td>{{ school.created_at | date:'mediumDate' }}</td>
+        <td>
+          <p-button
+            icon="pi pi-eye"
+            [rounded]="true"
+            [text]="true"
+            severity="info"
+            pTooltip="View"
+            size="small"
+            [routerLink]="['/superadmin/schools', school.id]"
+          />
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="6" class="text-center text-600 py-4">
+          No schools found.
+          <a routerLink="/superadmin/schools/new" class="text-primary ml-1">Create your first school.</a>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</p-card>

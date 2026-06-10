@@ -17,13 +17,13 @@
 | ERP-001 | Master DB & School Registry | 8 | ✅ Done |
 | ERP-002 | Super Admin Auth | 3 | ✅ Done |
 | ERP-003 | School Provisioning API | 5 | ✅ Done |
-| ERP-004 | Super Admin Frontend Portal | 8 | ❌ Next |
-| ERP-005 | JWT `school_slug` Enrichment | 3 | ❌ |
+| ERP-004 | Super Admin Frontend Portal | 8 | ✅ Done |
+| ERP-005 | JWT `school_slug` Enrichment | 3 | ❌ Next |
 | ERP-006 | TenantMiddleware & Dynamic Sessions | 8 | ❌ ⚠️ Riskiest |
 | ERP-007 | Migrate existing sms.db → school_demo.db | 3 | ✅ Done (part of ERP-001) |
 | ERP-008 | `flask db upgrade-all` CLI | 3 | ❌ |
 
-**Tests passing: 112/112** | **Committed through: ERP-002 (`a228b8d`)** | **ERP-003 staged, pending commit**
+**Tests passing: 112/112** | **Committed through: ERP-003 (`6be0707`)**
 
 ---
 
@@ -56,6 +56,24 @@
 | `check_if_token_revoked` updated | ✅ | Routes by `role` claim: SA → master, school → tenant |
 | 23 tests (`test_superadmin_auth.py`) | ✅ | All pass |
 | Full regression | ✅ | **90/90 pass** |
+
+---
+
+## ERP-004 — Super Admin Frontend Portal ✅ COMPLETE
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `SuperAdminAuthService` | ✅ | Separate localStorage keys `sms_sa_*`; signal-based |
+| `SchoolsService` | ✅ | Sets SA `Authorization` header manually (bypasses JWT interceptor) |
+| `superAdminGuard` | ✅ | `CanActivateFn`, redirects to `/superadmin/login` |
+| `SUPERADMIN_ROUTES` + layout component | ✅ | Sidebar (Dashboard, Schools) + topbar |
+| `/superadmin/login` | ✅ | Full-page card, reactive form |
+| `/superadmin/dashboard` | ✅ | School cards grid, stat counts |
+| `/superadmin/schools` | ✅ | `p-table` + search + lazy pagination |
+| `/superadmin/schools/new` | ✅ | Provision form, slug validator, 409 → field error |
+| `/superadmin/schools/:id` | ✅ | Detail view, inline edit, activate/deactivate |
+| `app.routes.ts` updated | ✅ | `/superadmin` lazy route added |
+| Angular build | ✅ | **0 errors** |
 
 ---
 
