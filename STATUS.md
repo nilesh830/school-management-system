@@ -21,9 +21,9 @@
 | ERP-005 | JWT `school_slug` Enrichment | 3 | ✅ Done |
 | ERP-006 | TenantMiddleware & Dynamic Sessions | 8 | ✅ Done |
 | ERP-007 | Migrate existing sms.db → school_demo.db | 3 | ✅ Done (part of ERP-001) |
-| ERP-008 | `flask db upgrade-all` CLI | 3 | ❌ Next |
+| ERP-008 | `flask db upgrade-all` CLI | 3 | ✅ Done |
 
-**Tests passing: 117/117** | **Committed through: ERP-005 (`c995ae5`)**
+**Tests passing: 127/127** | **Committed through: ERP-006 (`cadb9e3`)** | **Sprint 2.5 COMPLETE ✅**
 
 ---
 
@@ -56,6 +56,20 @@
 | `check_if_token_revoked` updated | ✅ | Routes by `role` claim: SA → master, school → tenant |
 | 23 tests (`test_superadmin_auth.py`) | ✅ | All pass |
 | Full regression | ✅ | **90/90 pass** |
+
+---
+
+## ERP-008 — `flask db-upgrade-all` CLI ✅ COMPLETE
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `migrations/env.py` — `target_db_url` override support | ✅ | `get_engine_url()` + `run_migrations_online()` modified |
+| `app/cli.py` — `flask db-upgrade-all` command | ✅ | Iterates all active schools, skips at-head, runs upgrade, reports errors |
+| `app/cli.py` — `flask provision-school` command | ✅ | Thin CLI wrapper around `SuperAdminService.provision_school()` |
+| Registered in `create_app()` | ✅ | |
+| 10 tests (`test_cli.py`) | ✅ | No-schools, at-head, inactive-skipped, unreachable-DB, duplicate-slug, happy-path |
+| Smoke test against real dev DB | ✅ | `All 1 school(s) are up to date.` |
+| 127/127 tests pass | ✅ | |
 
 ---
 

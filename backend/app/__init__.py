@@ -54,6 +54,9 @@ def create_app(config_name='default'):
     app.before_request(setup_tenant_db)
     app.teardown_request(teardown_tenant_db)
 
+    from app.cli import register_commands
+    register_commands(app)
+
     @app.route('/api/v1/health')
     def health():
         return jsonify({"success": True, "message": "SMS API is running", "version": "1.0.0"}), 200

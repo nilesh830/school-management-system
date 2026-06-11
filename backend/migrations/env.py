@@ -25,6 +25,10 @@ def get_engine():
 
 
 def get_engine_url():
+    # Allow programmatic URL override (used by flask db-upgrade-all)
+    override = config.attributes.get('target_db_url')
+    if override:
+        return override.replace('%', '%%')
     try:
         return get_engine().url.render_as_string(hide_password=False).replace(
             '%', '%%')
@@ -79,7 +83,23 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
+    override_url = config.attributes.get('target_db_url')
+    if override_url:
+        from sqlalchemy import create_engine as _create_engine
+        connectable = _create_engine(
+            override_url, connect_args={'check_same_thread': False}
+        )
+        with connectable.connect() as connection:
+            context.configure(
+                connection=connection,
+                target_metadata=get_metadata(),
+            )
+            with context.begin_transaction():
+                context.run_migrations()
+        connectable.dispose()
+        return
 
+    # Original Flask-Migrate path (unchanged)
     # this callback is used to prevent an auto-migration from being generated
     # when there are no changes to the schema
     # reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
