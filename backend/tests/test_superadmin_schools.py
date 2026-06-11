@@ -444,7 +444,7 @@ class TestSchoolsAuthorization:
         """A school-level admin JWT must be rejected with 403."""
         login_resp = client.post(
             '/api/v1/auth/login',
-            json={'email': 'admin@test.sms', 'password': 'Admin@1234'},
+            json={'email': 'admin@test.sms', 'password': 'Admin@1234', 'school_slug': 'test'},
         )
         school_token = login_resp.get_json()['data']['access_token']
 
@@ -458,7 +458,7 @@ class TestSchoolsAuthorization:
         """A school-level admin JWT must not be able to provision schools."""
         login_resp = client.post(
             '/api/v1/auth/login',
-            json={'email': 'admin@test.sms', 'password': 'Admin@1234'},
+            json={'email': 'admin@test.sms', 'password': 'Admin@1234', 'school_slug': 'test'},
         )
         school_token = login_resp.get_json()['data']['access_token']
 

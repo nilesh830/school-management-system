@@ -35,6 +35,26 @@ def clean_db(db):
     db.session.commit()
 
 
+@pytest.fixture(autouse=True)
+def test_school(db):
+    from app.models.master.school import School
+    school = School.query.filter_by(slug='test').first()
+    if school:
+        # Reset to active state in case a prior test deactivated it
+        school.is_active = True
+        db.session.commit()
+    else:
+        school = School(
+            name='Test School',
+            slug='test',
+            db_url='sqlite:///:memory:',
+            is_active=True,
+        )
+        db.session.add(school)
+        db.session.commit()
+    return school
+
+
 # ── Reusable user factory fixtures ──────────────────────────────────────────
 
 @pytest.fixture
@@ -106,8 +126,10 @@ def parent_user(db, student_user):
 
 # ── Auth token helpers ───────────────────────────────────────────────────────
 
-def _login(client, email, password):
-    resp = client.post('/api/v1/auth/login', json={'email': email, 'password': password})
+def _login(client, email, password, school_slug='test'):
+    resp = client.post('/api/v1/auth/login', json={
+        'email': email, 'password': password, 'school_slug': school_slug
+    })
     return resp.get_json()['data']
 
 

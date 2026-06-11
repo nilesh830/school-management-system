@@ -47,7 +47,8 @@ VALID_STUDENT = {
 @pytest.fixture
 def student_token(client, student_user):
     resp = client.post('/api/v1/auth/login',
-                       json={'email': 'alice@test.sms', 'password': 'Student@123'})
+                       json={'email': 'alice@test.sms', 'password': 'Student@123',
+                             'school_slug': 'test'})
     return resp.get_json()['data']['access_token']
 
 

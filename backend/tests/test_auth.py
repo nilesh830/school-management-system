@@ -12,6 +12,7 @@ class TestLogin:
         resp = client.post('/api/v1/auth/login', json={
             'email': 'admin@test.sms',
             'password': 'Admin@1234',
+            'school_slug': 'test',
         })
         assert resp.status_code == 200
         body = resp.get_json()
@@ -25,6 +26,7 @@ class TestLogin:
         resp = client.post('/api/v1/auth/login', json={
             'email': 'robert@test.sms',
             'password': 'Parent@123',
+            'school_slug': 'test',
         })
         assert resp.status_code == 200
         body = resp.get_json()
@@ -39,6 +41,7 @@ class TestLogin:
         resp = client.post('/api/v1/auth/login', json={
             'email': 'admin@test.sms',
             'password': 'WrongPass',
+            'school_slug': 'test',
         })
         assert resp.status_code == 401
         assert resp.get_json()['success'] is False
@@ -47,6 +50,7 @@ class TestLogin:
         resp = client.post('/api/v1/auth/login', json={
             'email': 'nobody@test.sms',
             'password': 'Any@1234',
+            'school_slug': 'test',
         })
         assert resp.status_code == 401
 
@@ -60,6 +64,7 @@ class TestLogin:
         resp = client.post('/api/v1/auth/login', json={
             'email': 'admin@test.sms',
             'password': 'Admin@1234',
+            'school_slug': 'test',
         })
         assert resp.status_code == 401
 
@@ -277,6 +282,7 @@ class TestPasswordReset:
         resp2 = client.post('/api/v1/auth/login', json={
             'email': 'admin@test.sms',
             'password': 'Admin@1234',
+            'school_slug': 'test',
         })
         assert resp2.status_code == 401
 
@@ -284,6 +290,7 @@ class TestPasswordReset:
         resp3 = client.post('/api/v1/auth/login', json={
             'email': 'admin@test.sms',
             'password': 'NewAdmin@5678',
+            'school_slug': 'test',
         })
         assert resp3.status_code == 200
 
@@ -342,3 +349,54 @@ class TestProfileUpdate:
             headers={'Authorization': f'Bearer {admin_token}'},
         )
         assert resp.status_code == 400
+
+
+# ── ERP-005: JWT school_slug enrichment ─────────────────────────────────────
+
+class TestLoginSchoolSlug:
+
+    def test_login_embeds_school_slug_in_jwt(self, client, admin_user):
+        from flask_jwt_extended import decode_token
+        resp = client.post('/api/v1/auth/login', json={
+            'email': 'admin@test.sms', 'password': 'Admin@1234', 'school_slug': 'test'
+        })
+        assert resp.status_code == 200
+        token = resp.get_json()['data']['access_token']
+        claims = decode_token(token)
+        assert claims['school_slug'] == 'test'
+
+    def test_login_missing_school_slug_returns_400(self, client, admin_user):
+        resp = client.post('/api/v1/auth/login', json={
+            'email': 'admin@test.sms', 'password': 'Admin@1234'
+        })
+        assert resp.status_code == 400
+
+    def test_login_unknown_school_slug_returns_404(self, client, admin_user):
+        resp = client.post('/api/v1/auth/login', json={
+            'email': 'admin@test.sms', 'password': 'Admin@1234', 'school_slug': 'doesnotexist'
+        })
+        assert resp.status_code == 404
+
+    def test_login_inactive_school_returns_404(self, client, admin_user, db):
+        from app.models.master.school import School
+        school = School.query.filter_by(slug='test').first()
+        school.is_active = False
+        db.session.commit()
+        resp = client.post('/api/v1/auth/login', json={
+            'email': 'admin@test.sms', 'password': 'Admin@1234', 'school_slug': 'test'
+        })
+        assert resp.status_code == 404
+
+    def test_refresh_preserves_school_slug(self, client, admin_user):
+        from flask_jwt_extended import decode_token
+        login_resp = client.post('/api/v1/auth/login', json={
+            'email': 'admin@test.sms', 'password': 'Admin@1234', 'school_slug': 'test'
+        })
+        refresh_token = login_resp.get_json()['data']['refresh_token']
+        refresh_resp = client.post('/api/v1/auth/refresh', headers={
+            'Authorization': f'Bearer {refresh_token}'
+        })
+        assert refresh_resp.status_code == 200
+        new_token = refresh_resp.get_json()['data']['access_token']
+        claims = decode_token(new_token)
+        assert claims['school_slug'] == 'test'

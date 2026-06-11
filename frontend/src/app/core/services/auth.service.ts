@@ -17,13 +17,18 @@ export class AuthService {
 
   constructor(private http: HttpClient, private router: Router) {}
 
-  login(email: string, password: string): Observable<ApiResponse<{ access_token: string; refresh_token: string; user: User }>> {
-    return this.http.post<ApiResponse<any>>('/api/v1/auth/login', { email, password }).pipe(
+  login(email: string, password: string, schoolSlug: string): Observable<ApiResponse<{ access_token: string; refresh_token: string; user: User }>> {
+    return this.http.post<ApiResponse<any>>('/api/v1/auth/login', {
+      email,
+      password,
+      school_slug: schoolSlug,
+    }).pipe(
       tap(resp => {
         if (resp.success) {
           localStorage.setItem(this.ACCESS_TOKEN_KEY, resp.data.access_token);
           localStorage.setItem(this.REFRESH_TOKEN_KEY, resp.data.refresh_token);
           localStorage.setItem(this.USER_KEY, JSON.stringify(resp.data.user));
+          localStorage.setItem('sms_school_slug', schoolSlug);
           this._currentUser.set(resp.data.user);
         }
       })
@@ -71,7 +76,8 @@ export class AuthService {
       admin: '/admin/dashboard',
       teacher: '/teacher/dashboard',
       student: '/student/dashboard',
-      parent: '/parent/dashboard'
+      parent: '/parent/dashboard',
+      super_admin: '/superadmin/dashboard',
     };
     const role = this._currentUser()?.role ?? '';
     this.router.navigate([roleRoutes[role] ?? '/login']);

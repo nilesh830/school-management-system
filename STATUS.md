@@ -18,12 +18,12 @@
 | ERP-002 | Super Admin Auth | 3 | ✅ Done |
 | ERP-003 | School Provisioning API | 5 | ✅ Done |
 | ERP-004 | Super Admin Frontend Portal | 8 | ✅ Done |
-| ERP-005 | JWT `school_slug` Enrichment | 3 | ❌ Next |
-| ERP-006 | TenantMiddleware & Dynamic Sessions | 8 | ❌ ⚠️ Riskiest |
+| ERP-005 | JWT `school_slug` Enrichment | 3 | ✅ Done |
+| ERP-006 | TenantMiddleware & Dynamic Sessions | 8 | ❌ Next ⚠️ Riskiest |
 | ERP-007 | Migrate existing sms.db → school_demo.db | 3 | ✅ Done (part of ERP-001) |
 | ERP-008 | `flask db upgrade-all` CLI | 3 | ❌ |
 
-**Tests passing: 112/112** | **Committed through: ERP-003 (`6be0707`)**
+**Tests passing: 117/117** | **Committed through: ERP-004 (`946679d`)**
 
 ---
 
@@ -56,6 +56,25 @@
 | `check_if_token_revoked` updated | ✅ | Routes by `role` claim: SA → master, school → tenant |
 | 23 tests (`test_superadmin_auth.py`) | ✅ | All pass |
 | Full regression | ✅ | **90/90 pass** |
+
+---
+
+## ERP-005 — JWT `school_slug` Enrichment ✅ COMPLETE
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `school_slug` required in `POST /api/v1/auth/login` | ✅ | Validated against master.db `schools` table |
+| School not found / inactive → 404 | ✅ | |
+| `school_slug` embedded in JWT access + refresh tokens | ✅ | `_build_additional_claims` updated |
+| `refresh()` re-embeds `school_slug` from existing claims | ✅ | No second DB lookup |
+| `conftest.py`: `test_school` autouse fixture | ✅ | Creates `slug=test` school before each test |
+| All existing login calls in tests updated | ✅ | `test_auth.py`, `test_superadmin_*.py`, `test_students.py` |
+| 5 new `TestLoginSchoolSlug` tests | ✅ | slug in JWT, missing slug 400, wrong slug 404, inactive school 404, refresh preserves slug |
+| Login form: `school_slug` field + localStorage pre-fill | ✅ | `login.component.ts` + template |
+| `AuthService.login()` sends `school_slug` + persists to localStorage | ✅ | |
+| `redirectToDashboard()` handles `super_admin` role | ✅ | |
+| 117/117 tests pass | ✅ | |
+| Angular build 0 errors | ✅ | |
 
 ---
 

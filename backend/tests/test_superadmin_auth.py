@@ -191,7 +191,7 @@ class TestSuperAdminMe:
         """A school admin JWT must not access the super admin /me endpoint."""
         login_resp = client.post(
             '/api/v1/auth/login',
-            json={'email': 'admin@test.sms', 'password': 'Admin@1234'},
+            json={'email': 'admin@test.sms', 'password': 'Admin@1234', 'school_slug': 'test'},
         )
         school_token = login_resp.get_json()['data']['access_token']
 
@@ -237,7 +237,7 @@ class TestSuperAdminLogout:
         """A school admin JWT hitting the SA logout must be rejected with 403."""
         login_resp = client.post(
             '/api/v1/auth/login',
-            json={'email': 'admin@test.sms', 'password': 'Admin@1234'},
+            json={'email': 'admin@test.sms', 'password': 'Admin@1234', 'school_slug': 'test'},
         )
         school_token = login_resp.get_json()['data']['access_token']
 
@@ -314,7 +314,7 @@ class TestTokenIsolation:
         # Get a school admin token
         school_resp = client.post(
             '/api/v1/auth/login',
-            json={'email': 'admin@test.sms', 'password': 'Admin@1234'},
+            json={'email': 'admin@test.sms', 'password': 'Admin@1234', 'school_slug': 'test'},
         )
         school_tok = school_resp.get_json()['data']['access_token']
 
