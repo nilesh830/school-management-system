@@ -50,6 +50,10 @@ def create_app(config_name='default'):
     _init_swagger(app)
     _register_jwt_handlers(jwt)
 
+    from app.utils.tenant import setup_tenant_db, teardown_tenant_db
+    app.before_request(setup_tenant_db)
+    app.teardown_request(teardown_tenant_db)
+
     @app.route('/api/v1/health')
     def health():
         return jsonify({"success": True, "message": "SMS API is running", "version": "1.0.0"}), 200

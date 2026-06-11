@@ -19,11 +19,11 @@
 | ERP-003 | School Provisioning API | 5 | ✅ Done |
 | ERP-004 | Super Admin Frontend Portal | 8 | ✅ Done |
 | ERP-005 | JWT `school_slug` Enrichment | 3 | ✅ Done |
-| ERP-006 | TenantMiddleware & Dynamic Sessions | 8 | ❌ Next ⚠️ Riskiest |
+| ERP-006 | TenantMiddleware & Dynamic Sessions | 8 | ✅ Done |
 | ERP-007 | Migrate existing sms.db → school_demo.db | 3 | ✅ Done (part of ERP-001) |
-| ERP-008 | `flask db upgrade-all` CLI | 3 | ❌ |
+| ERP-008 | `flask db upgrade-all` CLI | 3 | ❌ Next |
 
-**Tests passing: 117/117** | **Committed through: ERP-004 (`946679d`)**
+**Tests passing: 117/117** | **Committed through: ERP-005 (`c995ae5`)**
 
 ---
 
@@ -56,6 +56,23 @@
 | `check_if_token_revoked` updated | ✅ | Routes by `role` claim: SA → master, school → tenant |
 | 23 tests (`test_superadmin_auth.py`) | ✅ | All pass |
 | Full regression | ✅ | **90/90 pass** |
+
+---
+
+## ERP-006 — TenantMiddleware & Dynamic Sessions ✅ COMPLETE
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `app/utils/tenant.py` — `setup_tenant_db`, `teardown_tenant_db`, `get_db()` | ✅ | Engine cache per `db_url` |
+| TESTING bypass: `g.db = db.session` | ✅ | All 117 tests pass, no conftest changes |
+| Registered as `before_request` / `teardown_request` in `create_app()` | ✅ | |
+| `auth.py` — all `db.session.*` + `Model.query.*` → `get_db()` | ✅ | All 8 route functions updated |
+| `students.py` — 2 inline `Student.query` calls → `get_db().query()` | ✅ | |
+| `student_service.py` — full service layer migrated | ✅ | `_paginate()` helper replaces FSA `.paginate()` |
+| `user_service.py` — full service layer migrated | ✅ | `db.or_()` → `or_()` from sqlalchemy |
+| `parent_portal_service.py` — full service layer migrated | ✅ | `.first_or_404()` / `.get_or_404()` replaced |
+| `revoked_token.py` — blocklist check uses `get_db()` | ✅ | Routes to correct tenant DB |
+| Full regression: **117/117 pass** | ✅ | |
 
 ---
 

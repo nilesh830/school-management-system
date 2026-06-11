@@ -11,7 +11,8 @@ class RevokedToken(db.Model):
 
     @classmethod
     def is_jti_blocklisted(cls, jti):
-        return cls.query.filter_by(jti=jti).first() is not None
+        from app.utils.tenant import get_db
+        return get_db().query(cls).filter_by(jti=jti).first() is not None
 
     def __repr__(self):
         return f'<RevokedToken {self.jti}>'

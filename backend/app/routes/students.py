@@ -4,6 +4,7 @@ from flask_jwt_extended import get_jwt, get_jwt_identity
 from app.services.student_service import StudentService
 from app.utils.response import success_response, error_response
 from app.utils.decorators import roles_required
+from app.utils.tenant import get_db
 from app.schemas.student_schema import (
     StudentCreateSchema,
     StudentUpdateSchema,
@@ -82,7 +83,7 @@ def get_student(student_id):
     if role == 'student':
         current_user_id = int(get_jwt_identity())
         from app.models.student import Student
-        own = Student.query.filter_by(user_id=current_user_id, is_active=True).first()
+        own = get_db().query(Student).filter_by(user_id=current_user_id, is_active=True).first()
         if not own or own.id != student_id:
             return error_response('Access denied', status=403)
 
@@ -101,7 +102,7 @@ def update_student(student_id):
     if role == 'student':
         current_user_id = int(get_jwt_identity())
         from app.models.student import Student
-        own = Student.query.filter_by(user_id=current_user_id, is_active=True).first()
+        own = get_db().query(Student).filter_by(user_id=current_user_id, is_active=True).first()
         if not own or own.id != student_id:
             return error_response('Access denied', status=403)
         data, err = _validate(_self_update_schema, request.get_json())
