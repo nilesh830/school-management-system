@@ -1,14 +1,46 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
-> **Last updated:** 2026-06-11 | **Branch:** `develop`
+> **Last updated:** 2026-06-12 | **Branch:** `develop`
 
 ---
 
-## Current Sprint: Sprint 3 — Teacher Management & Class Structure
+## Current Sprint: Sprint 4 — Attendance Management
 
-> See `docs/sprints/sprint-3.md` for full story details.
-> Sprint 2.5 ERP Foundation is complete — see archived section below.
+> See `docs/sprints/sprint-4-to-6.md` for full story details.
+> Sprint 3 Teacher Management is complete — see archived section below.
+
+> **Agent Assignment Convention (Sprint 4+):**
+> Each task in the sprint docs now carries an explicit agent label:
+> - Database (models/migrations) → invoke `@database-engineer`
+> - API / services / tests → invoke `@backend-engineer`
+> - Angular UI / components → invoke `@frontend-engineer`
+> - Security audit → invoke `@security-engineer`
+> - CI/CD / Docker → invoke `@devops-engineer`
+
+---
+
+## Sprint 3 Board — ✅ COMPLETE (committed `c5b97f3`, pushed to develop)
+
+| Story | Title | Points | Status |
+|-------|-------|--------|--------|
+| SMS-014 | Teacher Registration & Profile | 8 | ✅ Done |
+| SMS-015 | Subject Assignment to Teacher | 5 | ✅ Done |
+| SMS-016 | Teacher List & Search | 3 | ✅ Done |
+| SMS-017 | Teacher Schedule View | 5 | ✅ Done |
+| SMS-018 | Teacher Document Upload | 5 | ✅ Done |
+| SMS-019 | Class & Subject Catalog | 5 | ✅ Done |
+| SMS-020 | Section Management per Class | 5 | ✅ Done |
+| SMS-021 | Enroll Students into Sections | 5 | ✅ Done |
+| SMS-022 | Timetable Creation | 8 | ✅ Done |
+| SMS-023 | Academic Year Management | 3 | ✅ Done |
+
+**Backend:** 9 models, 6 services, 6 blueprints, Alembic migration, 50+ tests (0 failures)
+**Frontend:** TeacherService + ClassesService + TimetableService, 7 standalone components, ng build 0 errors
+
+---
+
+## Sprint 2.5 Board
 
 ### Sprint 2.5 Board
 
@@ -167,22 +199,22 @@ Committed `6d1adc0` on develop. SMS-001 → SMS-006 all done. 28 tests.
 
 ---
 
-## Next Sprint: Sprint 3 — Teacher Management & Class Structure
+## Next Sprint: Sprint 4 — Attendance Management
 
-See `docs/sprints/sprint-3.md` for full story details.
+See `docs/sprints/sprint-4-to-6.md` for full story details and per-task agent assignments.
 
-| Story | Title | Points | Status |
-|-------|-------|--------|--------|
-| SMS-014 | Teacher Registration & Profile | 8 | 🔲 To Do |
-| SMS-015 | Subject Assignment to Teacher | 5 | 🔲 To Do |
-| SMS-016 | Teacher List & Search | 3 | 🔲 To Do |
-| SMS-017 | Teacher Schedule View | 5 | 🔲 To Do |
-| SMS-018 | Teacher Document Upload | 5 | 🔲 To Do |
-| SMS-019 | Class & Subject Catalog | 5 | 🔲 To Do |
-| SMS-020 | Section Management per Class | 5 | 🔲 To Do |
-| SMS-021 | Enroll Students into Sections | 5 | 🔲 To Do |
-| SMS-022 | Timetable Creation | 8 | 🔲 To Do |
-| SMS-023 | Academic Year Management | 3 | 🔲 To Do |
+| Story | Title | Points | Agents | Status |
+|-------|-------|--------|--------|--------|
+| SMS-024 | Mark Daily Attendance (Teacher) | 8 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
+| SMS-025 | Attendance View (Student/Parent) | 5 | `@frontend-engineer` | 🔲 To Do |
+| SMS-026 | Attendance Report by Class & Range | 8 | `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
+| SMS-027 | Absence Notification to Parent | 5 | `@backend-engineer` | 🔲 To Do |
+| SMS-028 | Attendance Statistics Dashboard | 3 | `@frontend-engineer` | 🔲 To Do |
+
+**Starting point for Sprint 4:**
+1. Begin with `@database-engineer` — create `Attendance` + `Notification` models + migration
+2. Then `@backend-engineer` — `AttendanceService`, `NotificationService`, routes, tests
+3. Then `@frontend-engineer` — teacher attendance marking UI, student/parent view
 
 ---
 
