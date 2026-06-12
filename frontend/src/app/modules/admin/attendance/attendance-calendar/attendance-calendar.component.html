@@ -1,0 +1,281 @@
+<p-toast position="top-right" />
+
+<p-card>
+  <p-toolbar styleClass="mb-4">
+    <ng-template pTemplate="left">
+      <h2 class="text-xl font-bold text-900 m-0">Attendance Calendar</h2>
+    </ng-template>
+  </p-toolbar>
+
+  <!-- Student selector -->
+  <div class="mb-4">
+    <label class="font-semibold text-700 block mb-1">Search Student</label>
+    <p-autoComplete
+      [suggestions]="studentSuggestions"
+      (completeMethod)="searchStudents($event)"
+      (onSelect)="onStudentSelect($event)"
+      (onClear)="onStudentClear()"
+      [field]="'first_name'"
+      placeholder="Type student name or admission number…"
+      [style]="{ width: '100%', maxWidth: '28rem' }"
+      [forceSelection]="true"
+      [showClear]="true"
+    >
+      <ng-template let-student pTemplate="item">
+        <div class="flex align-items-center gap-2">
+          <i class="pi pi-user text-500"></i>
+          <span>{{ student.first_name }} {{ student.last_name }}</span>
+          <span class="text-500 text-sm ml-1">({{ student.admission_no }})</span>
+        </div>
+      </ng-template>
+    </p-autoComplete>
+  </div>
+
+  @if (selectedStudent) {
+    <!-- Month navigation header -->
+    <div class="flex align-items-center justify-content-between mb-3">
+      <p-button
+        icon="pi pi-chevron-left"
+        [rounded]="true"
+        [text]="true"
+        severity="secondary"
+        (onClick)="prevMonth()"
+      />
+      <span class="text-lg font-bold text-800">{{ displayMonth }}</span>
+      <p-button
+        icon="pi pi-chevron-right"
+        [rounded]="true"
+        [text]="true"
+        severity="secondary"
+        (onClick)="nextMonth()"
+        [disabled]="!canGoNext"
+      />
+    </div>
+
+    @if (loading) {
+      <div class="flex justify-content-center py-6">
+        <p-progressSpinner strokeWidth="4" [style]="{ width: '3rem', height: '3rem' }" />
+      </div>
+    } @else {
+      <!-- Calendar grid -->
+      <div class="attendance-calendar">
+        <!-- Week-day headers -->
+        <div class="calendar-grid">
+          @for (day of weekHeaders; track $index) {
+            <div class="day-header">{{ day }}</div>
+          }
+
+          <!-- Day cells -->
+          @for (week of calendarWeeks; track $index) {
+            @for (day of week; track $index) {
+              <div [class]="getStatusClass(day)" [title]="day.status || ''">
+                @if (day.dayNum !== null) {
+                  <span class="day-number">{{ day.dayNum }}</span>
+                  @if (day.status) {
+                    <span class="status-badge">{{ getStatusLabel(day.status) }}</span>
+                  }
+                }
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="flex flex-wrap gap-3 mt-3 mb-4">
+        <div class="flex align-items-center gap-1">
+          <span class="legend-dot legend-present"></span>
+          <span class="text-sm text-600">Present</span>
+        </div>
+        <div class="flex align-items-center gap-1">
+          <span class="legend-dot legend-absent"></span>
+          <span class="text-sm text-600">Absent</span>
+        </div>
+        <div class="flex align-items-center gap-1">
+          <span class="legend-dot legend-late"></span>
+          <span class="text-sm text-600">Late</span>
+        </div>
+        <div class="flex align-items-center gap-1">
+          <span class="legend-dot legend-leave"></span>
+          <span class="text-sm text-600">Leave</span>
+        </div>
+        <div class="flex align-items-center gap-1">
+          <span class="legend-dot legend-holiday"></span>
+          <span class="text-sm text-600">Holiday</span>
+        </div>
+        <div class="flex align-items-center gap-1">
+          <span class="legend-dot legend-no-record"></span>
+          <span class="text-sm text-600">No Record</span>
+        </div>
+      </div>
+
+      <p-divider />
+
+      <!-- Monthly summary -->
+      <div class="summary-row flex flex-wrap gap-4 align-items-center py-2">
+        <span class="font-semibold text-700">Monthly Summary:</span>
+        <span class="summary-chip chip-present">
+          <i class="pi pi-check-circle mr-1"></i>Present: {{ summary.present }}
+        </span>
+        <span class="summary-chip chip-absent">
+          <i class="pi pi-times-circle mr-1"></i>Absent: {{ summary.absent }}
+        </span>
+        <span class="summary-chip chip-late">
+          <i class="pi pi-clock mr-1"></i>Late: {{ summary.late }}
+        </span>
+        <span class="summary-chip chip-leave">
+          <i class="pi pi-calendar-times mr-1"></i>Leave: {{ summary.leave }}
+        </span>
+        <span class="summary-chip chip-percentage"
+              [class.chip-percentage-good]="summary.percentage >= 75"
+              [class.chip-percentage-warn]="summary.percentage >= 50 && summary.percentage < 75"
+              [class.chip-percentage-bad]="summary.percentage < 50">
+          <i class="pi pi-percentage mr-1"></i>Attendance: {{ summary.percentage }}%
+        </span>
+      </div>
+    }
+  } @else {
+    <div class="text-center text-600 py-6">
+      <i class="pi pi-search text-5xl mb-3 block text-300"></i>
+      <p class="text-lg">Search and select a student to view their attendance calendar.</p>
+    </div>
+  }
+</p-card>
+
+<style>
+  .attendance-calendar {
+    overflow-x: auto;
+  }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    min-width: 280px;
+  }
+
+  .day-header {
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-color-secondary);
+    padding: 6px 2px;
+    background: var(--surface-100);
+    border-radius: 4px;
+  }
+
+  .day-cell {
+    min-height: 52px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    position: relative;
+    padding: 4px 2px;
+    border: 1px solid transparent;
+  }
+
+  .day-number {
+    font-size: 0.85rem;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .status-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Status colours */
+  .day-empty {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .day-future {
+    background: var(--surface-100);
+    color: var(--text-color-secondary);
+    opacity: 0.5;
+  }
+
+  .day-no-record {
+    background: var(--surface-100);
+    color: var(--text-color-secondary);
+    border-color: var(--surface-200);
+  }
+
+  .day-present {
+    background: #f0fdf4;
+    border-color: #86efac;
+    color: #166534;
+  }
+  .day-present .status-badge { background: #22c55e; color: #fff; }
+
+  .day-absent {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #991b1b;
+  }
+  .day-absent .status-badge { background: #ef4444; color: #fff; }
+
+  .day-late {
+    background: #fffbeb;
+    border-color: #fcd34d;
+    color: #92400e;
+  }
+  .day-late .status-badge { background: #f59e0b; color: #fff; }
+
+  .day-leave {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1e40af;
+  }
+  .day-leave .status-badge { background: #3b82f6; color: #fff; }
+
+  .day-holiday {
+    background: #f5f3ff;
+    border-color: #c4b5fd;
+    color: #5b21b6;
+  }
+  .day-holiday .status-badge { background: #8b5cf6; color: #fff; }
+
+  /* Legend dots */
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .legend-present  { background: #22c55e; }
+  .legend-absent   { background: #ef4444; }
+  .legend-late     { background: #f59e0b; }
+  .legend-leave    { background: #3b82f6; }
+  .legend-holiday  { background: #8b5cf6; }
+  .legend-no-record { background: var(--surface-300); }
+
+  /* Summary chips */
+  .summary-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .chip-present    { background: #dcfce7; color: #166534; }
+  .chip-absent     { background: #fee2e2; color: #991b1b; }
+  .chip-late       { background: #fef9c3; color: #92400e; }
+  .chip-leave      { background: #dbeafe; color: #1e40af; }
+  .chip-percentage { background: var(--surface-100); color: var(--text-color); }
+  .chip-percentage-good { background: #dcfce7; color: #166534; }
+  .chip-percentage-warn { background: #fef9c3; color: #92400e; }
+  .chip-percentage-bad  { background: #fee2e2; color: #991b1b; }
+</style>

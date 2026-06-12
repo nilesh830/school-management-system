@@ -1,7 +1,7 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
-> **Last updated:** 2026-06-12 | **Branch:** `develop`
+> **Last updated:** 2026-06-12 (session 2) | **Branch:** `develop`
 
 ---
 
@@ -199,22 +199,85 @@ Committed `6d1adc0` on develop. SMS-001 → SMS-006 all done. 28 tests.
 
 ---
 
-## Next Sprint: Sprint 4 — Attendance Management
+## Sprint 4 Board — ✅ COMPLETE
 
 See `docs/sprints/sprint-4-to-6.md` for full story details and per-task agent assignments.
 
 | Story | Title | Points | Agents | Status |
 |-------|-------|--------|--------|--------|
-| SMS-024 | Mark Daily Attendance (Teacher) | 8 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
-| SMS-025 | Attendance View (Student/Parent) | 5 | `@frontend-engineer` | 🔲 To Do |
-| SMS-026 | Attendance Report by Class & Range | 8 | `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
-| SMS-027 | Absence Notification to Parent | 5 | `@backend-engineer` | 🔲 To Do |
-| SMS-028 | Attendance Statistics Dashboard | 3 | `@frontend-engineer` | 🔲 To Do |
+| SMS-024 | Mark Daily Attendance (Teacher) | 8 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-025 | Attendance View (Student/Parent) | 5 | `@frontend-engineer` | ✅ Done |
+| SMS-026 | Attendance Report by Class & Range | 8 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-027 | Absence Notification to Parent | 5 | `@backend-engineer` | ✅ Done |
+| SMS-028 | Attendance Statistics Dashboard | 3 | `@frontend-engineer` | ✅ Done |
 
-**Starting point for Sprint 4:**
-1. Begin with `@database-engineer` — create `Attendance` + `Notification` models + migration
-2. Then `@backend-engineer` — `AttendanceService`, `NotificationService`, routes, tests
-3. Then `@frontend-engineer` — teacher attendance marking UI, student/parent view
+### SMS-024 Detail (✅ Complete)
+
+| Task | Status | File |
+|------|--------|------|
+| T-024-01 `Attendance` model | ✅ | `backend/app/models/attendance.py` |
+| T-024-02 Migration `0a44164dd313` | ✅ | `backend/migrations/versions/0a44164dd313_*.py` |
+| T-024-03 `AttendanceService.mark_attendance()` + 409 | ✅ | `backend/app/services/attendance_service.py` |
+| T-024-04 `POST /api/v1/attendance/mark` + teacher auth | ✅ | `backend/app/routes/attendance.py` |
+| T-024-05 `notify_absence()` on absent records | ✅ | `backend/app/services/notification_service.py` |
+| T-024-06 Angular marking UI (section + date + toggle grid) | ✅ | `frontend/.../attendance-mark/` |
+| T-024-07 7 backend tests, all passing | ✅ | `backend/tests/test_attendance.py` |
+
+### SMS-025 Detail (✅ Complete)
+
+| Task | Status | File |
+|------|--------|------|
+| T-025-01 `GET /api/v1/attendance?student_id&month&year` | ✅ | `backend/app/routes/attendance.py` |
+| T-025-02 Color-coded attendance calendar (7-col grid) | ✅ | `frontend/.../attendance-calendar/` |
+| T-025-03 Month navigation (prev/next, no reload) | ✅ | same component |
+| T-025-04 Monthly summary row (present/absent/late/%) | ✅ | same component |
+
+### SMS-026 Detail (🔶 Backend done)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-026-01/02 `GET /api/v1/attendance/report` | ✅ | Aggregates by student, counts by status |
+| T-026-03 Filterable report table + export CSV button | ✅ | `frontend/.../attendance-report/` |
+| T-026-04 Tests: date range, section filter, empty range, 403 | ✅ | 5 new tests in `test_attendance.py` |
+
+### SMS-027 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-027-01 `Notification` model + migration `0a44164dd313` | ✅ | `backend/app/models/notification.py` |
+| T-027-02 `NotificationService.create()` | ✅ | `backend/app/services/notification_service.py` |
+| T-027-03 Wire `notify_absence()` into `mark_attendance()` | ✅ | Fires after commit for each absent row |
+
+### SMS-028 Detail (🔶 Backend done)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-028-01 `GET /api/v1/attendance/today-summary` | ✅ | Returns present/absent/late/holiday/total counts |
+| T-028-02 Dashboard doughnut chart (`p-chart`) | ✅ | `dashboard.component.ts` — live data + `chart.js` installed |
+| T-028-03 Live "Attendance Today" stat card | ✅ | `dashboard.component.ts` — present/absent/late counts |
+
+**Backend test count: 213 passing (0 failures)**
+**Angular build: 0 errors**
+
+---
+
+## Next Sprint: Sprint 5 — Grade & Exam Management
+
+See `docs/sprints/sprint-4-to-6.md` for full story details.
+
+| Story | Title | Points | Agents | Status |
+|-------|-------|--------|--------|--------|
+| SMS-029 | Create Exam Definitions | 5 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
+| SMS-030 | Subject-wise Marks Entry | 8 | `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
+| SMS-031 | Grade Calculation & GPA | 5 | `@backend-engineer` | 🔲 To Do |
+| SMS-032 | Student Report Card (PDF) | 8 | `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
+| SMS-033 | Class Result Summary | 5 | `@frontend-engineer` | 🔲 To Do |
+| SMS-034 | Marks Edit & Approval Workflow | 5 | `@backend-engineer` | 🔲 To Do |
+
+**Starting point for Sprint 5:**
+1. `@database-engineer` — `Exam` model + `ExamResult` model + migration
+2. `@backend-engineer` — `ExamService` (CRUD + grade calc + GPA), routes, tests
+3. `@frontend-engineer` — exam list, marks entry grid, report card download button
 
 ---
 

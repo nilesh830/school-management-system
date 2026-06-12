@@ -71,6 +71,7 @@ def create_app(config_name='default'):
     from app.routes.sections import sections_bp
     from app.routes.timetables import timetables_bp
     from app.routes.parent_portal import parent_portal_bp, leave_bp, notifications_bp
+    from app.routes.attendance import attendance_bp
     from app.routes.superadmin_auth import superadmin_auth_bp
     from app.routes.superadmin_schools import superadmin_schools_bp
 
@@ -86,8 +87,12 @@ def create_app(config_name='default'):
     app.register_blueprint(parent_portal_bp)
     app.register_blueprint(leave_bp)
     app.register_blueprint(notifications_bp)
+    app.register_blueprint(attendance_bp)
     app.register_blueprint(superadmin_auth_bp)
     app.register_blueprint(superadmin_schools_bp)
+
+    # Ensure all tenant models are imported so Alembic autogenerate can detect them.
+    from app.models.attendance import Attendance  # noqa: F401
 
     # Ensure master models are imported so SQLAlchemy includes them in metadata,
     # then create their tables (no Flask-Migrate for the simple master schema).

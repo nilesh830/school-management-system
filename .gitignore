@@ -24,6 +24,9 @@ dist/
 .angular/
 *.js.map
 
+# Uploads (runtime file storage — never commit)
+backend/uploads/
+
 # IDE
 .vscode/
 .idea/

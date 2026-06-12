@@ -94,6 +94,20 @@ export class StudentService {
     return this.http.get<ApiResponse<StudentListData>>(this.apiUrl, { params });
   }
 
+  searchStudents(search: string, perPage = 20): Observable<ApiResponse<StudentListData>> {
+    const params = new HttpParams()
+      .set('search', search)
+      .set('per_page', perPage.toString());
+    return this.http.get<ApiResponse<StudentListData>>(this.apiUrl, { params });
+  }
+
+  getStudentsBySection(sectionId: number): Observable<ApiResponse<StudentListData>> {
+    const params = new HttpParams()
+      .set('section_id', sectionId.toString())
+      .set('per_page', '100');
+    return this.http.get<ApiResponse<StudentListData>>(this.apiUrl, { params });
+  }
+
   getStudentById(id: number): Observable<ApiResponse<Student>> {
     return this.http.get<ApiResponse<Student>>(`${this.apiUrl}/${id}`);
   }

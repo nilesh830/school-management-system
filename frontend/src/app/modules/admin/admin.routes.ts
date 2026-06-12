@@ -64,6 +64,27 @@ export const ADMIN_ROUTES: Routes = [
         path: 'timetable',
         loadComponent: () => import('./timetable/timetable-view/timetable-view.component').then(m => m.TimetableViewComponent)
       },
+      // ── Attendance (SMS-024 / SMS-025) ────────────────────────────────────────
+      {
+        path: 'attendance',
+        redirectTo: 'attendance/mark',
+        pathMatch: 'full'
+      },
+      {
+        path: 'attendance/mark',
+        loadComponent: () => import('./attendance/attendance-mark/attendance-mark.component')
+          .then(m => m.AttendanceMarkComponent)
+      },
+      {
+        path: 'attendance/view',
+        loadComponent: () => import('./attendance/attendance-calendar/attendance-calendar.component')
+          .then(m => m.AttendanceCalendarComponent)
+      },
+      {
+        path: 'attendance/report',
+        loadComponent: () => import('./attendance/attendance-report/attendance-report.component')
+          .then(m => m.AttendanceReportComponent)
+      },
       // ── Profile ────────────────────────────────────────────────────────────
       {
         path: 'profile',

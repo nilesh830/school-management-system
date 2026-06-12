@@ -8,7 +8,8 @@ class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     type = db.Column(
-        db.Enum('absence', 'low_marks', 'fee_due', 'message', 'announcement', 'leave_update',
+        db.Enum('absence', 'low_marks', 'fee_due', 'message', 'announcement',
+                'leave_update', 'leave', 'general',
                 name='notification_types'),
         nullable=False
     )
