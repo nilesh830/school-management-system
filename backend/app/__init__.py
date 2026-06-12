@@ -36,6 +36,9 @@ def create_app(config_name='default'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
 
+    # Ensure school DBs directory exists before any DB operations
+    os.makedirs(app.config['SCHOOLS_DB_DIR'], exist_ok=True)
+
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
@@ -47,6 +50,13 @@ def create_app(config_name='default'):
     _init_swagger(app)
     _register_jwt_handlers(jwt)
 
+    from app.utils.tenant import setup_tenant_db, teardown_tenant_db
+    app.before_request(setup_tenant_db)
+    app.teardown_request(teardown_tenant_db)
+
+    from app.cli import register_commands
+    register_commands(app)
+
     @app.route('/api/v1/health')
     def health():
         return jsonify({"success": True, "message": "SMS API is running", "version": "1.0.0"}), 200
@@ -55,15 +65,37 @@ def create_app(config_name='default'):
     from app.routes.users import users_bp
     from app.routes.students import students_bp
     from app.routes.teachers import teachers_bp
+    from app.routes.academic_years import academic_years_bp
+    from app.routes.subjects import subjects_bp
+    from app.routes.classes import classes_bp
+    from app.routes.sections import sections_bp
+    from app.routes.timetables import timetables_bp
     from app.routes.parent_portal import parent_portal_bp, leave_bp, notifications_bp
+    from app.routes.superadmin_auth import superadmin_auth_bp
+    from app.routes.superadmin_schools import superadmin_schools_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(students_bp)
     app.register_blueprint(teachers_bp)
+    app.register_blueprint(academic_years_bp)
+    app.register_blueprint(subjects_bp)
+    app.register_blueprint(classes_bp)
+    app.register_blueprint(sections_bp)
+    app.register_blueprint(timetables_bp)
     app.register_blueprint(parent_portal_bp)
     app.register_blueprint(leave_bp)
     app.register_blueprint(notifications_bp)
+    app.register_blueprint(superadmin_auth_bp)
+    app.register_blueprint(superadmin_schools_bp)
+
+    # Ensure master models are imported so SQLAlchemy includes them in metadata,
+    # then create their tables (no Flask-Migrate for the simple master schema).
+    from app.models.master.school import School  # noqa: F401
+    from app.models.master.super_admin import SuperAdmin  # noqa: F401
+    from app.models.master.super_admin_revoked_token import SuperAdminRevokedToken  # noqa: F401
+    with app.app_context():
+        db.create_all(bind_key=['master'])
 
     return app
 
@@ -78,7 +110,12 @@ def _register_jwt_handlers(jwt_manager):
     @jwt_manager.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
         from app.models.revoked_token import RevokedToken
-        return RevokedToken.is_jti_blocklisted(jwt_payload['jti'])
+        from app.models.master.super_admin_revoked_token import SuperAdminRevokedToken
+        jti = jwt_payload['jti']
+        # Fast path: super admin tokens are stored in the master DB blocklist
+        if jwt_payload.get('role') == 'super_admin':
+            return SuperAdminRevokedToken.is_jti_blocklisted(jti)
+        return RevokedToken.is_jti_blocklisted(jti)
 
     @jwt_manager.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):

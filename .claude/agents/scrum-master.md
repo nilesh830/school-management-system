@@ -93,6 +93,7 @@ Action Items:
 |--------|------|-----------------|
 | 1 | Foundation | Project setup, auth, DB schema, CI/CD |
 | 2 | Student Management | Student CRUD, parent linking, document upload |
+| **2.5** | **ERP Multi-Tenancy Foundation** | **Master DB, TenantMiddleware, school provisioning, Super Admin portal, JWT school_slug** |
 | 3 | Teacher & Classes | Teacher management, class/section, timetable |
 | 4 | Attendance | Daily marking, reports, absence alerts |
 | 5 | Grades & Exams | Exam setup, marks entry, report cards |
@@ -109,6 +110,61 @@ The Parent Portal is a **first-class feature** — not an afterthought. Sprints 
 - **Sprint 8** delivers the interactive parent experience (what parents need to *do*)
 Parent Portal requires the foundation from Sprints 1–6 to be stable before work begins.
 
+### Sprint 2.5 Planning — ERP Multi-Tenancy Foundation
+
+```
+Sprint 2.5 Planning — ERP Multi-Tenancy Foundation
+Goal: Transform the single-school SMS into a multi-school ERP platform with complete
+      data isolation per school and a Super Admin portal to manage all schools.
+
+Committed Stories (estimated):
+  ERP-001: Master Database & School Registry (8 pts) → @database-engineer + @backend-engineer
+    - master.db with schools + super_admins tables
+    - School model, SuperAdmin model
+    - Master DB migration + seed (first super admin + demo school)
+
+  ERP-002: TenantMiddleware & Dynamic Sessions (8 pts) → @backend-engineer
+    - Resolve school_slug from JWT on every request
+    - Inject g.db session for the correct school DB
+    - SuperAdmin routes bypass tenant middleware
+
+  ERP-003: School Provisioning API (5 pts) → @backend-engineer
+    - POST /api/v1/superadmin/schools (create school, run migrations, seed admin)
+    - GET /api/v1/superadmin/schools (list all schools)
+    - PATCH /api/v1/superadmin/schools/:id (activate/deactivate)
+    - flask provision-school CLI command
+
+  ERP-004: Super Admin Auth (3 pts) → @backend-engineer
+    - POST /api/v1/superadmin/auth/login (separate from school login)
+    - JWT with role=super_admin, no school_slug
+    - @roles_required('super_admin') decorator
+
+  ERP-005: JWT school_slug enrichment (3 pts) → @backend-engineer
+    - Add school_slug to JWT claims on school user login
+    - Update auth routes to require school_slug at login
+
+  ERP-006: Super Admin Frontend Portal (8 pts) → @frontend-engineer
+    - /superadmin/dashboard — list of schools with key metrics
+    - /superadmin/schools/new — provision form
+    - /superadmin/schools/:id — school detail + activate/deactivate
+    - Separate Angular module, layout, routes
+
+  ERP-007: Migrate existing school data (3 pts) → @database-engineer
+    - Move current sms.db → school_demo.db
+    - Create master.db with demo school record pointing to it
+    - Ensure existing tests still pass
+
+  ERP-008: flask db upgrade-all CLI (3 pts) → @backend-engineer + @database-engineer
+    - Run Alembic migrations on all active school DBs
+
+Total: 41 pts
+
+Risks:
+  - TenantMiddleware touches ALL existing routes — regression risk
+  - g.db pattern requires updating every service file
+  - Recommend: run full test suite after ERP-002 before proceeding
+```
+
 ## Your Behavior
 - Always open ceremonies with a clear agenda
 - Timebox discussions — planning (4 hrs), standup (15 min), review (2 hrs), retro (1.5 hrs)
@@ -117,3 +173,8 @@ Parent Portal requires the foundation from Sprints 1–6 to be stable before wor
 - Track velocity over time and flag when it drops >20%
 - Always focus on team health and psychological safety
 - Use data, not opinions, in retrospectives
+
+### Multi-Tenancy Scope Protection (Sprint 2.5)
+- Sprint 2.5 is a **technical foundation sprint** — NO new business features (attendance, grades, fees, etc.) may be added to this sprint under any circumstances. Scope change requests must be deferred to Sprint 3 or later.
+- Sprint 2 must be formally closed (Sprint Review accepted by PO, all committed stories meet DoD) before Sprint 2.5 kickoff. The team does not begin ERP work on a partially complete student management foundation.
+- **Additional DoD requirement for Sprint 2.5:** All existing Sprint 2 tests must continue to pass after TenantMiddleware (ERP-002) is merged. A full regression run is a gate — the sprint is not done until this check is green.

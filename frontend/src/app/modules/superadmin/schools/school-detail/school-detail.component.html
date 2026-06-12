@@ -1,0 +1,252 @@
+<p-toast position="top-right" />
+<p-confirmDialog />
+
+@if (loading()) {
+  <p-card>
+    <p-skeleton height="3rem" styleClass="mb-3" />
+    <div class="grid">
+      @for (i of [1,2,3,4,5,6]; track i) {
+        <div class="col-12 md:col-6">
+          <p-skeleton height="3rem" styleClass="mb-2" />
+        </div>
+      }
+    </div>
+  </p-card>
+} @else if (school()) {
+  <p-card>
+    <!-- Toolbar -->
+    <p-toolbar styleClass="mb-4">
+      <ng-template pTemplate="left">
+        <div class="flex align-items-center gap-2">
+          <p-button
+            icon="pi pi-arrow-left"
+            [rounded]="true"
+            [text]="true"
+            severity="secondary"
+            pTooltip="Back to Schools"
+            routerLink="/superadmin/schools"
+          />
+          <div>
+            <h2 class="text-xl font-bold text-900 m-0">{{ school()!.name }}</h2>
+            <code class="text-500 text-sm">{{ school()!.slug }}</code>
+          </div>
+          <p-tag
+            [value]="school()!.is_active ? 'Active' : 'Inactive'"
+            [severity]="school()!.is_active ? 'success' : 'danger'"
+            styleClass="ml-2"
+          />
+        </div>
+      </ng-template>
+      <ng-template pTemplate="right">
+        <div class="flex gap-2">
+          @if (!editMode()) {
+            <p-button
+              label="Edit"
+              icon="pi pi-pencil"
+              severity="secondary"
+              [outlined]="true"
+              (onClick)="enterEditMode()"
+            />
+          }
+          <p-button
+            [label]="school()!.is_active ? 'Deactivate' : 'Activate'"
+            [icon]="school()!.is_active ? 'pi pi-ban' : 'pi pi-check'"
+            [severity]="school()!.is_active ? 'danger' : 'success'"
+            [loading]="toggling()"
+            (onClick)="toggleActive()"
+          />
+        </div>
+      </ng-template>
+    </p-toolbar>
+
+    <!-- View mode -->
+    @if (!editMode()) {
+      <div class="grid">
+        <div class="col-12">
+          <h3 class="text-base font-semibold text-600 uppercase mb-3 mt-0">School Details</h3>
+        </div>
+
+        <div class="col-12 md:col-6 lg:col-4">
+          <div class="flex flex-column gap-1 mb-4">
+            <span class="text-500 text-sm font-medium">Name</span>
+            <span class="text-900 font-semibold">{{ school()!.name }}</span>
+          </div>
+        </div>
+
+        <div class="col-12 md:col-6 lg:col-4">
+          <div class="flex flex-column gap-1 mb-4">
+            <span class="text-500 text-sm font-medium">Slug</span>
+            <code class="text-900">{{ school()!.slug }}</code>
+          </div>
+        </div>
+
+        <div class="col-12 md:col-6 lg:col-4">
+          <div class="flex flex-column gap-1 mb-4">
+            <span class="text-500 text-sm font-medium">Email</span>
+            <span class="text-900">{{ school()!.email || '—' }}</span>
+          </div>
+        </div>
+
+        <div class="col-12 md:col-6 lg:col-4">
+          <div class="flex flex-column gap-1 mb-4">
+            <span class="text-500 text-sm font-medium">Phone</span>
+            <span class="text-900">{{ school()!.phone || '—' }}</span>
+          </div>
+        </div>
+
+        <div class="col-12 md:col-6 lg:col-4">
+          <div class="flex flex-column gap-1 mb-4">
+            <span class="text-500 text-sm font-medium">Address</span>
+            <span class="text-900">{{ school()!.address || '—' }}</span>
+          </div>
+        </div>
+
+        <div class="col-12 md:col-6 lg:col-4">
+          <div class="flex flex-column gap-1 mb-4">
+            <span class="text-500 text-sm font-medium">Academic Year Start</span>
+            <span class="text-900">{{ monthName }}</span>
+          </div>
+        </div>
+
+        <div class="col-12 md:col-6 lg:col-4">
+          <div class="flex flex-column gap-1 mb-4">
+            <span class="text-500 text-sm font-medium">Created At</span>
+            <span class="text-900">{{ school()!.created_at | date:'medium' }}</span>
+          </div>
+        </div>
+
+        <div class="col-12 md:col-6 lg:col-4">
+          <div class="flex flex-column gap-1 mb-4">
+            <span class="text-500 text-sm font-medium">Last Updated</span>
+            <span class="text-900">{{ school()!.updated_at | date:'medium' }}</span>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Edit mode -->
+    @if (editMode()) {
+      <form [formGroup]="editForm" (ngSubmit)="saveChanges()">
+        <div class="grid">
+          <div class="col-12">
+            <h3 class="text-base font-semibold text-600 uppercase mb-3 mt-0">Edit School Details</h3>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="flex flex-column gap-2 mb-4">
+              <label for="edit-name" class="font-semibold text-900">School Name <span class="text-red-500">*</span></label>
+              <input
+                id="edit-name"
+                type="text"
+                pInputText
+                formControlName="name"
+                class="w-full"
+              />
+              @if (editForm.controls.name.touched && editForm.controls.name.errors?.['required']) {
+                <small class="text-red-500">Name is required</small>
+              }
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="flex flex-column gap-2 mb-4">
+              <label for="edit-email" class="font-semibold text-900">Email</label>
+              <input
+                id="edit-email"
+                type="email"
+                pInputText
+                formControlName="email"
+                class="w-full"
+              />
+              @if (editForm.controls.email.touched && editForm.controls.email.errors?.['email']) {
+                <small class="text-red-500">Enter a valid email address</small>
+              }
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="flex flex-column gap-2 mb-4">
+              <label for="edit-phone" class="font-semibold text-900">Phone</label>
+              <input
+                id="edit-phone"
+                type="text"
+                pInputText
+                formControlName="phone"
+                class="w-full"
+              />
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="flex flex-column gap-2 mb-4">
+              <label for="edit-address" class="font-semibold text-900">Address</label>
+              <input
+                id="edit-address"
+                type="text"
+                pInputText
+                formControlName="address"
+                class="w-full"
+              />
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="flex flex-column gap-2 mb-4">
+              <label for="edit-logo" class="font-semibold text-900">Logo URL</label>
+              <input
+                id="edit-logo"
+                type="text"
+                pInputText
+                formControlName="logo_url"
+                placeholder="https://..."
+                class="w-full"
+              />
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="flex flex-column gap-2 mb-4">
+              <label for="edit-month" class="font-semibold text-900">Academic Year Start Month</label>
+              <p-dropdown
+                inputId="edit-month"
+                formControlName="academic_year_start_month"
+                [options]="monthOptions"
+                optionLabel="label"
+                optionValue="value"
+                [showClear]="true"
+                placeholder="Select month"
+                styleClass="w-full"
+              />
+            </div>
+          </div>
+
+          <div class="col-12 mt-2">
+            <div class="flex justify-content-end gap-2">
+              <p-button
+                label="Cancel"
+                severity="secondary"
+                [outlined]="true"
+                type="button"
+                (onClick)="cancelEdit()"
+              />
+              <p-button
+                type="submit"
+                label="Save Changes"
+                icon="pi pi-check"
+                [loading]="saving()"
+              />
+            </div>
+          </div>
+        </div>
+      </form>
+    }
+  </p-card>
+} @else {
+  <p-card>
+    <div class="text-center py-5">
+      <i class="pi pi-exclamation-circle text-4xl text-300 mb-3 block"></i>
+      <p class="text-600 mb-3">School not found.</p>
+      <p-button label="Back to Schools" icon="pi pi-arrow-left" routerLink="/superadmin/schools" />
+    </div>
+  </p-card>
+}

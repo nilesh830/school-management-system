@@ -25,6 +25,8 @@ export class AdminLayoutComponent {
     { label: 'Students', icon: 'pi-graduation-cap', route: '/admin/students' },
     { label: 'Teachers', icon: 'pi-id-card', route: '/admin/teachers' },
     { label: 'Classes', icon: 'pi-building', route: '/admin/classes' },
+    { label: 'Subjects', icon: 'pi-book', route: '/admin/subjects' },
+    { label: 'Timetable', icon: 'pi-calendar', route: '/admin/timetable' },
     { label: 'Attendance', icon: 'pi-calendar-clock', route: '/admin/attendance' },
     { label: 'Fees', icon: 'pi-indian-rupee', route: '/admin/fees' },
     { label: 'Reports', icon: 'pi-chart-bar', route: '/admin/reports' },

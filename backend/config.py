@@ -7,7 +7,23 @@ load_dotenv()
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-change-in-production')
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///sms.db')
+
+    # Compute absolute paths relative to this config file so they are
+    # independent of the working directory when the app is started.
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    _INSTANCE_DIR = os.path.join(_BASE_DIR, 'instance')
+    SCHOOLS_DB_DIR = os.path.join(_INSTANCE_DIR, 'schools')
+
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'DATABASE_URL',
+        'sqlite:///' + os.path.join(_INSTANCE_DIR, 'schools', 'school_demo.db').replace('\\', '/')
+    )
+    SQLALCHEMY_BINDS = {
+        'master': os.environ.get(
+            'MASTER_DATABASE_URL',
+            'sqlite:///' + os.path.join(_INSTANCE_DIR, 'master.db').replace('\\', '/')
+        )
+    }
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-change-in-production')
@@ -47,6 +63,7 @@ class ProductionConfig(Config):
 class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_BINDS = {'master': 'sqlite:///:memory:'}
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     MAIL_SUPPRESS_SEND = True
     WTF_CSRF_ENABLED = False

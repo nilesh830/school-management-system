@@ -18,6 +18,7 @@ from app.models.revoked_token import RevokedToken
 from app.models.password_reset_token import PasswordResetToken
 from app.utils.response import success_response, error_response
 from app.utils.validators import validate_password, validate_email
+from app.utils.tenant import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,8 @@ def _allowed_image(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 
-def _build_additional_claims(user):
-    claims = {'role': user.role, 'user_id': user.id}
+def _build_additional_claims(user, school_slug: str):
+    claims = {'role': user.role, 'user_id': user.id, 'school_slug': school_slug}
     if user.role == 'parent' and user.parent:
         claims['parent_id'] = user.parent.id
     return claims
@@ -45,17 +46,24 @@ def _build_additional_claims(user):
 @limiter.limit("5/minute")
 def login():
     data = request.get_json()
-    if not data or not data.get('email') or not data.get('password'):
-        return error_response("Email and password are required", status=400)
+    if not data or not data.get('email') or not data.get('password') or not data.get('school_slug'):
+        return error_response("Email, password, and school_slug are required", status=400)
 
-    user = User.query.filter_by(email=data['email'].lower().strip(), is_active=True).first()
+    # Validate school exists and is active in master.db
+    from app.models.master.school import School
+    school_slug = data['school_slug'].lower().strip()
+    school = School.query.filter_by(slug=school_slug, is_active=True).first()
+    if not school:
+        return error_response("School not found or inactive", status=404)
+
+    user = get_db().query(User).filter_by(email=data['email'].lower().strip(), is_active=True).first()
     if not user or not user.check_password(data['password']):
         return error_response("Invalid email or password", status=401)
 
     user.last_login = datetime.utcnow()
-    db.session.commit()
+    get_db().commit()
 
-    claims = _build_additional_claims(user)
+    claims = _build_additional_claims(user, school_slug)
     access_token = create_access_token(identity=str(user.id), additional_claims=claims)
     refresh_token = create_refresh_token(identity=str(user.id), additional_claims=claims)
 
@@ -74,11 +82,13 @@ def login():
 @limiter.limit("10/minute")
 def refresh():
     user_id = int(get_jwt_identity())
-    user = db.session.get(User, user_id)
+    current_claims = get_jwt()
+    user = get_db().get(User, user_id)
     if not user or not user.is_active:
         return error_response("User not found or inactive", status=401)
 
-    claims = _build_additional_claims(user)
+    school_slug = current_claims.get('school_slug', '')
+    claims = _build_additional_claims(user, school_slug)
     access_token = create_access_token(identity=str(user_id), additional_claims=claims)
     return success_response(data={'access_token': access_token}, message="Token refreshed")
 
@@ -88,8 +98,8 @@ def refresh():
 def logout():
     jti = get_jwt()['jti']
     revoked = RevokedToken(jti=jti)
-    db.session.add(revoked)
-    db.session.commit()
+    get_db().add(revoked)
+    get_db().commit()
     return success_response(message="Logged out successfully")
 
 
@@ -101,7 +111,7 @@ def logout():
 @jwt_required()
 def me():
     user_id_raw = get_jwt_identity()
-    user = db.session.get(User, int(user_id_raw))
+    user = get_db().get(User, int(user_id_raw))
     if not user or not user.is_active:
         return error_response("User not found", status=404)
     return success_response(data=user.to_dict(), message="User profile retrieved")
@@ -120,7 +130,7 @@ def forgot_password():
         return error_response("Email is required", status=400)
 
     # Always return 200 — do not reveal whether the email exists
-    user = User.query.filter_by(email=email, is_active=True).first()
+    user = get_db().query(User).filter_by(email=email, is_active=True).first()
     if user:
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
@@ -129,15 +139,15 @@ def forgot_password():
         )
 
         # Invalidate any existing tokens for this user
-        PasswordResetToken.query.filter_by(user_id=user.id, is_used=False).update({'is_used': True})
+        get_db().query(PasswordResetToken).filter_by(user_id=user.id, is_used=False).update({'is_used': True})
 
         reset_token = PasswordResetToken(
             user_id=user.id,
             token_hash=token_hash,
             expires_at=expires,
         )
-        db.session.add(reset_token)
-        db.session.commit()
+        get_db().add(reset_token)
+        get_db().commit()
 
         frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:4200')
         reset_link = f"{frontend_url}/auth/reset-password?token={raw_token}"
@@ -165,20 +175,20 @@ def reset_password():
         return error_response("Password does not meet requirements", errors=pw_errors, status=422)
 
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-    reset_token = PasswordResetToken.query.filter_by(
+    reset_token = get_db().query(PasswordResetToken).filter_by(
         token_hash=token_hash, is_used=False
     ).first()
 
     if not reset_token or not reset_token.is_valid:
         return error_response("Invalid or expired reset token", status=400)
 
-    user = db.session.get(User, reset_token.user_id)
+    user = get_db().get(User, reset_token.user_id)
     if not user or not user.is_active:
         return error_response("User not found", status=404)
 
     user.set_password(new_password)
     reset_token.is_used = True
-    db.session.commit()
+    get_db().commit()
 
     return success_response(message="Password reset successfully. Please log in with your new password.")
 
@@ -191,7 +201,7 @@ def reset_password():
 @jwt_required()
 def update_profile():
     user_id = int(get_jwt_identity())
-    user = db.session.get(User, user_id)
+    user = get_db().get(User, user_id)
     if not user or not user.is_active:
         return error_response("User not found", status=404)
 
@@ -209,7 +219,7 @@ def update_profile():
     if not updated:
         return error_response("No valid fields to update", status=400)
 
-    db.session.commit()
+    get_db().commit()
     return success_response(data=user.to_dict(), message="Profile updated successfully")
 
 
@@ -217,7 +227,7 @@ def update_profile():
 @jwt_required()
 def upload_profile_photo():
     user_id = int(get_jwt_identity())
-    user = db.session.get(User, user_id)
+    user = get_db().get(User, user_id)
     if not user or not user.is_active:
         return error_response("User not found", status=404)
 
@@ -242,7 +252,7 @@ def upload_profile_photo():
     file.save(filepath)
 
     user.photo_url = f"/uploads/profile_photos/{filename}"
-    db.session.commit()
+    get_db().commit()
 
     return success_response(
         data={'photo_url': user.photo_url},

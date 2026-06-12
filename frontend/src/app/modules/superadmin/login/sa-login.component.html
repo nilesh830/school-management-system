@@ -1,0 +1,75 @@
+<p-toast position="top-right" />
+
+<div class="flex align-items-center justify-content-center min-h-screen" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)">
+  <div class="w-full mx-3" style="max-width: 440px">
+    <p-card>
+      <ng-template pTemplate="header">
+        <div class="text-center px-5 pt-5 pb-2">
+          <div class="flex align-items-center justify-content-center gap-2 mb-3">
+            <i class="pi pi-server text-3xl text-primary"></i>
+            <span class="text-3xl font-bold text-primary">ERP</span>
+          </div>
+          <div class="text-xl font-semibold text-900 mb-1">Super Admin Portal</div>
+          <p class="text-500 m-0 text-sm">Sign in with your super admin credentials</p>
+        </div>
+      </ng-template>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="flex flex-column gap-4 px-1">
+
+          <div class="flex flex-column gap-2">
+            <label for="sa-email" class="font-semibold text-900">Email address</label>
+            <input
+              id="sa-email"
+              type="email"
+              pInputText
+              formControlName="email"
+              placeholder="superadmin@erp.com"
+              class="w-full"
+              autocomplete="email"
+            />
+            @if (emailCtrl.touched && emailCtrl.errors?.['required']) {
+              <small class="text-red-500">Email is required</small>
+            }
+            @if (emailCtrl.touched && emailCtrl.errors?.['email']) {
+              <small class="text-red-500">Enter a valid email address</small>
+            }
+          </div>
+
+          <div class="flex flex-column gap-2">
+            <label for="sa-password" class="font-semibold text-900">Password</label>
+            <p-password
+              formControlName="password"
+              [feedback]="false"
+              [toggleMask]="true"
+              inputId="sa-password"
+              styleClass="w-full"
+              inputStyleClass="w-full"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+            />
+            @if (passwordCtrl.touched && passwordCtrl.errors?.['required']) {
+              <small class="text-red-500">Password is required</small>
+            }
+            @if (passwordCtrl.touched && passwordCtrl.errors?.['minlength']) {
+              <small class="text-red-500">Password must be at least 8 characters</small>
+            }
+          </div>
+
+          <button
+            type="submit"
+            class="p-button p-component w-full justify-content-center"
+            [disabled]="loading"
+          >
+            <i class="pi p-button-icon p-button-icon-left"
+               [class.pi-spin]="loading"
+               [class.pi-spinner]="loading"
+               [class.pi-sign-in]="!loading"></i>
+            <span class="p-button-label">{{ loading ? 'Signing in...' : 'Sign In' }}</span>
+          </button>
+
+        </div>
+      </form>
+    </p-card>
+  </div>
+</div>

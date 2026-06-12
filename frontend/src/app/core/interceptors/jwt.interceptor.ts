@@ -22,7 +22,7 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
   return next(authReq).pipe(
     catchError(error => {
       // Auto-refresh on 401 — but not for the refresh or logout endpoint itself
-      if (error.status === 401 && !req.url.includes('/auth/refresh') && !req.url.includes('/auth/logout')) {
+      if (error.status === 401 && !req.url.includes('/auth/refresh') && !req.url.includes('/auth/logout') && !req.url.includes('/superadmin/')) {
         const refreshToken = auth.getRefreshToken();
         if (!refreshToken) {
           auth.logout();
