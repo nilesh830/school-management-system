@@ -65,6 +65,11 @@ def create_app(config_name='default'):
     from app.routes.users import users_bp
     from app.routes.students import students_bp
     from app.routes.teachers import teachers_bp
+    from app.routes.academic_years import academic_years_bp
+    from app.routes.subjects import subjects_bp
+    from app.routes.classes import classes_bp
+    from app.routes.sections import sections_bp
+    from app.routes.timetables import timetables_bp
     from app.routes.parent_portal import parent_portal_bp, leave_bp, notifications_bp
     from app.routes.superadmin_auth import superadmin_auth_bp
     from app.routes.superadmin_schools import superadmin_schools_bp
@@ -73,6 +78,11 @@ def create_app(config_name='default'):
     app.register_blueprint(users_bp)
     app.register_blueprint(students_bp)
     app.register_blueprint(teachers_bp)
+    app.register_blueprint(academic_years_bp)
+    app.register_blueprint(subjects_bp)
+    app.register_blueprint(classes_bp)
+    app.register_blueprint(sections_bp)
+    app.register_blueprint(timetables_bp)
     app.register_blueprint(parent_portal_bp)
     app.register_blueprint(leave_bp)
     app.register_blueprint(notifications_bp)

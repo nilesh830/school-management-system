@@ -5,10 +5,10 @@
 
 ---
 
-## Current Sprint: Sprint 2.5 — ERP Multi-Tenancy Foundation
+## Current Sprint: Sprint 3 — Teacher Management & Class Structure
 
-> Project pivoted to multi-school ERP platform (Option B: Database-per-School).
-> See `docs/sprints/sprint-2.5-erp-foundation.md` for full story details.
+> See `docs/sprints/sprint-3.md` for full story details.
+> Sprint 2.5 ERP Foundation is complete — see archived section below.
 
 ### Sprint 2.5 Board
 
