@@ -1,7 +1,7 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
-> **Last updated:** 2026-06-10 | **Branch:** `develop`
+> **Last updated:** 2026-06-11 | **Branch:** `develop`
 
 ---
 
@@ -23,7 +23,7 @@
 | ERP-007 | Migrate existing sms.db → school_demo.db | 3 | ✅ Done (part of ERP-001) |
 | ERP-008 | `flask db upgrade-all` CLI | 3 | ✅ Done |
 
-**Tests passing: 127/127** | **Committed through: ERP-006 (`cadb9e3`)** | **Sprint 2.5 COMPLETE ✅**
+**Tests passing: 127/127** | **Sprint 2.5 COMPLETE ✅ — fully committed**
 
 ---
 
@@ -167,10 +167,28 @@ Committed `6d1adc0` on develop. SMS-001 → SMS-006 all done. 28 tests.
 
 ---
 
+## Next Sprint: Sprint 3 — Teacher Management & Class Structure
+
+See `docs/sprints/sprint-3.md` for full story details.
+
+| Story | Title | Points | Status |
+|-------|-------|--------|--------|
+| SMS-014 | Teacher Registration & Profile | 8 | 🔲 To Do |
+| SMS-015 | Subject Assignment to Teacher | 5 | 🔲 To Do |
+| SMS-016 | Teacher List & Search | 3 | 🔲 To Do |
+| SMS-017 | Teacher Schedule View | 5 | 🔲 To Do |
+| SMS-018 | Teacher Document Upload | 5 | 🔲 To Do |
+| SMS-019 | Class & Subject Catalog | 5 | 🔲 To Do |
+| SMS-020 | Section Management per Class | 5 | 🔲 To Do |
+| SMS-021 | Enroll Students into Sections | 5 | 🔲 To Do |
+| SMS-022 | Timetable Creation | 8 | 🔲 To Do |
+| SMS-023 | Academic Year Management | 3 | 🔲 To Do |
+
+---
+
 ## Known Issues
 
 | Issue | Impact | Owner |
 |-------|--------|-------|
 | `student_sections.section_id` has no FK constraint | By design — `sections` table not built until Sprint 3 | Wire FK in Sprint 3 |
 | Sprint 2 student tests not run end-to-end | Low — test file written, can run manually | Run `.\venv\Scripts\pytest tests/test_students.py -v` |
-| `_verify_output.txt` temp file in backend/ | Cosmetic | Delete before next commit |

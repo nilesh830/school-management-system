@@ -21,7 +21,7 @@ _update_schema = SchoolUpdateSchema()
 # ERP-003 — GET /api/v1/superadmin/schools/
 # ---------------------------------------------------------------------------
 
-@superadmin_schools_bp.route('/', methods=['GET'])
+@superadmin_schools_bp.route('/', methods=['GET'], strict_slashes=False)
 @roles_required('super_admin')
 def list_schools():
     page = request.args.get('page', 1, type=int)
@@ -38,7 +38,7 @@ def list_schools():
 # ERP-003 — POST /api/v1/superadmin/schools/  (provision)
 # ---------------------------------------------------------------------------
 
-@superadmin_schools_bp.route('/', methods=['POST'])
+@superadmin_schools_bp.route('/', methods=['POST'], strict_slashes=False)
 @roles_required('super_admin')
 def provision_school():
     body = request.get_json() or {}
