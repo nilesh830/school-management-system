@@ -1,14 +1,14 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
-> **Last updated:** 2026-06-12 (session 2) | **Branch:** `develop`
+> **Last updated:** 2026-06-13 (session 3) | **Branch:** `develop`
 
 ---
 
-## Current Sprint: Sprint 4 — Attendance Management
+## Current Sprint: Sprint 5 — Grade & Exam Management
 
 > See `docs/sprints/sprint-4-to-6.md` for full story details.
-> Sprint 3 Teacher Management is complete — see archived section below.
+> Sprint 4 Attendance Management is complete — see archived section below.
 
 > **Agent Assignment Convention (Sprint 4+):**
 > Each task in the sprint docs now carries an explicit agent label:
@@ -261,23 +261,35 @@ See `docs/sprints/sprint-4-to-6.md` for full story details and per-task agent as
 
 ---
 
-## Next Sprint: Sprint 5 — Grade & Exam Management
+## Sprint 5 Board — 🔶 IN PROGRESS
 
 See `docs/sprints/sprint-4-to-6.md` for full story details.
 
 | Story | Title | Points | Agents | Status |
 |-------|-------|--------|--------|--------|
-| SMS-029 | Create Exam Definitions | 5 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
+| SMS-029 | Create Exam Definitions | 5 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | ✅ Done |
 | SMS-030 | Subject-wise Marks Entry | 8 | `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
 | SMS-031 | Grade Calculation & GPA | 5 | `@backend-engineer` | 🔲 To Do |
 | SMS-032 | Student Report Card (PDF) | 8 | `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
 | SMS-033 | Class Result Summary | 5 | `@frontend-engineer` | 🔲 To Do |
 | SMS-034 | Marks Edit & Approval Workflow | 5 | `@backend-engineer` | 🔲 To Do |
 
-**Starting point for Sprint 5:**
-1. `@database-engineer` — `Exam` model + `ExamResult` model + migration
-2. `@backend-engineer` — `ExamService` (CRUD + grade calc + GPA), routes, tests
-3. `@frontend-engineer` — exam list, marks entry grid, report card download button
+### SMS-029 Detail (✅ Complete)
+
+| Task | Status | File |
+|------|--------|------|
+| T-029-01 `Exam` model + migration `d2d4edc832d7` | ✅ | `backend/app/models/exam.py` |
+| T-029-02 `ExamService` CRUD (create/list/get/update) | ✅ | `backend/app/services/exam_service.py` |
+| T-029-03 Exam routes blueprint (`POST/GET/GET:id/PUT`) | ✅ | `backend/app/routes/exams.py` |
+| T-029-04 Angular exam list + create/edit dialog | ✅ | `frontend/.../exams/exam-list/`, `ExamService`, admin nav updated |
+| T-029-05 13 backend tests, all passing | ✅ | `backend/tests/test_exams.py` |
+
+**Backend test count: 226 passing (0 failures)** | **Angular build: 0 errors**
+
+**Next for Sprint 5:**
+1. `@database-engineer` — `ExamResult` model + migration (T-030-01)
+2. `@backend-engineer` — `ExamService.calculate_grade()` + `enter_marks()` + `POST /api/v1/exams/:id/marks`
+3. `@frontend-engineer` — marks entry grid
 
 ---
 

@@ -28,6 +28,7 @@ export class AdminLayoutComponent {
     { label: 'Subjects', icon: 'pi-book', route: '/admin/subjects' },
     { label: 'Timetable', icon: 'pi-calendar', route: '/admin/timetable' },
     { label: 'Attendance', icon: 'pi-calendar-clock', route: '/admin/attendance' },
+    { label: 'Exams', icon: 'pi-file-edit', route: '/admin/exams' },
     { label: 'Fees', icon: 'pi-indian-rupee', route: '/admin/fees' },
     { label: 'Reports', icon: 'pi-chart-bar', route: '/admin/reports' },
   ];

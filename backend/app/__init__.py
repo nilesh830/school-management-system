@@ -72,6 +72,7 @@ def create_app(config_name='default'):
     from app.routes.timetables import timetables_bp
     from app.routes.parent_portal import parent_portal_bp, leave_bp, notifications_bp
     from app.routes.attendance import attendance_bp
+    from app.routes.exams import exams_bp
     from app.routes.superadmin_auth import superadmin_auth_bp
     from app.routes.superadmin_schools import superadmin_schools_bp
 
@@ -88,6 +89,7 @@ def create_app(config_name='default'):
     app.register_blueprint(leave_bp)
     app.register_blueprint(notifications_bp)
     app.register_blueprint(attendance_bp)
+    app.register_blueprint(exams_bp)
     app.register_blueprint(superadmin_auth_bp)
     app.register_blueprint(superadmin_schools_bp)
 

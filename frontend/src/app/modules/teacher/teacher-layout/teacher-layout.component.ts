@@ -25,6 +25,7 @@ export class TeacherLayoutComponent {
     { label: 'Attendance', icon: 'pi-calendar-clock', route: '/teacher/attendance' },
     { label: 'Grades', icon: 'pi-pencil', route: '/teacher/grades' },
     { label: 'Leave Requests', icon: 'pi-file-check', route: '/teacher/leave-requests' },
+    { label: 'Timetable', icon: 'pi-calendar-clock', route: '/teacher/timetable' },
   ];
 
   profileMenuItems = [

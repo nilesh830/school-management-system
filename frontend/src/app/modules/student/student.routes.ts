@@ -14,6 +14,12 @@ export const STUDENT_ROUTES: Routes = [
       {
         path: 'profile',
         loadComponent: () => import('../../shared/components/profile/profile.component').then(m => m.ProfileComponent)
+      },
+      // Attendance — student views their own attendance calendar
+      {
+        path: 'attendance',
+        loadComponent: () => import('../admin/attendance/attendance-calendar/attendance-calendar.component')
+          .then(m => m.AttendanceCalendarComponent)
       }
     ]
   }

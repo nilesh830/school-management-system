@@ -393,3 +393,178 @@ class TestAttendanceReportEndpoint:
             headers={'Authorization': f'Bearer {token}'},
         )
         assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# TC-13: GET /api/v1/attendance/today-summary returns 401 when unauthenticated
+# ---------------------------------------------------------------------------
+
+class TestTodaySummaryAuth:
+
+    def test_today_summary_unauthenticated_returns_401(self, client):
+        resp = client.get('/api/v1/attendance/today-summary')
+        assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# TC-14: Mark attendance with an invalid status value returns 422
+# ---------------------------------------------------------------------------
+
+class TestMarkAttendanceValidation:
+
+    def test_invalid_status_returns_422(self, client, admin_token, db, student_user):
+        cls = make_class(db, name='Grade 13', grade_level=1)
+        section = make_section(db, cls.id, name='M')
+        student = make_student(db, student_user.id, admission_no='ADM013')
+        enroll(db, student.id, section.id)
+
+        resp = client.post('/api/v1/attendance/mark', json={
+            'section_id': section.id,
+            'date': '2026-06-14',
+            'records': [{'student_id': student.id, 'status': 'unknown'}],
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+
+        assert resp.status_code == 422
+        body = resp.get_json()
+        # Marshmallow validation error — success must be False
+        assert body['success'] is False
+
+    # TC-15: Empty records list is rejected by the schema (min=1)
+    def test_empty_records_rejected_by_schema(self, client, admin_token, db):
+        cls = make_class(db, name='Grade 14', grade_level=2)
+        section = make_section(db, cls.id, name='N')
+
+        # Marshmallow AttendanceMarkSchema enforces records Length(min=1),
+        # so an empty array is a validation error, not a service-layer result.
+        resp = client.post('/api/v1/attendance/mark', json={
+            'section_id': section.id,
+            'date': '2026-06-15',
+            'records': [],
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+
+        assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# TC-16: Teacher without a section assignment cannot mark any attendance (403)
+# ---------------------------------------------------------------------------
+
+class TestTeacherWithoutSection:
+
+    def test_teacher_with_no_section_gets_403(self, client, teacher_token, teacher_user, db, student_user):
+        cls = make_class(db, name='Grade 15', grade_level=3)
+        # Section has NO class teacher assigned
+        section = make_section(db, cls.id, name='O', class_teacher_id=None)
+        student = make_student(db, student_user.id, admission_no='ADM015')
+        enroll(db, student.id, section.id)
+
+        # teacher_user has NO Teacher profile row — the route checks for one
+        # and returns 403 when it cannot be found
+        resp = client.post('/api/v1/attendance/mark', json={
+            'section_id': section.id,
+            'date': '2026-06-16',
+            'records': [{'student_id': student.id, 'status': 'present'}],
+        }, headers={'Authorization': f'Bearer {teacher_token}'})
+
+        assert resp.status_code == 403
+        body = resp.get_json()
+        assert body['success'] is False
+
+
+# ---------------------------------------------------------------------------
+# TC-17: GET /api/v1/attendance without student_id param returns 400
+# ---------------------------------------------------------------------------
+
+class TestGetAttendanceMissingParams:
+
+    def test_missing_student_id_returns_400(self, client, admin_token):
+        # Provide month and year but omit student_id entirely
+        resp = client.get(
+            '/api/v1/attendance?month=6&year=2026',
+            headers={'Authorization': f'Bearer {admin_token}'},
+        )
+        assert resp.status_code == 400
+        body = resp.get_json()
+        assert body['success'] is False
+        assert 'student_id' in body['message']
+
+    def test_missing_month_returns_400(self, client, admin_token):
+        # Provide student_id and year but omit month
+        resp = client.get(
+            '/api/v1/attendance?student_id=1&year=2026',
+            headers={'Authorization': f'Bearer {admin_token}'},
+        )
+        assert resp.status_code == 400
+
+    def test_missing_year_returns_400(self, client, admin_token):
+        # Provide student_id and month but omit year
+        resp = client.get(
+            '/api/v1/attendance?student_id=1&month=6',
+            headers={'Authorization': f'Bearer {admin_token}'},
+        )
+        assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# TC-18: Attendance percentage calculation — seeded data matches summary counts
+# ---------------------------------------------------------------------------
+
+class TestAttendancePercentageCalculation:
+
+    def test_summary_counts_match_seeded_data(self, client, admin_token, db, student_user):
+        """
+        Seed 8 present + 2 absent rows for one student.
+        Query the report endpoint and assert per-student summary counts are exact.
+        The report endpoint returns student_summaries with per-status counts;
+        no percentage field is computed server-side, so we assert counts only.
+        """
+        from app.models.attendance import Attendance
+
+        cls = make_class(db, name='Grade 16', grade_level=5)
+        section = make_section(db, cls.id, name='P')
+        student = make_student(db, student_user.id, admission_no='ADM018')
+        enroll(db, student.id, section.id)
+
+        # 8 present rows on days 1–8, 2 absent rows on days 9–10
+        for day in range(1, 9):
+            db.session.add(Attendance(
+                student_id=student.id,
+                section_id=section.id,
+                date=date(2026, 5, day),
+                status='present',
+            ))
+        for day in range(9, 11):
+            db.session.add(Attendance(
+                student_id=student.id,
+                section_id=section.id,
+                date=date(2026, 5, day),
+                status='absent',
+            ))
+        db.session.commit()
+
+        resp = client.get(
+            f'/api/v1/attendance/report'
+            f'?section_id={section.id}&from_date=2026-05-01&to_date=2026-05-31',
+            headers={'Authorization': f'Bearer {admin_token}'},
+        )
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body['data']['total_records'] == 10
+
+        summaries = body['data']['student_summaries']
+        assert len(summaries) == 1
+        summary = summaries[0]
+        assert summary['student_id'] == student.id
+        assert summary['present'] == 8
+        assert summary['absent'] == 2
+        assert summary['late'] == 0
+        assert summary['leave'] == 0
+
+        # Verify the percentage that the frontend calendar would compute:
+        # attended = present + late = 8 + 0 = 8
+        # total    = present + absent + late + leave = 8 + 2 + 0 + 0 = 10
+        # expected = round(8 / 10 * 100) = 80
+        attended = summary['present'] + summary['late']
+        total = summary['present'] + summary['absent'] + summary['late'] + summary['leave']
+        computed_pct = round((attended / total) * 100)
+        assert computed_pct == 80
