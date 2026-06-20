@@ -1,7 +1,7 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
-> **Last updated:** 2026-06-13 (session 3) | **Branch:** `develop`
+> **Last updated:** 2026-06-20 (session 4) | **Branch:** `develop`
 
 ---
 
@@ -268,8 +268,8 @@ See `docs/sprints/sprint-4-to-6.md` for full story details.
 | Story | Title | Points | Agents | Status |
 |-------|-------|--------|--------|--------|
 | SMS-029 | Create Exam Definitions | 5 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | ✅ Done |
-| SMS-030 | Subject-wise Marks Entry | 8 | `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
-| SMS-031 | Grade Calculation & GPA | 5 | `@backend-engineer` | 🔲 To Do |
+| SMS-030 | Subject-wise Marks Entry | 8 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-031 | Grade Calculation & GPA | 5 | `@backend-engineer` | 🔲 Next |
 | SMS-032 | Student Report Card (PDF) | 8 | `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
 | SMS-033 | Class Result Summary | 5 | `@frontend-engineer` | 🔲 To Do |
 | SMS-034 | Marks Edit & Approval Workflow | 5 | `@backend-engineer` | 🔲 To Do |
@@ -286,10 +286,34 @@ See `docs/sprints/sprint-4-to-6.md` for full story details.
 
 **Backend test count: 226 passing (0 failures)** | **Angular build: 0 errors**
 
-**Next for Sprint 5:**
-1. `@database-engineer` — `ExamResult` model + migration (T-030-01)
-2. `@backend-engineer` — `ExamService.calculate_grade()` + `enter_marks()` + `POST /api/v1/exams/:id/marks`
-3. `@frontend-engineer` — marks entry grid
+### SMS-030 Detail (✅ Complete — commit `9d32d40`)
+
+| Task | Status | File |
+|------|--------|------|
+| T-030-01 `ExamResult` model + migration `eb0eeffdb556` | ✅ | `backend/app/models/exam_result.py` |
+| T-030-02 `ExamService.calculate_grade()` — 7-tier A+→F | ✅ | `backend/app/services/exam_service.py` |
+| T-030-03 `ExamService.enter_marks()` — upsert, teacher restriction, max_marks guard, finalized lock | ✅ | same file |
+| T-030-04 `POST /api/v1/exams/:id/marks` (admin + teacher) | ✅ | `backend/app/routes/exams.py` |
+| T-030-05 Angular marks entry grid at `/admin/exams/:examId/marks` | ✅ | `frontend/.../exams/marks-entry/` |
+| T-030-06 16 backend tests, 250/250 full suite passing | ✅ | `backend/tests/test_exam_marks.py` |
+
+**Backend test count: 250 passing (0 failures)** | **Angular build: 0 errors**
+
+---
+
+## ▶ Resume Point — Start Here Next Session
+
+**Next story: SMS-031 — Grade Calculation & GPA** (`@backend-engineer` only)
+
+Tasks to implement:
+| Task | Notes |
+|------|-------|
+| T-031-01 `ExamService.get_student_results(exam_id, student_id)` | Per-subject grade breakdown |
+| T-031-02 `ExamService.calculate_overall_gpa(exam_id, student_id)` | Average GPA across all subjects |
+| T-031-03 `GET /api/v1/exams/:id/results?student_id=N` | Subject breakdown + overall GPA |
+| T-031-04 Tests: grade boundaries (A+/A/B/F edges), GPA average | |
+
+All logic builds on `ExamResult` model + `calculate_grade()` already in place — no new model or migration needed.
 
 ---
 
