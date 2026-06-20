@@ -1,15 +1,16 @@
 from flask import Blueprint, request
-from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import get_jwt_identity, get_jwt
 
 from app.services.exam_service import ExamService
 from app.utils.response import success_response, error_response
 from app.utils.decorators import roles_required
-from app.schemas.exam_schema import ExamCreateSchema, ExamUpdateSchema
+from app.schemas.exam_schema import ExamCreateSchema, ExamUpdateSchema, ExamMarksSchema
 
 exams_bp = Blueprint('exams', __name__, url_prefix='/api/v1/exams')
 
 _create_schema = ExamCreateSchema()
 _update_schema = ExamUpdateSchema()
+_marks_schema = ExamMarksSchema()
 
 
 def _validate(schema, payload):
@@ -91,3 +92,31 @@ def update_exam(exam_id):
     if svc_err:
         return error_response(svc_err['message'], status=svc_err.get('status', 400))
     return success_response(data=result, message='Exam updated successfully')
+
+
+# ---------------------------------------------------------------------------
+# T-030-04: POST /api/v1/exams/<exam_id>/marks — enter subject-wise marks
+# ---------------------------------------------------------------------------
+
+@exams_bp.route('/<int:exam_id>/marks', methods=['POST'], strict_slashes=False)
+@roles_required('admin', 'teacher')
+def enter_marks(exam_id):
+    claims = get_jwt()
+    role = claims.get('role')
+    user_id = int(get_jwt_identity())
+
+    data, err = _validate(_marks_schema, request.get_json())
+    if err:
+        return err
+
+    result, svc_err = ExamService.enter_marks(
+        exam_id=exam_id,
+        subject_id=data['subject_id'],
+        section_id=data['section_id'],
+        marks_list=data['marks'],
+        created_by_user_id=user_id,
+        role=role,
+    )
+    if svc_err:
+        return error_response(svc_err['message'], status=svc_err.get('status', 400))
+    return success_response(data=result, message='Marks saved', status=201)

@@ -1,5 +1,9 @@
 from app.utils.tenant import get_db
 from app.models.exam import Exam
+from app.models.exam_result import ExamResult
+from app.models.subject import Subject
+from app.models.teacher import Teacher
+from app.models.teacher_subject import TeacherSubject
 from app.models.section import Section
 from app.models.academic_year import AcademicYear
 
@@ -134,3 +138,168 @@ class ExamService:
 
         get_db().commit()
         return exam.to_dict(), None
+
+    # -----------------------------------------------------------------------
+    # T-030-02: Grade calculator
+    # -----------------------------------------------------------------------
+
+    @staticmethod
+    def calculate_grade(marks_obtained: float, max_marks: float) -> tuple[str, float]:
+        """
+        Return (grade, gpa) from a percentage-based scale.
+
+        Edge case: max_marks == 0 is treated as F / 0.0 to avoid division by zero.
+        """
+        if max_marks == 0:
+            return 'F', 0.0
+
+        pct = (marks_obtained / max_marks) * 100
+
+        if pct >= 90:
+            return 'A+', 4.0
+        elif pct >= 80:
+            return 'A', 3.7
+        elif pct >= 70:
+            return 'B', 3.0
+        elif pct >= 60:
+            return 'C', 2.3
+        elif pct >= 50:
+            return 'D', 1.7
+        elif pct >= 40:
+            return 'E', 1.0
+        else:
+            return 'F', 0.0
+
+    # -----------------------------------------------------------------------
+    # T-030-03: Bulk marks entry with upsert
+    # -----------------------------------------------------------------------
+
+    @staticmethod
+    def enter_marks(
+        exam_id: int,
+        subject_id: int,
+        section_id: int,
+        marks_list: list,
+        created_by_user_id: int,
+        role: str,
+    ) -> tuple[dict | None, dict | None]:
+        """
+        Upsert marks for a list of students for a given exam + subject.
+
+        Returns (result_dict, None) on success or (None, error_dict) on failure.
+        error_dict always contains 'message' and 'status' keys.
+        """
+        session = get_db()
+
+        # 1. Exam must exist and be active
+        exam = session.query(Exam).filter_by(id=exam_id, is_active=True).first()
+        if not exam:
+            return None, {
+                'message': f'Exam {exam_id} not found or is inactive',
+                'status': 404,
+            }
+
+        # 2. Subject must exist
+        subject = session.query(Subject).filter_by(id=subject_id).first()
+        if not subject:
+            return None, {
+                'message': f'Subject {subject_id} not found',
+                'status': 404,
+            }
+
+        # 3. Teacher authorisation: must be assigned to this subject
+        if role == 'teacher':
+            teacher = session.query(Teacher).filter_by(
+                user_id=created_by_user_id
+            ).first()
+            if not teacher:
+                return None, {
+                    'message': 'Teacher profile not found for this user',
+                    'status': 403,
+                }
+            assignment = session.query(TeacherSubject).filter_by(
+                teacher_id=teacher.id,
+                subject_id=subject_id,
+            ).first()
+            if not assignment:
+                return None, {
+                    'message': 'You are not assigned to teach this subject',
+                    'status': 403,
+                }
+
+        # 4. Validate all marks_obtained <= subject.max_marks
+        max_marks = float(subject.max_marks)
+        invalid = [
+            entry['student_id']
+            for entry in marks_list
+            if float(entry['marks_obtained']) > max_marks
+        ]
+        if invalid:
+            return None, {
+                'message': (
+                    f'marks_obtained exceeds max_marks ({max_marks}) '
+                    f'for student_id(s): {invalid}'
+                ),
+                'status': 422,
+            }
+
+        # 5. Reject if any result for this batch is already finalised
+        student_ids = [e['student_id'] for e in marks_list]
+        finalized = (
+            session.query(ExamResult)
+            .filter(
+                ExamResult.exam_id == exam_id,
+                ExamResult.subject_id == subject_id,
+                ExamResult.student_id.in_(student_ids),
+                ExamResult.status == 'finalized',
+            )
+            .first()
+        )
+        if finalized:
+            return None, {
+                'message': 'Marks are finalized and cannot be edited',
+                'status': 409,
+            }
+
+        # 6. Upsert each entry
+        saved = 0
+        for entry in marks_list:
+            sid = entry['student_id']
+            mo = float(entry['marks_obtained'])
+            grade, gpa = ExamService.calculate_grade(mo, max_marks)
+
+            existing = (
+                session.query(ExamResult)
+                .filter_by(
+                    exam_id=exam_id,
+                    student_id=sid,
+                    subject_id=subject_id,
+                )
+                .first()
+            )
+            if existing:
+                existing.marks_obtained = mo
+                existing.grade = grade
+                existing.gpa = gpa
+                existing.created_by = created_by_user_id
+            else:
+                result = ExamResult(
+                    exam_id=exam_id,
+                    student_id=sid,
+                    subject_id=subject_id,
+                    marks_obtained=mo,
+                    grade=grade,
+                    gpa=gpa,
+                    status='draft',
+                    created_by=created_by_user_id,
+                )
+                session.add(result)
+            saved += 1
+
+        session.commit()
+
+        return {
+            'saved': saved,
+            'exam_id': exam_id,
+            'subject_id': subject_id,
+        }, None

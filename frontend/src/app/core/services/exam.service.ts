@@ -52,4 +52,15 @@ export class ExamService {
   updateExam(id: number, payload: Partial<Exam>): Observable<ApiResponse<Exam>> {
     return this.http.put<ApiResponse<Exam>>(`${this.apiUrl}/${id}`, payload);
   }
+
+  enterMarks(
+    examId: number,
+    payload: {
+      subject_id: number;
+      section_id: number;
+      marks: { student_id: number; marks_obtained: number }[];
+    }
+  ): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/${examId}/marks`, payload);
+  }
 }

@@ -24,3 +24,18 @@ class ExamUpdateSchema(Schema):
     )
     conducted_date = fields.Date(load_default=None)
     is_active = fields.Bool(load_default=None)
+
+
+class MarkEntrySchema(Schema):
+    student_id = fields.Int(required=True)
+    marks_obtained = fields.Float(required=True, validate=validate.Range(min=0))
+
+
+class ExamMarksSchema(Schema):
+    subject_id = fields.Int(required=True)
+    section_id = fields.Int(required=True)
+    marks = fields.List(
+        fields.Nested(MarkEntrySchema),
+        required=True,
+        validate=validate.Length(min=1),
+    )

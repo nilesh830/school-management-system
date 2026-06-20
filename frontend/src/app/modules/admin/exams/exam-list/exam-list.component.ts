@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { TableModule } from 'primeng/table';
 import { DialogModule } from 'primeng/dialog';
@@ -22,6 +23,7 @@ import { ExamService, Exam } from '../../../../core/services/exam.service';
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    RouterLink,
     TableModule,
     DialogModule,
     ButtonModule,

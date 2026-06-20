@@ -58,7 +58,7 @@
               [severity]="getStatusSeverity(exam.is_active)"
             />
           </td>
-          <td>
+          <td class="flex gap-2 align-items-center">
             <p-button
               icon="pi pi-pencil"
               [rounded]="true"
@@ -66,6 +66,15 @@
               severity="secondary"
               (onClick)="openDialog(exam)"
               pTooltip="Edit"
+            />
+            <p-button
+              label="Enter Marks"
+              icon="pi pi-file-edit"
+              size="small"
+              severity="info"
+              [text]="true"
+              [routerLink]="['/admin/exams', exam.id, 'marks']"
+              pTooltip="Enter Marks"
             />
           </td>
         </tr>

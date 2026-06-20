@@ -85,11 +85,16 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./attendance/attendance-report/attendance-report.component')
           .then(m => m.AttendanceReportComponent)
       },
-      // ── Exams (SMS-029) ───────────────────────────────────────────────────────
+      // ── Exams (SMS-029 / SMS-030) ─────────────────────────────────────────────
       {
         path: 'exams',
         loadComponent: () => import('./exams/exam-list/exam-list.component')
           .then(m => m.ExamListComponent)
+      },
+      {
+        path: 'exams/:examId/marks',
+        loadComponent: () => import('./exams/marks-entry/marks-entry.component')
+          .then(m => m.MarksEntryComponent)
       },
       // ── Profile ────────────────────────────────────────────────────────────
       {
