@@ -32,6 +32,8 @@ export class AdminLayoutComponent {
     { label: 'Fees', icon: 'pi-indian-rupee', route: '/admin/fees' },
     { label: 'Fee Defaulters', icon: 'pi-exclamation-triangle', route: '/admin/fees/defaulters' },
     { label: 'Leave Requests', icon: 'pi-file-check', route: '/admin/leave-requests' },
+    { label: 'Announcements', icon: 'pi-megaphone', route: '/admin/announcements' },
+    { label: 'Library', icon: 'pi-bookmark', route: '/admin/library' },
     { label: 'Reports', icon: 'pi-chart-bar', route: '/admin/reports' },
   ];
 

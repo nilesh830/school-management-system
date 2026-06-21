@@ -1,14 +1,14 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
-> **Last updated:** 2026-06-21 (session 11) | **Branch:** `develop`
+> **Last updated:** 2026-06-21 (session 12) | **Branch:** `develop`
 
 ---
 
-## Current Sprint: Sprint 8 — Parent Portal: Communication
+## Current Sprint: Sprint 9 — Communication & Library
 
-> See `docs/sprints/sprint-8-parent-portal-communication.md` for full story details.
-> Sprint 7 Parent Portal Core is complete — see archived section below.
+> See `docs/sprints/sprint-9-to-11.md` for full story details.
+> Sprint 8 Parent Portal Communication is complete — see archived section below.
 
 > **Agent Assignment Convention (Sprint 4+):**
 > Each task in the sprint docs now carries an explicit agent label:
@@ -17,6 +17,48 @@
 > - Angular UI / components → invoke `@frontend-engineer`
 > - Security audit → invoke `@security-engineer`
 > - CI/CD / Docker → invoke `@devops-engineer`
+
+---
+
+## Sprint 9 Board — ✅ COMPLETE
+
+See `docs/sprints/sprint-9-to-11.md` for full story details.
+
+| Story | Title | Points | Status |
+|-------|-------|--------|--------|
+| SMS-051 | Create & Publish Announcements | 5 | ✅ Done |
+| SMS-052 | Targeted Notices (by Class/Role) | 5 | ✅ Done |
+| SMS-053 | Book Catalog Management | 5 | ✅ Done |
+| SMS-054 | Book Issue & Return | 8 | ✅ Done |
+| SMS-055 | Overdue Fines Calculation | 3 | ✅ Done |
+| SMS-045 | School Notice Board (Parent View) — *deferred from Sprint 7, now unblocked* | 3 | ✅ Done |
+
+### Backend
+| Item | File |
+|------|------|
+| `Announcement` model (JSON `target_roles`/`target_class_ids`, status enum) | `backend/app/models/announcement.py` |
+| `LibraryBook` model | `backend/app/models/library_book.py` |
+| `BookIssue` model (fine, status enum) | `backend/app/models/book_issue.py` |
+| Migration `c9a1f0e2b3d4_sprint9_announcements_library` (chains from `1bfdc13b6db1`) | `backend/migrations/versions/` |
+| `AnnouncementService` — CRUD, `publish()` + notification dispatch, `get_for_user()` role/class targeting | `backend/app/services/announcement_service.py` |
+| `LibraryService` — book CRUD, `issue_book()`, `return_book()` (fine calc ₹5/day), `mark_overdue()`, `get_overdue()` | `backend/app/services/library_service.py` |
+| `announcements_bp` (POST/GET/GET:id/PUT/POST:publish; `?role_view=true`) | `backend/app/routes/announcements.py` |
+| `library_bp` (books CRUD, issue, return, overdue) | `backend/app/routes/library.py` |
+| SMS-045 `GET /api/v1/parent-portal/notices` + `ParentPortalService.get_notices()` | `parent_portal.py` / `parent_portal_service.py` |
+| Marshmallow schemas | `backend/app/schemas/announcement_schema.py`, `library_schema.py` |
+
+### Frontend
+| Item | Path |
+|------|------|
+| `AnnouncementService`, `LibraryService` | `frontend/src/app/core/services/` |
+| Admin announcement list + create/edit/publish dialog | `frontend/.../admin/announcements/announcement-list/` |
+| Admin book catalog (search, copies badge, add/edit, issue) | `frontend/.../admin/library/book-catalog/` |
+| Admin issue/return + overdue view | `frontend/.../admin/library/book-issues/` |
+| Parent notice board (recent + archived, nav badge) | `frontend/.../parent-portal/notices/notice-board.component.ts` |
+
+> **Note:** Announcement editor uses a plain textarea (not `p-editor`) — the `quill` peer dep isn't installed. To enable rich text later: `npm install quill` and swap to `<p-editor>`.
+
+**Backend test count: 420 passing (0 failures)** — 28 new (`test_announcements.py`, `test_library.py`) | **Angular build: 0 errors**
 
 ---
 
@@ -560,16 +602,16 @@ See `docs/sprints/sprint-7-parent-portal-core.md` for full story details.
 
 ## ▶ Resume Point — Start Here Next Session
 
-**Sprint 8 is COMPLETE ✅** — SMS-046 → SMS-050 done (22 new tests, 392 total).
+**Sprint 9 is COMPLETE ✅** — SMS-051 → SMS-055 done, PLUS the deferred **SMS-045** (Parent Notice Board) which was unblocked by the new `Announcement` model.
 
-**⚠️ Git note:** Sprint 7 + Sprint 8 work is uncommitted on disk (last commit was `ded0fc3 done till sprint 6`). Commit both sprints before starting Sprint 9.
+- Backend: 3 models (`Announcement`, `LibraryBook`, `BookIssue`), 1 migration `c9a1f0e2b3d4`, `AnnouncementService` + `LibraryService`, `announcements_bp` + `library_bp` + parent `/notices` endpoint.
+- **Backend tests: 420 passing (0 failures)** — 28 new (`test_announcements.py` 16, `test_library.py` 12).
+- Frontend: announcement admin UI, library catalog + issue/return/overdue UI, parent notice board + nav badge. **Angular build: 0 errors.**
+- Demo dev DB (`school_demo.db`) upgraded to head `c9a1f0e2b3d4`.
 
-**Next sprint: Sprint 9 — see `docs/sprints/sprint-9-to-11.md`**
+**⚠️ Pre-existing dev-DB note (NOT a Sprint 9 issue):** `flask db-upgrade-all` fails on the `greenwood-high` tenant — that DB has tables from `create_all` but is stamped at a pre-Sprint-7 revision (`b7407516626b`), so the Sprint-7 migration errors with "table parents already exists". The `demo` school is marked inactive in `master.db` (so it is skipped by `db-upgrade-all`; it was upgraded manually). Both are local environment drift unrelated to feature work.
 
-Remaining deferred story:
-- SMS-045: School Notice Board — Admin creates `Announcement` model (Sprint 8 scope but deferred — needs new model + migration)
-
-Sprint 9 suggested starting point: read `docs/sprints/sprint-9-to-11.md` for story list.
+**Next sprint: Sprint 10 — Reports & Analytics (SMS-056 → SMS-060). See `docs/sprints/sprint-9-to-11.md`.**
 
 ---
 

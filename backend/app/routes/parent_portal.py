@@ -55,6 +55,20 @@ def child_fees(child_id):
 
 
 # ---------------------------------------------------------------------------
+# SMS-045: School Notice Board (Parent View)
+# ---------------------------------------------------------------------------
+
+@parent_portal_bp.route('/notices', methods=['GET'])
+@roles_required('parent')
+def list_notices():
+    parent_id = get_jwt().get('parent_id')
+    if not parent_id:
+        return error_response("Parent profile not linked to this account", status=403)
+    notices = ParentPortalService.get_notices(parent_id)
+    return success_response(data={'notices': notices}, message="Notices retrieved")
+
+
+# ---------------------------------------------------------------------------
 # Messages
 # ---------------------------------------------------------------------------
 

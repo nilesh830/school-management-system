@@ -122,6 +122,23 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./fees/defaulter-report/defaulter-report.component')
           .then(m => m.DefaulterReportComponent)
       },
+      // ── Announcements (SMS-051 / SMS-052) ─────────────────────────────────────
+      {
+        path: 'announcements',
+        loadComponent: () => import('./announcements/announcement-list/announcement-list.component')
+          .then(m => m.AnnouncementListComponent)
+      },
+      // ── Library (SMS-053 / SMS-054 / SMS-055) ─────────────────────────────────
+      {
+        path: 'library',
+        loadComponent: () => import('./library/book-catalog/book-catalog.component')
+          .then(m => m.BookCatalogComponent)
+      },
+      {
+        path: 'library/issues',
+        loadComponent: () => import('./library/book-issues/book-issues.component')
+          .then(m => m.BookIssuesComponent)
+      },
       // ── Leave Requests (SMS-046/SMS-047) ──────────────────────────────────────
       {
         path: 'leave-requests',

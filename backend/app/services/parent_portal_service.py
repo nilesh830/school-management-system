@@ -60,6 +60,18 @@ class ParentPortalService:
         return [s.to_dict() for s in parent.students.filter_by(is_active=True).all()]
 
     @staticmethod
+    def get_notices(parent_id: int) -> list:
+        """SMS-045 — published, non-expired announcements targeted to the
+        'parent' role OR to any of this parent's children's classes."""
+        from app.services.announcement_service import AnnouncementService
+        parent = get_db().query(Parent).filter_by(id=parent_id, is_active=True).first()
+        if not parent:
+            abort(404)
+        student_ids = [s.id for s in parent.students.filter_by(is_active=True).all()]
+        class_ids = list(AnnouncementService._student_class_ids(student_ids))
+        return AnnouncementService.get_for_user('parent', class_ids)
+
+    @staticmethod
     def get_dashboard(parent_id: int) -> dict:
         parent = get_db().query(Parent).filter_by(id=parent_id, is_active=True).first()
         if not parent:

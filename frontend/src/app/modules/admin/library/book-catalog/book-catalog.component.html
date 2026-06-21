@@ -1,0 +1,300 @@
+<p-toast />
+
+<div class="card">
+  <!-- Toolbar -->
+  <p-toolbar styleClass="mb-3">
+    <ng-template pTemplate="left">
+      <h2 class="m-0">Library Catalog</h2>
+    </ng-template>
+    <ng-template pTemplate="right">
+      <div class="flex gap-2">
+        <p-button
+          label="Issues & Overdue"
+          icon="pi pi-clock"
+          severity="secondary"
+          [text]="true"
+          (onClick)="navigateTo('/admin/library/issues')"
+        />
+        <p-button
+          label="Add Book"
+          icon="pi pi-plus"
+          (onClick)="openDialog()"
+        />
+      </div>
+    </ng-template>
+  </p-toolbar>
+
+  <!-- Search box -->
+  <div class="mb-4" style="max-width: 480px;">
+    <span class="p-input-icon-left w-full">
+      <i class="pi pi-search"></i>
+      <input
+        type="text"
+        pInputText
+        [value]="searchTerm"
+        (input)="onSearchInput($event)"
+        placeholder="Search by title, author, ISBN or category..."
+        class="w-full"
+        autocomplete="off"
+      />
+    </span>
+  </div>
+
+  <!-- Loading spinner -->
+  @if (loading) {
+    <div class="flex justify-content-center align-items-center py-6">
+      <p-progressSpinner strokeWidth="4" />
+    </div>
+  }
+
+  <!-- Books table -->
+  @if (!loading) {
+    <p-table
+      [value]="books"
+      [rows]="20"
+      [paginator]="true"
+      [rowsPerPageOptions]="[10, 20, 50]"
+      dataKey="id"
+      responsiveLayout="scroll"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th pSortableColumn="title">Title <p-sortIcon field="title" /></th>
+          <th pSortableColumn="author">Author <p-sortIcon field="author" /></th>
+          <th>ISBN</th>
+          <th>Category</th>
+          <th class="text-center">Availability</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-book>
+        <tr>
+          <td class="font-medium">{{ book.title }}</td>
+          <td>{{ book.author }}</td>
+          <td>{{ book.isbn ?? '—' }}</td>
+          <td>{{ book.category ?? '—' }}</td>
+          <td class="text-center">
+            <p-tag
+              [value]="book.available_copies + ' / ' + book.total_copies"
+              [severity]="availabilitySeverity(book)"
+              pTooltip="Available / Total copies"
+            />
+          </td>
+          <td>
+            <p-tag
+              [value]="book.is_active ? 'Active' : 'Inactive'"
+              [severity]="book.is_active ? 'success' : 'danger'"
+            />
+          </td>
+          <td class="flex gap-2 align-items-center">
+            <p-button
+              label="Issue"
+              icon="pi pi-arrow-right-arrow-left"
+              size="small"
+              severity="info"
+              [text]="true"
+              [disabled]="book.available_copies <= 0 || !book.is_active"
+              (onClick)="openIssueDialog(book)"
+              pTooltip="{{ book.available_copies > 0 ? 'Issue to a student' : 'No copies available' }}"
+            />
+            <p-button
+              icon="pi pi-pencil"
+              [rounded]="true"
+              [text]="true"
+              severity="secondary"
+              (onClick)="openDialog(book)"
+              pTooltip="Edit"
+            />
+            <p-button
+              icon="pi pi-trash"
+              [rounded]="true"
+              [text]="true"
+              severity="danger"
+              (onClick)="deleteBook(book)"
+              pTooltip="Delete"
+            />
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="7" class="text-center py-4 text-color-secondary">
+            No books found. Click "Add Book" to add one to the catalog.
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  }
+</div>
+
+<!-- Create / Edit Book Dialog -->
+<p-dialog
+  [header]="isEdit ? 'Edit Book' : 'Add Book'"
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [style]="{ width: '480px' }"
+  [closable]="!saving"
+  (onHide)="closeDialog()"
+>
+  <form [formGroup]="form" class="flex flex-column gap-3 pt-2">
+    <!-- Title -->
+    <div class="flex flex-column gap-1">
+      <label for="bookTitle" class="font-semibold">Title <span class="text-red-500">*</span></label>
+      <input id="bookTitle" type="text" pInputText formControlName="title" placeholder="e.g. The Jungle Book" class="w-full" />
+      @if (form.get('title')?.invalid && form.get('title')?.touched) {
+        <small class="text-red-500">Title is required.</small>
+      }
+    </div>
+
+    <!-- Author -->
+    <div class="flex flex-column gap-1">
+      <label for="bookAuthor" class="font-semibold">Author <span class="text-red-500">*</span></label>
+      <input id="bookAuthor" type="text" pInputText formControlName="author" placeholder="e.g. Rudyard Kipling" class="w-full" />
+      @if (form.get('author')?.invalid && form.get('author')?.touched) {
+        <small class="text-red-500">Author is required.</small>
+      }
+    </div>
+
+    <!-- ISBN -->
+    <div class="flex flex-column gap-1">
+      <label for="bookIsbn" class="font-semibold">ISBN</label>
+      <input id="bookIsbn" type="text" pInputText formControlName="isbn" placeholder="Optional" class="w-full" />
+    </div>
+
+    <!-- Publisher -->
+    <div class="flex flex-column gap-1">
+      <label for="bookPublisher" class="font-semibold">Publisher</label>
+      <input id="bookPublisher" type="text" pInputText formControlName="publisher" placeholder="Optional" class="w-full" />
+    </div>
+
+    <!-- Category -->
+    <div class="flex flex-column gap-1">
+      <label for="bookCategory" class="font-semibold">Category</label>
+      <input id="bookCategory" type="text" pInputText formControlName="category" placeholder="e.g. Fiction (optional)" class="w-full" />
+    </div>
+
+    <!-- Total Copies -->
+    <div class="flex flex-column gap-1">
+      <label for="bookCopies" class="font-semibold">Total Copies <span class="text-red-500">*</span></label>
+      <p-inputNumber
+        inputId="bookCopies"
+        formControlName="total_copies"
+        [min]="1"
+        [useGrouping]="false"
+        styleClass="w-full"
+        inputStyleClass="w-full"
+      />
+      @if (form.get('total_copies')?.invalid && form.get('total_copies')?.touched) {
+        <small class="text-red-500">At least 1 copy is required.</small>
+      }
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" icon="pi pi-times" severity="secondary" [text]="true" [disabled]="saving" (onClick)="closeDialog()" />
+    <p-button
+      [label]="saving ? 'Saving...' : 'Save'"
+      icon="pi pi-check"
+      [loading]="saving"
+      [disabled]="form.invalid || saving"
+      (onClick)="saveBook()"
+    />
+  </ng-template>
+</p-dialog>
+
+<!-- Issue Book Dialog -->
+<p-dialog
+  header="Issue Book"
+  [(visible)]="issueDialogVisible"
+  [modal]="true"
+  [style]="{ width: '480px' }"
+  [closable]="!issuing"
+  (onHide)="closeIssueDialog()"
+>
+  @if (issueBook) {
+    <div class="surface-100 border-round px-3 py-2 mb-4 flex align-items-center gap-3">
+      <i class="pi pi-bookmark text-primary text-xl"></i>
+      <div>
+        <div class="font-semibold">{{ issueBook.title }}</div>
+        <div class="text-sm text-color-secondary">
+          {{ issueBook.author }} &bull; {{ issueBook.available_copies }} available
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Student search -->
+  <div class="mb-3">
+    <label class="font-semibold block mb-2"><i class="pi pi-search mr-1"></i> Search Student <span class="text-red-500">*</span></label>
+    <div class="p-inputgroup" style="position: relative;">
+      <span class="p-inputgroup-addon"><i class="pi pi-user"></i></span>
+      <input
+        type="text"
+        pInputText
+        [value]="studentQuery"
+        (input)="onStudentSearchInput($event)"
+        placeholder="Admission no. or name (min. 2 chars)..."
+        class="w-full"
+        autocomplete="off"
+      />
+      @if (searchingStudents) {
+        <span class="p-inputgroup-addon"><i class="pi pi-spin pi-spinner"></i></span>
+      }
+    </div>
+
+    @if (studentResults.length > 0) {
+      <div class="surface-overlay border-1 surface-border border-round shadow-2 mt-1"
+           style="max-height: 220px; overflow-y: auto; z-index: 1100; position: relative;">
+        @for (student of studentResults; track student.id) {
+          <div class="flex align-items-center gap-2 px-3 py-2 cursor-pointer hover:surface-hover" (click)="selectStudent(student)">
+            <i class="pi pi-user text-color-secondary"></i>
+            <div>
+              <div class="font-semibold">{{ student.first_name }} {{ student.last_name }}</div>
+              <div class="text-sm text-color-secondary">{{ student.admission_no }}
+                @if (student.class_name) { &nbsp;&bull;&nbsp;{{ student.class_name }} }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  @if (selectedStudent) {
+    <div class="surface-100 border-round px-3 py-2 mb-3 flex align-items-center gap-2">
+      <i class="pi pi-user-edit text-primary"></i>
+      <span class="font-semibold">{{ selectedStudent.first_name }} {{ selectedStudent.last_name }}</span>
+      <span class="text-color-secondary text-sm">{{ selectedStudent.admission_no }}</span>
+    </div>
+  }
+
+  <form [formGroup]="issueForm" class="flex flex-column gap-1">
+    <label for="dueDate" class="font-semibold">Due Date <span class="text-red-500">*</span></label>
+    <p-calendar
+      inputId="dueDate"
+      formControlName="due_date"
+      dateFormat="yy-mm-dd"
+      [showIcon]="true"
+      styleClass="w-full"
+      inputStyleClass="w-full"
+    />
+    @if (issueForm.get('due_date')?.invalid && issueForm.get('due_date')?.touched) {
+      <small class="text-red-500">Due date is required.</small>
+    }
+  </form>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" icon="pi pi-times" severity="secondary" [text]="true" [disabled]="issuing" (onClick)="closeIssueDialog()" />
+    <p-button
+      [label]="issuing ? 'Issuing...' : 'Issue Book'"
+      icon="pi pi-check"
+      [loading]="issuing"
+      [disabled]="issueForm.invalid || !selectedStudent || issuing"
+      (onClick)="submitIssue()"
+    />
+  </ng-template>
+</p-dialog>

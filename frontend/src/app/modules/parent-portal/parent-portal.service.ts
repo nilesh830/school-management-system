@@ -110,6 +110,13 @@ export class ParentPortalService {
     return this.http.put(`${this.notifApiUrl}/read-all`, {});
   }
 
+  // ── Notices (SMS-045) ──────────────────────────────────────────────────────
+
+  /** GET /api/v1/parent-portal/notices */
+  getNotices(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/notices`);
+  }
+
   // ── Parent Profile ────────────────────────────────────────────────────────
 
   /** GET /api/v1/parents/me */

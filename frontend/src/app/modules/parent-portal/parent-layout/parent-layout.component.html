@@ -32,7 +32,17 @@
         class="flex flex-column align-items-center justify-content-center gap-1 flex-1 py-2 no-underline text-600 hover:text-primary transition-colors transition-duration-200"
         style="font-size: 0.65rem; min-height: 56px"
       >
-        <i class="{{ item.icon }} text-lg"></i>
+        <span class="relative" style="line-height: 1;">
+          <i class="{{ item.icon }} text-lg"></i>
+          @if (item.label === 'Notices' && noticeCount > 0) {
+            <p-badge
+              [value]="noticeCount.toString()"
+              severity="danger"
+              styleClass="absolute"
+              [style]="{ top: '-8px', right: '-12px', 'font-size': '0.6rem', 'min-width': '1.1rem', height: '1.1rem', 'line-height': '1.1rem' }"
+            />
+          }
+        </span>
         <span>{{ item.label }}</span>
       </a>
     }

@@ -77,6 +77,8 @@ def create_app(config_name='default'):
     from app.routes.superadmin_schools import superadmin_schools_bp
     from app.routes.fee_structures import fee_structures_bp
     from app.routes.fees import fees_bp
+    from app.routes.announcements import announcements_bp
+    from app.routes.library import library_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
@@ -95,11 +97,16 @@ def create_app(config_name='default'):
     app.register_blueprint(exams_bp)
     app.register_blueprint(fee_structures_bp)
     app.register_blueprint(fees_bp)
+    app.register_blueprint(announcements_bp)
+    app.register_blueprint(library_bp)
     app.register_blueprint(superadmin_auth_bp)
     app.register_blueprint(superadmin_schools_bp)
 
     # Ensure all tenant models are imported so Alembic autogenerate can detect them.
     from app.models.attendance import Attendance  # noqa: F401
+    from app.models.announcement import Announcement  # noqa: F401
+    from app.models.library_book import LibraryBook  # noqa: F401
+    from app.models.book_issue import BookIssue  # noqa: F401
 
     # Ensure master models are imported so SQLAlchemy includes them in metadata,
     # then create their tables (no Flask-Migrate for the simple master schema).

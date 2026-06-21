@@ -43,7 +43,7 @@ export const PARENT_ROUTES: Routes = [
       },
       {
         path: 'notices',
-        loadComponent: () => import('./coming-soon.component').then(m => m.ComingSoonComponent)
+        loadComponent: () => import('./notices/notice-board.component').then(m => m.NoticeBoardComponent)
       }
     ]
   }
