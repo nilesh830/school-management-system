@@ -134,3 +134,41 @@ class AttendanceService:
         summary['total'] = len(rows)
         summary['date'] = str(today)
         return summary
+
+    @staticmethod
+    def mark_as_leave(student_id: int, from_date, to_date):
+        """Mark attendance as 'leave' for each date in [from_date, to_date] inclusive."""
+        from datetime import timedelta
+        current = from_date
+        # Get current section for the student
+        section_row = (
+            get_db()
+            .query(StudentSection)
+            .filter_by(student_id=student_id, is_current=True)
+            .first()
+        )
+        section_id = section_row.section_id if section_row else None
+
+        while current <= to_date:
+            existing = None
+            if section_id:
+                existing = (
+                    get_db()
+                    .query(Attendance)
+                    .filter_by(student_id=student_id, section_id=section_id, date=current)
+                    .first()
+                )
+            if existing:
+                if existing.status != 'leave':
+                    existing.status = 'leave'
+            else:
+                if section_id:
+                    row = Attendance(
+                        student_id=student_id,
+                        section_id=section_id,
+                        date=current,
+                        status='leave',
+                    )
+                    get_db().add(row)
+            current += timedelta(days=1)
+        get_db().commit()

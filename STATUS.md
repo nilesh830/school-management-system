@@ -1,14 +1,14 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
-> **Last updated:** 2026-06-21 (session 9) | **Branch:** `develop`
+> **Last updated:** 2026-06-21 (session 11) | **Branch:** `develop`
 
 ---
 
-## Current Sprint: Sprint 5 — Grade & Exam Management
+## Current Sprint: Sprint 8 — Parent Portal: Communication
 
-> See `docs/sprints/sprint-4-to-6.md` for full story details.
-> Sprint 4 Attendance Management is complete — see archived section below.
+> See `docs/sprints/sprint-8-parent-portal-communication.md` for full story details.
+> Sprint 7 Parent Portal Core is complete — see archived section below.
 
 > **Agent Assignment Convention (Sprint 4+):**
 > Each task in the sprint docs now carries an explicit agent label:
@@ -438,16 +438,138 @@ See `docs/sprints/sprint-4-to-6.md` for full story details.
 
 ---
 
+## Sprint 8 Board — ✅ COMPLETE
+
+See `docs/sprints/sprint-8-parent-portal-communication.md` for full story details.
+
+| Story | Title | Points | Agents | Status |
+|-------|-------|--------|--------|--------|
+| SMS-046 | Leave Application Submission | 8 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-047 | Leave Application Tracking & Review | 5 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-048 | Parent-Teacher Messaging | 8 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-049 | In-App Notifications (Parent) | 5 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-050 | Parent Profile Management | 3 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+
+### SMS-046 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-046-01 `LeaveApplication` model + migration (from Sprint 7) | ✅ | Already existed |
+| T-046-02/03 `LeaveService.submit()` — past-date 422, end-before-start 422, child link 403 | ✅ | `backend/app/services/parent_portal_service.py` |
+| T-046-04 `POST /api/v1/leave-applications` | ✅ | `backend/app/routes/parent_portal.py` |
+| T-046-05 Notify class teacher + admin on submission | ✅ | `LeaveService.submit()` — fires `type='leave'` notifications |
+| T-046-06 Leave form (child selector, date range, reason) | ✅ | `frontend/.../parent-portal/leave/leave-form.component.ts` |
+| T-046-07 Leave list with status badges | ✅ | `frontend/.../parent-portal/leave/leave-list.component.ts` |
+| T-046-08 9 backend tests | ✅ | `backend/tests/test_leave_applications.py` |
+
+### SMS-047 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-047-01 `GET /api/v1/leave-applications/all` (admin+teacher, ?status filter) | ✅ | `backend/app/routes/parent_portal.py` |
+| T-047-02 `PUT /api/v1/leave-applications/:id/review` + attendance integration | ✅ | `LeaveService.review()`, `AttendanceService.mark_as_leave()` |
+| T-047-03 Parent notification on review decision | ✅ | `type='leave_update'` notification fired |
+| T-047-04 Admin leave review table (filterable, approve/reject dialog) | ✅ | `frontend/.../admin/leave-review/leave-review.component.ts` |
+| T-047-05 "Leave Requests" nav item in admin sidebar | ✅ | `admin-layout.component.ts` |
+
+### SMS-048 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-048-01 `MessageThread` + `ParentMessage` models + migration (from Sprint 7) | ✅ | Already existed |
+| T-048-02 `MessageService.create_thread()` — auto-resolves class teacher from section | ✅ | `parent_portal_service.py` |
+| T-048-03/04 Thread list + thread detail + reply + mark-read endpoints | ✅ | 5 routes on `parent_portal_bp` |
+| T-048-05 Notify recipient on new message/reply | ✅ | `MessageService` — `type='message'` notifications |
+| T-048-06/07/08 Thread list, chat-bubble detail, new-thread dialog | ✅ | `frontend/.../parent-portal/messages/` |
+| T-048-09 5 backend tests | ✅ | `backend/tests/test_messages.py` |
+
+### SMS-049 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-049-01 `GET /api/v1/notifications` + `PUT /:id/read` + `PUT /read-all` | ✅ | `parent_portal.py` — `notifications_bp` |
+| T-049-02 `NotificationService.mark_all_read()` | ✅ | `parent_portal_service.py` |
+| T-049-03 Below-40% notification trigger in `ExamService.enter_marks()` | ✅ | Inlined to avoid circular import |
+| T-049-04 Notification bell dropdown (unread badge, overlay panel, navigate on click) | ✅ | `frontend/.../parent-portal/notifications/notification-bell.component.ts` |
+| T-049-05 60s polling for unread count | ✅ | `setInterval` in bell component |
+| T-049-06 Navigation map (reference_type → route) | ✅ | Bell component `navigateToRef()` |
+| T-049-07 4 backend tests | ✅ | `backend/tests/test_notifications.py` |
+
+### SMS-050 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-050-01 `GET /api/v1/parents/me` + `PATCH /api/v1/parents/me` | ✅ | `parents_bp` registered in `__init__.py` |
+| T-050-02 `ParentProfileService.get_me()` + `update_me()` (email locked) | ✅ | `parent_portal_service.py` |
+| T-050-03 Parent profile form (editable fields + disabled email) | ✅ | `frontend/.../parent-portal/profile/parent-profile.component.ts` |
+| T-050-04 4 backend tests | ✅ | `backend/tests/test_parent_profile.py` |
+
+**Backend test count: 392 passing (0 failures)** | **Angular build: 0 errors**
+
+---
+
+## Sprint 7 Board — ✅ COMPLETE
+
+See `docs/sprints/sprint-7-parent-portal-core.md` for full story details.
+
+| Story | Title | Points | Agents | Status |
+|-------|-------|--------|--------|--------|
+| SMS-041 | Parent Dashboard (All Children Overview) | 8 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-042 | Child Attendance Monitor | 8 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-043 | Academic Performance View | 8 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-044 | Fee Status & History | 5 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-045 | School Notice Board (Parent View) | 3 | `@backend-engineer` → `@frontend-engineer` | ⏳ Deferred — depends on Announcements model (Sprint 8) |
+
+### SMS-041 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-041-01 Migration `1bfdc13b6db1_sprint7_parent_portal` | ✅ | Covers: parents, student_parent, leave_applications, notifications, message_threads, parent_messages |
+| T-041-02/03 `ParentPortalService.get_dashboard()` — real attendance/fee/grade aggregation | ✅ | `backend/app/services/parent_portal_service.py` |
+| T-041-04 `parent-portal` lazy-loaded routing + layout shell | ✅ | Already existed from prior session |
+| T-041-05/06/07/08 Dashboard with child summary cards (p-knob, fees, grade badge) | ✅ | `frontend/.../parent-portal/dashboard/` |
+| T-041-09 Tests: 1 child, 0 children, admin 403, data isolation | ✅ | `backend/tests/test_parent_portal.py` |
+
+### SMS-042 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-042-01/02 `GET /api/v1/parent-portal/children/:id/attendance` with monthly summary | ✅ | Real ORM query with extract(month/year) |
+| T-042-03/04/05/06 Color-coded calendar grid, month nav, summary strip | ✅ | `frontend/.../parent-portal/children/child-attendance/` |
+| T-042-07 Tests: month filter, isolation 403, structure checks | ✅ | 5 tests in `test_parent_portal.py` |
+
+### SMS-043 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-043-01/02 `GET /api/v1/parent-portal/children/:id/grades` + report-card PDF endpoint | ✅ | All exams with subject breakdown |
+| T-043-03/04/05/06 p-accordion per exam, subject table, fail highlights, PDF download | ✅ | `frontend/.../parent-portal/children/child-grades/` |
+| T-043-07 Tests: multi-exam, empty list, isolation 403 | ✅ | 5 tests in `test_parent_portal.py` |
+
+### SMS-044 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-044-01/02 `GET /api/v1/parent-portal/children/:id/fees` with overdue detection | ✅ | total_due, total_paid, per-record payment info |
+| T-044-03/04/05 Fee table (p-tag severity), outstanding banner, receipt download | ✅ | `frontend/.../parent-portal/children/child-fees/` |
+| T-044-06 Tests: totals, payment info, isolation 403 | ✅ | 7 tests in `test_parent_portal.py` |
+
+**Backend test count: 370 passing (0 failures)** | **Angular build: 0 errors**
+
+---
+
 ## ▶ Resume Point — Start Here Next Session
 
-**Sprint 6 is COMPLETE ✅** — all SMS-035 → SMS-040 done.
+**Sprint 8 is COMPLETE ✅** — SMS-046 → SMS-050 done (22 new tests, 392 total).
 
-**Next sprint: Sprint 7 — Communication & Announcements** (see `docs/sprints/sprint-4-to-6.md` or create sprint 7 doc)
+**⚠️ Git note:** Sprint 7 + Sprint 8 work is uncommitted on disk (last commit was `ded0fc3 done till sprint 6`). Commit both sprints before starting Sprint 9.
 
-Suggested first stories:
-- SMS-041: School Announcements (create/list/publish)
-- SMS-042: Parent-Teacher Messaging
-- SMS-043: Notification Centre (in-app bell)
+**Next sprint: Sprint 9 — see `docs/sprints/sprint-9-to-11.md`**
+
+Remaining deferred story:
+- SMS-045: School Notice Board — Admin creates `Announcement` model (Sprint 8 scope but deferred — needs new model + migration)
+
+Sprint 9 suggested starting point: read `docs/sprints/sprint-9-to-11.md` for story list.
 
 ---
 

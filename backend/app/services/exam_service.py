@@ -299,6 +299,33 @@ class ExamService:
                 session.add(result)
             saved += 1
 
+        # Fire low-marks notifications to parents (< 40%)
+        for entry in marks_list:
+            sid = entry['student_id']
+            mo = float(entry['marks_obtained'])
+            max_m = float(subject.max_marks)
+            if max_m > 0 and (mo / max_m * 100) < 40:
+                from app.models.notification import Notification as _Notification
+                from app.models.parent import Parent as _Parent, student_parent as _sp
+                from sqlalchemy import select
+                student_obj = session.query(Student).filter_by(id=sid).first()
+                if student_obj:
+                    parent_links = session.execute(
+                        select(_sp).where(_sp.c.student_id == sid)
+                    ).fetchall()
+                    for link in parent_links:
+                        parent_obj = session.query(_Parent).filter_by(id=link.parent_id).first()
+                        if parent_obj:
+                            notif = _Notification(
+                                user_id=parent_obj.user_id,
+                                type='low_marks',
+                                title=f'Low Marks Alert: {subject.name}',
+                                body=f'{student_obj.first_name} scored {mo}/{max_m} in {subject.name}',
+                                reference_id=None,
+                                reference_type='exam_result',
+                            )
+                            session.add(notif)
+
         session.commit()
 
         return {

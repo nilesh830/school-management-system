@@ -11,30 +11,35 @@ export const PARENT_ROUTES: Routes = [
         path: 'dashboard',
         loadComponent: () => import('./dashboard/dashboard.component').then(m => m.ParentDashboardComponent)
       },
-      {
-        path: 'profile',
-        loadComponent: () => import('../../shared/components/profile/profile.component').then(m => m.ProfileComponent)
-      },
-      // Child sub-pages (Sprint 5+)
+      // Child sub-pages (Sprint 7)
       {
         path: 'children/:id/attendance',
-        loadComponent: () => import('./coming-soon.component').then(m => m.ComingSoonComponent)
+        loadComponent: () => import('./children/child-attendance/child-attendance.component').then(m => m.ChildAttendanceComponent)
       },
       {
         path: 'children/:id/grades',
-        loadComponent: () => import('./coming-soon.component').then(m => m.ComingSoonComponent)
+        loadComponent: () => import('./children/child-grades/child-grades.component').then(m => m.ChildGradesComponent)
       },
       {
         path: 'children/:id/fees',
-        loadComponent: () => import('./coming-soon.component').then(m => m.ComingSoonComponent)
+        loadComponent: () => import('./children/child-fees/child-fees.component').then(m => m.ChildFeesComponent)
       },
+      // Sprint 8
       {
         path: 'leave-applications',
-        loadComponent: () => import('./coming-soon.component').then(m => m.ComingSoonComponent)
+        loadComponent: () => import('./leave/leave-list.component').then(m => m.LeaveListComponent)
       },
       {
         path: 'messages',
-        loadComponent: () => import('./coming-soon.component').then(m => m.ComingSoonComponent)
+        loadComponent: () => import('./messages/thread-list.component').then(m => m.ThreadListComponent)
+      },
+      {
+        path: 'messages/:threadId',
+        loadComponent: () => import('./messages/thread-detail.component').then(m => m.ThreadDetailComponent)
+      },
+      {
+        path: 'profile',
+        loadComponent: () => import('./profile/parent-profile.component').then(m => m.ParentProfileComponent)
       },
       {
         path: 'notices',

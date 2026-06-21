@@ -7,13 +7,15 @@ import { MenuModule } from 'primeng/menu';
 import { TabMenuModule } from 'primeng/tabmenu';
 import { MenuItem } from 'primeng/api';
 import { AuthService } from '../../../core/services/auth.service';
+import { NotificationBellComponent } from '../notifications/notification-bell.component';
 
 @Component({
   selector: 'app-parent-layout',
   standalone: true,
   imports: [
     CommonModule, RouterOutlet, RouterLink, RouterLinkActive,
-    ButtonModule, AvatarModule, MenuModule, TabMenuModule
+    ButtonModule, AvatarModule, MenuModule, TabMenuModule,
+    NotificationBellComponent
   ],
   templateUrl: './parent-layout.component.html',
   styleUrl: './parent-layout.component.scss'

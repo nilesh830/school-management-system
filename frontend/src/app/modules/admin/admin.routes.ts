@@ -122,6 +122,11 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./fees/defaulter-report/defaulter-report.component')
           .then(m => m.DefaulterReportComponent)
       },
+      // ── Leave Requests (SMS-046/SMS-047) ──────────────────────────────────────
+      {
+        path: 'leave-requests',
+        loadComponent: () => import('./leave-review/leave-review.component').then(m => m.LeaveReviewComponent)
+      },
       // ── Profile ────────────────────────────────────────────────────────────
       {
         path: 'profile',

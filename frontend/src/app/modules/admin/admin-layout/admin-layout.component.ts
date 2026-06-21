@@ -31,6 +31,7 @@ export class AdminLayoutComponent {
     { label: 'Exams', icon: 'pi-file-edit', route: '/admin/exams' },
     { label: 'Fees', icon: 'pi-indian-rupee', route: '/admin/fees' },
     { label: 'Fee Defaulters', icon: 'pi-exclamation-triangle', route: '/admin/fees/defaulters' },
+    { label: 'Leave Requests', icon: 'pi-file-check', route: '/admin/leave-requests' },
     { label: 'Reports', icon: 'pi-chart-bar', route: '/admin/reports' },
   ];
 
