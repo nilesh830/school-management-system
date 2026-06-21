@@ -1,7 +1,7 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
-> **Last updated:** 2026-06-20 (session 4) | **Branch:** `develop`
+> **Last updated:** 2026-06-21 (session 9) | **Branch:** `develop`
 
 ---
 
@@ -269,10 +269,10 @@ See `docs/sprints/sprint-4-to-6.md` for full story details.
 |-------|-------|--------|--------|--------|
 | SMS-029 | Create Exam Definitions | 5 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | ✅ Done |
 | SMS-030 | Subject-wise Marks Entry | 8 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | ✅ Done |
-| SMS-031 | Grade Calculation & GPA | 5 | `@backend-engineer` | 🔲 Next |
-| SMS-032 | Student Report Card (PDF) | 8 | `@backend-engineer` → `@frontend-engineer` | 🔲 To Do |
-| SMS-033 | Class Result Summary | 5 | `@frontend-engineer` | 🔲 To Do |
-| SMS-034 | Marks Edit & Approval Workflow | 5 | `@backend-engineer` | 🔲 To Do |
+| SMS-031 | Grade Calculation & GPA | 5 | `@backend-engineer` | ✅ Done |
+| SMS-032 | Student Report Card (PDF) | 8 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-033 | Class Result Summary | 5 | `@frontend-engineer` | ✅ Done |
+| SMS-034 | Marks Edit & Approval Workflow | 5 | `@backend-engineer` + `@frontend-engineer` | ✅ Done |
 
 ### SMS-029 Detail (✅ Complete)
 
@@ -301,19 +301,153 @@ See `docs/sprints/sprint-4-to-6.md` for full story details.
 
 ---
 
+### SMS-031 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-031-01 `ExamService.get_student_results(exam_id, student_id)` | ✅ | Subject breakdown + overall GPA, percentage, grade |
+| T-031-02 `ExamService.get_all_results(exam_id)` | ✅ | Per-student summaries for admin/teacher view |
+| T-031-03 `GET /api/v1/exams/:id/results?student_id=N` | ✅ | admin+teacher+student RBAC; omit student_id for all-results |
+| T-031-04 14 tests, 264/264 full suite | ✅ | `backend/tests/test_exam_results.py` |
+
+**Backend test count: 264 passing (0 failures)**
+
+### SMS-032 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-032-01 `xhtml2pdf==0.2.16` added to `requirements.txt` | ✅ | Pure Python, no system deps |
+| T-032-02 `backend/app/templates/report_card.html` | ✅ | School header, subject table, GPA, pass/fail, signature lines |
+| T-032-03 `ExamService.generate_report_card_pdf(exam_id, student_id)` | ✅ | Jinja2 render → xhtml2pdf bytes |
+| T-032-04 `GET /api/v1/exams/:id/report-card/:student_id` | ✅ | admin+teacher+student RBAC, returns `application/pdf` |
+| T-032-05 "Report Cards" tab in student detail + Download PDF button | ✅ | `student-detail.component.ts/.html` |
+| T-032-06 10 tests, 274/274 full suite passing | ✅ | `backend/tests/test_report_card.py` (mocked xhtml2pdf) |
+
+**Backend test count: 274 passing (0 failures)** | **Angular build: 0 errors**
+
+### SMS-034 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-034-01 `ExamService.update_marks(exam_id, result_id, marks_obtained)` | ✅ | Blocks finalized (409), validates vs Subject.max_marks, recalculates grade/gpa |
+| T-034-02 `ExamService.finalize_exam(exam_id)` | ✅ | Bulk-sets all draft rows to 'finalized'; 400 if no drafts |
+| T-034-03 `PUT /api/v1/exams/:id/results/:result_id` (admin+teacher) | ✅ | `backend/app/routes/exams.py` |
+| T-034-03 `PUT /api/v1/exams/:id/finalize` (admin only) | ✅ | `backend/app/routes/exams.py` |
+| T-034-04 "Finalize Exam" button in marks-entry UI (admin only) | ✅ | `marks-entry.component.ts/.html` — `isAdmin` guard, `window.confirm`, loading spinner |
+| T-034-05 8 tests: draft edit OK, finalized 409, wrong exam 404, exceeds max 422, finalize OK, no-drafts 400, teacher 403, finalize-then-edit 409 | ✅ | `backend/tests/test_marks_approval.py` |
+
+**Backend test count: 282 passing (0 failures)** | **Angular build: 0 errors**
+
+### SMS-033 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-033-01 Backend `GET /api/v1/exams/:id/results` | ✅ | Done in SMS-031 |
+| T-033-02 Class result summary table — sortable, colour-coded grades | ✅ | `frontend/.../exams/class-results/` |
+| T-033-03 Grade distribution bar chart (`p-chart`) | ✅ | Below the table, 7 grade buckets, colour-coded bars |
+| T-033-04 Pass/fail/average summary stat cards | ✅ | Above the table — Total, Passed, Failed, Class Avg % |
+
+**Route:** `/admin/exams/:examId/results` → `ClassResultsComponent`
+**Entry point:** "Results" button added to exam-list Actions column
+
+---
+
+## Sprint 6 Board — ✅ COMPLETE
+
+See `docs/sprints/sprint-4-to-6.md` for full story details.
+
+| Story | Title | Points | Agents | Status |
+|-------|-------|--------|--------|--------|
+| SMS-035 | Fee Structure per Class | 5 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-036 | Generate Student Fee Records | 5 | `@backend-engineer` | ✅ Done |
+| SMS-037 | Record Fee Payment | 8 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-038 | Fee Receipt PDF Generation | 5 | `@backend-engineer` | ✅ Done |
+| SMS-039 | Fee Arrears & Defaulter Report | 5 | `@backend-engineer` → `@frontend-engineer` | ✅ Done |
+| SMS-040 | Discount & Scholarship Management | 5 | `@backend-engineer` | ✅ Done |
+
+### SMS-035 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-035-01 `FeeStructure` model + migration `fc0f55f9d6e2` | ✅ | `backend/app/models/fee_structure.py` — CheckConstraint on frequency |
+| T-035-02 `FeeStructureService` CRUD (create/list/get/update/soft-delete) | ✅ | `backend/app/services/fee_structure_service.py` |
+| T-035-03 Fee-structure routes blueprint (POST/GET/PUT/DELETE) | ✅ | `backend/app/routes/fee_structures.py` |
+| T-035-04 Fee structure list + add/edit dialog at `/admin/fees` | ✅ | `frontend/.../admin/fees/fee-structure-list/` |
+| T-035-05 12 tests, 294/294 full suite passing | ✅ | `backend/tests/test_fee_structures.py` |
+
+**Backend test count: 294 passing (0 failures)** | **Angular build: 0 errors**
+
+### SMS-036 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-036-01 `FeeRecord` model + migration `aecaeb364edd` | ✅ | `backend/app/models/fee_record.py` — UniqueConstraint(student_id, fee_structure_id), CheckConstraint on status |
+| T-036-02 `FeeService.generate_records_for_class(fee_structure_id)` | ✅ | `backend/app/services/fee_service.py` — ORM join Student→StudentSection→Section, bulk skip existing, single commit |
+| T-036-03 `POST /api/v1/fee-structures/:id/generate` (admin) | ✅ | Added to `backend/app/routes/fee_structures.py` |
+| T-036-04 5 tests: generate, idempotency, partial skip, 404, 403 | ✅ | `backend/tests/test_fee_records.py` — 5/5 pass |
+
+**Backend test count: 299 passing (0 failures)**
+
+### SMS-037 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-037-01 `FeePayment` model + migration `02fb95e1f181` | ✅ | `backend/app/models/fee_payment.py` — CheckConstraint on payment_method, unique receipt_no |
+| T-037-02 `FeeService.record_payment()` | ✅ | `backend/app/services/fee_service.py` — overpayment guard, `REC-YYYY-NNNN` auto-gen, status flip (pending→partial→paid) |
+| T-037-03 `POST /api/v1/fees/payments` + `GET /api/v1/fees/records` | ✅ | `backend/app/routes/fees.py` — new `fees_bp` blueprint registered in `__init__.py` |
+| T-037-04 Fee payment form | ✅ | `frontend/.../fees/fee-payment/` — debounced student search, fee records table, payment dialog |
+| T-037-05 Student fee ledger (row-expandable) | ✅ | `frontend/.../fees/fee-ledger/` — read-only with embedded payments, expand/collapse |
+| T-037-06 9 tests: full pay, partial, overpay 422, 404, 403, ledger, sequential receipts | ✅ | `backend/tests/test_fee_payments.py` — 9/9 pass |
+
+**Backend test count: 308 passing (0 failures)** | **Angular build: 0 errors**
+
+### SMS-038 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-038-01 `backend/app/templates/fee_receipt.html` | ✅ | School header, student name, fee type, amounts, receipt no, payment method, cashier signature lines |
+| T-038-02 `FeeService.generate_receipt_pdf(payment_id)` | ✅ | `backend/app/services/fee_service.py` — loads chain: FeePayment→FeeRecord→FeeStructure→Student, xhtml2pdf |
+| T-038-03 `GET /api/v1/fees/payments/:id/receipt` | ✅ | `backend/app/routes/fees.py` — admin + teacher, returns `application/pdf` with `Content-Disposition` |
+| T-038-04 "Download Receipt" button in fee ledger UI | ✅ | `frontend/.../fees/fee-ledger/` — blob download, `downloadReceipt()` in `FeeStructureService` |
+| T-038-05 6 tests: 200 PDF, non-empty bytes, attachment header, receipt_no in filename, 404 wrong id, teacher 200 | ✅ | `backend/tests/test_fee_receipt.py` — mocked xhtml2pdf |
+
+**Backend test count: 314 passing (0 failures)** | **Angular build: 0 errors**
+
+### SMS-039 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-039-01 `GET /api/v1/fees/defaulters` (admin) | ✅ | `backend/app/routes/fees.py` — optional `?class_id=` filter |
+| T-039-02 `FeeService.get_defaulters(class_id=None)` | ✅ | `backend/app/services/fee_service.py` — joins FeeRecord+FeeStructure+Student, computes days_overdue/balance_due |
+| T-039-03 Defaulter report table + filters at `/admin/fees/defaulters` | ✅ | `frontend/.../fees/defaulter-report/` — sortable p-table, class dropdown, export CSV, p-tag severity colours |
+| T-039-04 Tests: overdue, current excluded, class filter, partial payment, 403 | ✅ | `backend/tests/test_fee_defaulters.py` — 6 tests pass |
+
+**Backend test count: 320 passing (0 failures)** | **Angular build: 0 errors**
+
+### SMS-040 Detail (✅ Complete)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| T-040-01 `Discount` model + migration `b7407516626b` | ✅ | `backend/app/models/discount.py` — CheckConstraints on type + amount, FKs to fee_records/students/users |
+| T-040-02 `FeeService.apply_discount(fee_record_id, discount_data, approved_by)` | ✅ | `backend/app/services/fee_service.py` — recalculates net_amount, rejects paid/waived, flips status to paid if fully covered |
+| T-040-03 `POST /api/v1/fees/records/:id/discount` + `GET /api/v1/fees/records/:id` (admin) | ✅ | `backend/app/routes/fees.py` — DiscountSchema validation in `fee_payment_schema.py` |
+| T-040-04 Discount column + apply dialog in fee payment UI; discounts sub-section in fee ledger | ✅ | `frontend/.../fees/fee-payment/` + `frontend/.../fees/fee-ledger/` |
+| T-040-05 14 tests (apply, net recalc, paid reject, 404, 403, validation, status flip) | ✅ | `backend/tests/test_fee_discounts.py` — 334/334 full suite passing |
+
+**Backend test count: 334 passing (0 failures)** | **Angular build: 0 errors**
+
+---
+
 ## ▶ Resume Point — Start Here Next Session
 
-**Next story: SMS-031 — Grade Calculation & GPA** (`@backend-engineer` only)
+**Sprint 6 is COMPLETE ✅** — all SMS-035 → SMS-040 done.
 
-Tasks to implement:
-| Task | Notes |
-|------|-------|
-| T-031-01 `ExamService.get_student_results(exam_id, student_id)` | Per-subject grade breakdown |
-| T-031-02 `ExamService.calculate_overall_gpa(exam_id, student_id)` | Average GPA across all subjects |
-| T-031-03 `GET /api/v1/exams/:id/results?student_id=N` | Subject breakdown + overall GPA |
-| T-031-04 Tests: grade boundaries (A+/A/B/F edges), GPA average | |
+**Next sprint: Sprint 7 — Communication & Announcements** (see `docs/sprints/sprint-4-to-6.md` or create sprint 7 doc)
 
-All logic builds on `ExamResult` model + `calculate_grade()` already in place — no new model or migration needed.
+Suggested first stories:
+- SMS-041: School Announcements (create/list/publish)
+- SMS-042: Parent-Teacher Messaging
+- SMS-043: Notification Centre (in-app bell)
 
 ---
 

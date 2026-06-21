@@ -12,6 +12,10 @@ from app.models.attendance import Attendance
 from app.models.academic_year import AcademicYear
 from app.models.exam import Exam
 from app.models.exam_result import ExamResult
+from app.models.fee_structure import FeeStructure
+from app.models.fee_record import FeeRecord
+from app.models.fee_payment import FeePayment
+from app.models.discount import Discount
 from app.models.master.school import School
 from app.models.master.super_admin import SuperAdmin
 from app.models.master.super_admin_revoked_token import SuperAdminRevokedToken

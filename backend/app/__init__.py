@@ -75,6 +75,8 @@ def create_app(config_name='default'):
     from app.routes.exams import exams_bp
     from app.routes.superadmin_auth import superadmin_auth_bp
     from app.routes.superadmin_schools import superadmin_schools_bp
+    from app.routes.fee_structures import fee_structures_bp
+    from app.routes.fees import fees_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
@@ -90,6 +92,8 @@ def create_app(config_name='default'):
     app.register_blueprint(notifications_bp)
     app.register_blueprint(attendance_bp)
     app.register_blueprint(exams_bp)
+    app.register_blueprint(fee_structures_bp)
+    app.register_blueprint(fees_bp)
     app.register_blueprint(superadmin_auth_bp)
     app.register_blueprint(superadmin_schools_bp)
 

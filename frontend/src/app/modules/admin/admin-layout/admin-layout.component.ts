@@ -30,6 +30,7 @@ export class AdminLayoutComponent {
     { label: 'Attendance', icon: 'pi-calendar-clock', route: '/admin/attendance' },
     { label: 'Exams', icon: 'pi-file-edit', route: '/admin/exams' },
     { label: 'Fees', icon: 'pi-indian-rupee', route: '/admin/fees' },
+    { label: 'Fee Defaulters', icon: 'pi-exclamation-triangle', route: '/admin/fees/defaulters' },
     { label: 'Reports', icon: 'pi-chart-bar', route: '/admin/reports' },
   ];
 

@@ -17,6 +17,7 @@ import { forkJoin } from 'rxjs';
 import { ExamService, Exam } from '../../../../core/services/exam.service';
 import { StudentService, Student } from '../../../../core/services/student.service';
 import { ClassesService, Subject } from '../../../../core/services/classes.service';
+import { AuthService } from '../../../../core/services/auth.service';
 
 interface SavedResult {
   grade: string;
@@ -48,6 +49,7 @@ export class MarksEntryComponent implements OnInit {
   private examService = inject(ExamService);
   private studentService = inject(StudentService);
   private classesService = inject(ClassesService);
+  private authService = inject(AuthService);
   private toast = inject(MessageService);
   private fb = inject(FormBuilder);
 
@@ -64,6 +66,8 @@ export class MarksEntryComponent implements OnInit {
 
   loading = false;
   saving = false;
+  finalizing = false;
+  isAdmin = false;
   examId = 0;
 
   form: FormGroup = this.fb.group({
@@ -72,7 +76,17 @@ export class MarksEntryComponent implements OnInit {
 
   ngOnInit(): void {
     this.examId = Number(this.route.snapshot.paramMap.get('examId'));
+    this.isAdmin = this.authService.currentUser()?.role === 'admin';
     this.loadData();
+  }
+
+  private loadExam(): void {
+    this.examService.getExam(this.examId).subscribe({
+      next: (res) => { this.exam = res.data; },
+      error: () => {
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to reload exam details' });
+      },
+    });
   }
 
   private loadData(): void {
@@ -178,5 +192,35 @@ export class MarksEntryComponent implements OnInit {
     if (g === 'A+' || g === 'A') return 'success';
     if (g === 'B+' || g === 'B' || g === 'C') return 'warning';
     return 'danger';
+  }
+
+  onFinalizeClick(): void {
+    if (window.confirm('Finalize this exam? All marks will be locked and cannot be edited.')) {
+      this.finalizeExam();
+    }
+  }
+
+  private finalizeExam(): void {
+    if (!this.exam) return;
+    this.finalizing = true;
+    this.examService.finalizeExam(this.exam.id).subscribe({
+      next: (res) => {
+        this.toast.add({
+          severity: 'success',
+          summary: 'Exam Finalized',
+          detail: `${res.data?.finalized_count ?? ''} results finalized. No further edits allowed.`,
+        });
+        this.loadExam();
+        this.finalizing = false;
+      },
+      error: (err) => {
+        this.toast.add({
+          severity: 'error',
+          summary: 'Finalize Failed',
+          detail: err.error?.message ?? 'Could not finalize exam.',
+        });
+        this.finalizing = false;
+      },
+    });
   }
 }

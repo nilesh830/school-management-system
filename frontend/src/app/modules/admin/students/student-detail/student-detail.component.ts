@@ -31,6 +31,10 @@ import { ToggleButtonModule } from 'primeng/togglebutton';
 import { AvatarModule } from 'primeng/avatar';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TooltipModule } from 'primeng/tooltip';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { MessageModule } from 'primeng/message';
+
+import { ExamService } from '../../../../core/services/exam.service';
 
 import {
   StudentService,
@@ -84,7 +88,9 @@ function noFutureDate(control: AbstractControl): ValidationErrors | null {
     ToggleButtonModule,
     AvatarModule,
     SkeletonModule,
-    TooltipModule
+    TooltipModule,
+    ProgressSpinnerModule,
+    MessageModule
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './student-detail.component.html'
@@ -94,6 +100,7 @@ export class StudentDetailComponent implements OnInit {
   private router = inject(Router);
   private fb = inject(FormBuilder);
   private studentService = inject(StudentService);
+  private examService = inject(ExamService);
   private toast = inject(MessageService);
   private confirm = inject(ConfirmationService);
 
@@ -122,6 +129,11 @@ export class StudentDetailComponent implements OnInit {
   parents: Parent[] = [];
   loadingParents = false;
   linkingParent = false;
+
+  // ── Report Cards ──────────────────────────────────────────────────────────
+  exams: any[] = [];
+  loadingExams = false;
+  downloadingExamId: number | null = null;
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
   showTransferDialog = false;
@@ -525,6 +537,43 @@ export class StudentDetailComponent implements OnInit {
             this.toast.add({ severity: 'error', summary: 'Error', detail: err?.error?.message || 'Failed to unlink parent.' });
           }
         });
+      }
+    });
+  }
+
+  // ── Report Cards (Tab 5) ──────────────────────────────────────────────────
+
+  loadExams(): void {
+    const sectionId = this.student?.current_section?.id;
+    if (!sectionId) return;
+    this.loadingExams = true;
+    this.examService.getExams(sectionId).subscribe({
+      next: (res) => {
+        this.exams = res.data?.exams ?? [];
+        this.loadingExams = false;
+      },
+      error: () => {
+        this.loadingExams = false;
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load exams.' });
+      }
+    });
+  }
+
+  downloadReportCard(examId: number): void {
+    this.downloadingExamId = examId;
+    this.examService.downloadReportCard(examId, this.studentId).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `report_card_${this.studentId}_${examId}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.downloadingExamId = null;
+      },
+      error: () => {
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to download report card.' });
+        this.downloadingExamId = null;
       }
     });
   }

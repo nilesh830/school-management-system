@@ -20,13 +20,25 @@
         </div>
       </ng-template>
       <ng-template pTemplate="right">
-        <p-button
-          label="Save Marks"
-          icon="pi pi-save"
-          [loading]="saving"
-          [disabled]="saving || !selectedSubjectId || students.length === 0"
-          (onClick)="saveMarks()"
-        />
+        <div class="flex gap-2">
+          @if (isAdmin) {
+            <p-button
+              label="Finalize Exam"
+              icon="pi pi-lock"
+              severity="danger"
+              [loading]="finalizing"
+              [disabled]="finalizing"
+              (onClick)="onFinalizeClick()"
+            />
+          }
+          <p-button
+            label="Save Marks"
+            icon="pi pi-save"
+            [loading]="saving"
+            [disabled]="saving || !selectedSubjectId || students.length === 0"
+            (onClick)="saveMarks()"
+          />
+        </div>
       </ng-template>
     </p-toolbar>
 
@@ -125,8 +137,18 @@
         </ng-template>
       </p-table>
 
-      <!-- Bottom save button for long lists -->
-      <div class="flex justify-content-end p-3 border-top-1 surface-border">
+      <!-- Bottom action bar for long lists -->
+      <div class="flex justify-content-end gap-2 p-3 border-top-1 surface-border">
+        @if (isAdmin) {
+          <p-button
+            label="Finalize Exam"
+            icon="pi pi-lock"
+            severity="danger"
+            [loading]="finalizing"
+            [disabled]="finalizing"
+            (onClick)="onFinalizeClick()"
+          />
+        }
         <p-button
           label="Save Marks"
           icon="pi pi-save"

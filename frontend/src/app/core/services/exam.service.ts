@@ -63,4 +63,26 @@ export class ExamService {
   ): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/${examId}/marks`, payload);
   }
+
+  updateMark(examId: number, resultId: number, marksObtained: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/${examId}/results/${resultId}`, { marks_obtained: marksObtained });
+  }
+
+  finalizeExam(examId: number): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/${examId}/finalize`, {});
+  }
+
+  getResults(examId: number, studentId?: number): Observable<ApiResponse<any>> {
+    let params = new HttpParams();
+    if (studentId !== undefined) {
+      params = params.set('student_id', studentId.toString());
+    }
+    return this.http.get<ApiResponse<any>>(`${this.apiUrl}/${examId}/results`, { params });
+  }
+
+  downloadReportCard(examId: number, studentId: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${examId}/report-card/${studentId}`, {
+      responseType: 'blob'
+    });
+  }
 }

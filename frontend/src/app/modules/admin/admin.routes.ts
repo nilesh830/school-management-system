@@ -96,6 +96,32 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./exams/marks-entry/marks-entry.component')
           .then(m => m.MarksEntryComponent)
       },
+      {
+        path: 'exams/:examId/results',
+        loadComponent: () => import('./exams/class-results/class-results.component')
+          .then(m => m.ClassResultsComponent)
+      },
+      // ── Fees (SMS-035 / SMS-037) ──────────────────────────────────────────────
+      {
+        path: 'fees',
+        loadComponent: () => import('./fees/fee-structure-list/fee-structure-list.component')
+          .then(m => m.FeeStructureListComponent)
+      },
+      {
+        path: 'fees/payment',
+        loadComponent: () => import('./fees/fee-payment/fee-payment.component')
+          .then(m => m.FeePaymentComponent)
+      },
+      {
+        path: 'fees/ledger',
+        loadComponent: () => import('./fees/fee-ledger/fee-ledger.component')
+          .then(m => m.FeeLedgerComponent)
+      },
+      {
+        path: 'fees/defaulters',
+        loadComponent: () => import('./fees/defaulter-report/defaulter-report.component')
+          .then(m => m.DefaulterReportComponent)
+      },
       // ── Profile ────────────────────────────────────────────────────────────
       {
         path: 'profile',

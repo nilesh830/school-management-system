@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Fee Receipt</title>
+<style>
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    color: #000000;
+    margin: 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 18pt;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  h2 {
+    text-align: center;
+    font-size: 13pt;
+    font-weight: bold;
+    margin-top: 2px;
+    margin-bottom: 16px;
+  }
+  .divider {
+    border-top: 2px solid #000000;
+    margin: 8px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  th {
+    background-color: #333333;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: left;
+    padding: 6px 8px;
+    border: 1px solid #000000;
+  }
+  td {
+    padding: 5px 8px;
+    border: 1px solid #555555;
+  }
+  .info-label {
+    font-weight: bold;
+    width: 25%;
+    background-color: #eeeeee;
+  }
+  .info-value {
+    width: 25%;
+  }
+  .section-title {
+    font-size: 12pt;
+    font-weight: bold;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #000000;
+    padding-bottom: 2px;
+  }
+  .remarks-row td {
+    font-style: italic;
+    color: #444444;
+  }
+  .signature-table {
+    margin-top: 40px;
+  }
+  .signature-table td {
+    border: none;
+    text-align: center;
+    width: 50%;
+    padding-top: 30px;
+    border-top: 1px solid #000000;
+    font-size: 10pt;
+  }
+  .generated {
+    font-size: 9pt;
+    color: #666666;
+    text-align: right;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<h1>School Management System</h1>
+<h2>Fee Receipt</h2>
+<div class="divider"></div>
+
+<!-- Receipt Details -->
+<div class="section-title">Receipt Details</div>
+<table>
+  <tr>
+    <td class="info-label">Receipt No.</td>
+    <td class="info-value">{{ payment.receipt_no }}</td>
+    <td class="info-label">Payment Date</td>
+    <td class="info-value">{{ payment.payment_date }}</td>
+  </tr>
+  <tr>
+    <td class="info-label">Payment Method</td>
+    <td class="info-value">{{ payment.payment_method | upper }}</td>
+    <td class="info-label">Transaction Reference</td>
+    <td class="info-value">{% if payment.transaction_reference %}{{ payment.transaction_reference }}{% else %}—{% endif %}</td>
+  </tr>
+</table>
+
+<!-- Student Details -->
+<div class="section-title">Student Details</div>
+<table>
+  <tr>
+    <td class="info-label">Student Name</td>
+    <td class="info-value">{{ student.first_name }} {{ student.last_name }}</td>
+    <td class="info-label">Admission No.</td>
+    <td class="info-value">{{ student.admission_no }}</td>
+  </tr>
+</table>
+
+<!-- Fee Details -->
+<div class="section-title">Fee Details</div>
+<table>
+  <tr>
+    <td class="info-label">Fee Type</td>
+    <td class="info-value">{{ fee_structure.fee_type }}</td>
+    <td class="info-label">Fee Description</td>
+    <td class="info-value">—</td>
+  </tr>
+  <tr>
+    <td class="info-label">Fee Amount</td>
+    <td class="info-value">{{ "%.2f"|format(fee_record.amount|float) }}</td>
+    <td class="info-label">Discount Applied</td>
+    <td class="info-value">{{ "%.2f"|format(fee_record.discount|float) }}</td>
+  </tr>
+  <tr>
+    <td class="info-label">Net Amount</td>
+    <td class="info-value">{{ "%.2f"|format(fee_record.net_amount|float) }}</td>
+    <td class="info-label">Amount Paid</td>
+    <td class="info-value">{{ "%.2f"|format(payment.amount_paid|float) }}</td>
+  </tr>
+  <tr>
+    <td class="info-label">Balance Due</td>
+    <td class="info-value">{{ "%.2f"|format(balance_due) }}</td>
+    <td class="info-label">Fee Status</td>
+    <td class="info-value">{{ fee_record.status | upper }}</td>
+  </tr>
+</table>
+
+<!-- Remarks -->
+<div class="section-title">Remarks</div>
+<table>
+  <tr class="remarks-row">
+    <td>{% if payment.remarks %}{{ payment.remarks }}{% else %}—{% endif %}</td>
+  </tr>
+</table>
+
+<!-- Signature Lines -->
+<table class="signature-table">
+  <tr>
+    <td>Cashier / Accounts Signature</td>
+    <td>Principal Signature</td>
+  </tr>
+</table>
+
+<p class="generated">Generated on: {{ generated_date }}</p>
+
+</body>
+</html>

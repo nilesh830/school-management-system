@@ -39,3 +39,7 @@ class ExamMarksSchema(Schema):
         required=True,
         validate=validate.Length(min=1),
     )
+
+
+class UpdateMarkSchema(Schema):
+    marks_obtained = fields.Float(required=True, validate=validate.Range(min=0))

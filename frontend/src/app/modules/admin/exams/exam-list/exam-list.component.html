@@ -76,6 +76,15 @@
               [routerLink]="['/admin/exams', exam.id, 'marks']"
               pTooltip="Enter Marks"
             />
+            <p-button
+              label="Results"
+              icon="pi pi-chart-bar"
+              size="small"
+              severity="success"
+              [text]="true"
+              [routerLink]="['/admin/exams', exam.id, 'results']"
+              pTooltip="View Class Results"
+            />
           </td>
         </tr>
       </ng-template>
