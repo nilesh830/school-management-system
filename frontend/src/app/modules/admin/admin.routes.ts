@@ -160,6 +160,12 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./reports/fees-report/fees-report.component')
           .then(m => m.ReportFeesComponent)
       },
+      // ── Transport (SMS-061 / SMS-062) ─────────────────────────────────────────
+      {
+        path: 'transport',
+        loadComponent: () => import('./transport/transport-management/transport-management.component')
+          .then(m => m.TransportManagementComponent)
+      },
       // ── Leave Requests (SMS-046/SMS-047) ──────────────────────────────────────
       {
         path: 'leave-requests',

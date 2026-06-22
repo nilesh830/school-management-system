@@ -81,6 +81,7 @@ def create_app(config_name='default'):
     from app.routes.library import library_bp
     from app.routes.dashboard import dashboard_bp
     from app.routes.reports import reports_bp
+    from app.routes.transport import transport_bp, student_transport_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
@@ -103,6 +104,8 @@ def create_app(config_name='default'):
     app.register_blueprint(library_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(transport_bp)
+    app.register_blueprint(student_transport_bp)
     app.register_blueprint(superadmin_auth_bp)
     app.register_blueprint(superadmin_schools_bp)
 
@@ -111,6 +114,9 @@ def create_app(config_name='default'):
     from app.models.announcement import Announcement  # noqa: F401
     from app.models.library_book import LibraryBook  # noqa: F401
     from app.models.book_issue import BookIssue  # noqa: F401
+    from app.models.transport_route import TransportRoute  # noqa: F401
+    from app.models.transport_vehicle import TransportVehicle  # noqa: F401
+    from app.models.student_transport import StudentTransport  # noqa: F401
 
     # Ensure master models are imported so SQLAlchemy includes them in metadata,
     # then create their tables (no Flask-Migrate for the simple master schema).

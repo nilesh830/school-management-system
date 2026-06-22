@@ -34,6 +34,7 @@ export class AdminLayoutComponent {
     { label: 'Leave Requests', icon: 'pi-file-check', route: '/admin/leave-requests' },
     { label: 'Announcements', icon: 'pi-megaphone', route: '/admin/announcements' },
     { label: 'Library', icon: 'pi-bookmark', route: '/admin/library' },
+    { label: 'Transport', icon: 'pi-car', route: '/admin/transport' },
     { label: 'Attendance Report', icon: 'pi-chart-line', route: '/admin/reports/attendance' },
     { label: 'Grades Report', icon: 'pi-chart-bar', route: '/admin/reports/grades' },
     { label: 'Fees Report', icon: 'pi-chart-pie', route: '/admin/reports/fees' },
