@@ -139,6 +139,27 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./library/book-issues/book-issues.component')
           .then(m => m.BookIssuesComponent)
       },
+      // ── Reports & Analytics (SMS-056 / SMS-057 / SMS-058 / SMS-059 / SMS-060) ─
+      {
+        path: 'reports',
+        redirectTo: 'reports/attendance',
+        pathMatch: 'full'
+      },
+      {
+        path: 'reports/attendance',
+        loadComponent: () => import('./reports/attendance-report/attendance-report.component')
+          .then(m => m.ReportAttendanceComponent)
+      },
+      {
+        path: 'reports/grades',
+        loadComponent: () => import('./reports/grades-report/grades-report.component')
+          .then(m => m.ReportGradesComponent)
+      },
+      {
+        path: 'reports/fees',
+        loadComponent: () => import('./reports/fees-report/fees-report.component')
+          .then(m => m.ReportFeesComponent)
+      },
       // ── Leave Requests (SMS-046/SMS-047) ──────────────────────────────────────
       {
         path: 'leave-requests',

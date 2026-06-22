@@ -79,6 +79,8 @@ def create_app(config_name='default'):
     from app.routes.fees import fees_bp
     from app.routes.announcements import announcements_bp
     from app.routes.library import library_bp
+    from app.routes.dashboard import dashboard_bp
+    from app.routes.reports import reports_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
@@ -99,6 +101,8 @@ def create_app(config_name='default'):
     app.register_blueprint(fees_bp)
     app.register_blueprint(announcements_bp)
     app.register_blueprint(library_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(reports_bp)
     app.register_blueprint(superadmin_auth_bp)
     app.register_blueprint(superadmin_schools_bp)
 

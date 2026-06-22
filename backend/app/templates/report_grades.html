@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Grades Report</title>
+<style>
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    color: #000000;
+    margin: 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 18pt;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  h2 {
+    text-align: center;
+    font-size: 13pt;
+    font-weight: bold;
+    margin-top: 2px;
+    margin-bottom: 16px;
+  }
+  .divider {
+    border-top: 2px solid #000000;
+    margin: 8px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  th {
+    background-color: #333333;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: left;
+    padding: 6px 8px;
+    border: 1px solid #000000;
+  }
+  td {
+    padding: 5px 8px;
+    border: 1px solid #555555;
+  }
+  .info-label {
+    font-weight: bold;
+    width: 30%;
+    background-color: #eeeeee;
+  }
+  .info-value {
+    width: 20%;
+  }
+  .section-title {
+    font-size: 12pt;
+    font-weight: bold;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #000000;
+    padding-bottom: 2px;
+  }
+  .generated {
+    font-size: 9pt;
+    color: #666666;
+    text-align: right;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<h1>School Management System</h1>
+<h2>Academic Performance Report</h2>
+<div class="divider"></div>
+
+<div class="section-title">Report Parameters</div>
+<table>
+  <tr>
+    <td class="info-label">Exam</td>
+    <td class="info-value">{{ report.exam_name }}</td>
+    <td class="info-label">Exam ID</td>
+    <td class="info-value">{{ report.exam_id }}</td>
+  </tr>
+  <tr>
+    <td class="info-label">Section ID</td>
+    <td class="info-value">{% if report.section_id is not none %}{{ report.section_id }}{% else %}All{% endif %}</td>
+    <td class="info-label">Students</td>
+    <td class="info-value">{{ report.student_count }}</td>
+  </tr>
+</table>
+
+<div class="section-title">Per-Student Results</div>
+<table>
+  <thead>
+    <tr>
+      <th>Student</th>
+      <th>Admission No.</th>
+      <th>Overall %</th>
+      <th>Grade</th>
+      <th>GPA</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if report.students %}
+      {% for s in report.students %}
+      <tr>
+        <td>{{ s.name }}</td>
+        <td>{{ s.admission_no }}</td>
+        <td>{% if s.overall_percentage is not none %}{{ s.overall_percentage }}%{% else %}—{% endif %}</td>
+        <td>{% if s.overall_grade %}{{ s.overall_grade }}{% else %}—{% endif %}</td>
+        <td>{% if s.overall_gpa is not none %}{{ s.overall_gpa }}{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="5" style="text-align: center; font-style: italic;">No results for this exam.</td>
+      </tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<div class="section-title">Grade Distribution</div>
+<table>
+  <thead>
+    <tr>
+      <th>Grade</th>
+      <th>Count</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if report.grade_distribution %}
+      {% for grade, count in report.grade_distribution.items() %}
+      <tr>
+        <td>{{ grade }}</td>
+        <td>{{ count }}</td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="2" style="text-align: center; font-style: italic;">No grades recorded.</td>
+      </tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<p class="generated">Generated on: {{ generated_date }}</p>
+
+</body>
+</html>

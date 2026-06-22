@@ -1,0 +1,236 @@
+<p-toast />
+
+<div class="mb-4">
+  <h2 class="text-2xl font-bold text-900 m-0">Grades Report</h2>
+  <p class="text-600 mt-1 mb-0">Exam results with per-subject breakdown and grade distribution.</p>
+</div>
+
+<!-- Filter Bar -->
+<p-card styleClass="mb-4">
+  <form [formGroup]="filterForm" (ngSubmit)="runReport()">
+    <div class="grid align-items-end">
+
+      <div class="col-12 md:col-5">
+        <label class="block text-600 text-sm mb-1" for="examId">Exam</label>
+        <p-dropdown
+          inputId="examId"
+          formControlName="examId"
+          [options]="examOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Select exam"
+          [filter]="true"
+          filterBy="label"
+          [showClear]="true"
+          styleClass="w-full"
+          [loading]="examsLoading"
+        />
+        @if (filterForm.get('examId')?.invalid && filterForm.get('examId')?.touched) {
+          <small class="text-red-500">Exam is required.</small>
+        }
+      </div>
+
+      <div class="col-12 md:col-5">
+        <label class="block text-600 text-sm mb-1" for="sectionId">Section (optional)</label>
+        <p-dropdown
+          inputId="sectionId"
+          formControlName="sectionId"
+          [options]="sectionOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="All sections"
+          [filter]="true"
+          filterBy="label"
+          [showClear]="true"
+          styleClass="w-full"
+          [loading]="sectionsLoading"
+        />
+      </div>
+
+      <div class="col-12 md:col-2">
+        <p-button
+          type="submit"
+          label="Run Report"
+          icon="pi pi-chart-bar"
+          styleClass="w-full"
+          [loading]="loading"
+          [disabled]="loading"
+        />
+      </div>
+
+    </div>
+  </form>
+</p-card>
+
+<!-- Loading Spinner -->
+@if (loading) {
+  <div class="flex justify-content-center align-items-center py-6">
+    <p-progressSpinner strokeWidth="4" styleClass="w-4rem h-4rem" />
+  </div>
+}
+
+<!-- Results -->
+@if (!loading && hasRun) {
+
+  @if (students.length === 0) {
+    <p-message severity="info" text="No results for the selected exam / section." styleClass="mb-4 w-full" />
+  }
+
+  @if (students.length > 0) {
+
+    <!-- Summary stat cards -->
+    <div class="grid mb-2">
+      <div class="col-12 md:col-3">
+        <div class="surface-card border-round p-3 border-1 surface-border text-center">
+          <i class="pi pi-users text-2xl text-primary"></i>
+          <div class="text-3xl font-bold mt-2">{{ totalStudents }}</div>
+          <div class="text-color-secondary mt-1">Total Students</div>
+        </div>
+      </div>
+      <div class="col-12 md:col-3">
+        <div class="surface-card border-round p-3 border-1 surface-border text-center">
+          <i class="pi pi-check-circle text-2xl text-green-500"></i>
+          <div class="text-3xl font-bold mt-2 text-green-500">{{ passCount }}</div>
+          <div class="text-color-secondary mt-1">Passed</div>
+        </div>
+      </div>
+      <div class="col-12 md:col-3">
+        <div class="surface-card border-round p-3 border-1 surface-border text-center">
+          <i class="pi pi-times-circle text-2xl text-red-500"></i>
+          <div class="text-3xl font-bold mt-2 text-red-500">{{ failCount }}</div>
+          <div class="text-color-secondary mt-1">Failed</div>
+        </div>
+      </div>
+      <div class="col-12 md:col-3">
+        <div class="surface-card border-round p-3 border-1 surface-border text-center">
+          <i class="pi pi-chart-bar text-2xl text-blue-500"></i>
+          <div class="text-3xl font-bold mt-2">{{ classAvgPercentage | number:'1.1-1' }}%</div>
+          <div class="text-color-secondary mt-1">Class Average</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results table with subject breakdown -->
+    <p-card styleClass="mb-4">
+      <p-toolbar styleClass="mb-3">
+        <ng-template pTemplate="left">
+          <span class="text-lg font-semibold text-900">Results</span>
+          <span class="ml-3 text-500 text-sm">{{ students.length }} student(s)</span>
+        </ng-template>
+        <ng-template pTemplate="right">
+          <div class="flex gap-2">
+            <p-button
+              label="Export PDF"
+              icon="pi pi-file-pdf"
+              severity="danger"
+              [outlined]="true"
+              (onClick)="export('pdf')"
+              [loading]="exporting === 'pdf'"
+              [disabled]="exporting !== null"
+            />
+            <p-button
+              label="Export Excel"
+              icon="pi pi-file-excel"
+              severity="success"
+              [outlined]="true"
+              (onClick)="export('excel')"
+              [loading]="exporting === 'excel'"
+              [disabled]="exporting !== null"
+            />
+          </div>
+        </ng-template>
+      </p-toolbar>
+
+      <p-table
+        [value]="students"
+        dataKey="student_id"
+        [expandedRowKeys]="expandedRows"
+        [paginator]="students.length > 20"
+        [rows]="20"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        responsiveLayout="scroll"
+        styleClass="p-datatable-sm"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 3rem"></th>
+            <th>Student</th>
+            <th class="text-center">Percentage</th>
+            <th class="text-center">Grade</th>
+            <th class="text-center">GPA</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-s let-expanded="expanded">
+          <tr>
+            <td>
+              <p-button
+                type="button"
+                [pRowToggler]="s"
+                [text]="true"
+                [rounded]="true"
+                [plain]="true"
+                [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+              />
+            </td>
+            <td>{{ s.name }}</td>
+            <td class="text-center">{{ (s.overall_percentage ?? 0) | number:'1.1-1' }}%</td>
+            <td class="text-center">
+              @if (s.overall_grade) {
+                <p-tag [value]="s.overall_grade" [severity]="getGradeSeverity(s.overall_grade)" />
+              } @else {
+                <span class="text-500">—</span>
+              }
+            </td>
+            <td class="text-center font-semibold">{{ (s.overall_gpa ?? 0) | number:'1.1-2' }}</td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="rowexpansion" let-s>
+          <tr>
+            <td colspan="5">
+              <div class="p-3">
+                <p-table [value]="s.subjects" styleClass="p-datatable-sm" responsiveLayout="scroll">
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th>Subject</th>
+                      <th class="text-center">Marks Obtained</th>
+                      <th class="text-center">Max Marks</th>
+                      <th class="text-center">Grade</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-sub>
+                    <tr>
+                      <td>{{ sub.subject_name }}</td>
+                      <td class="text-center">{{ sub.marks_obtained }}</td>
+                      <td class="text-center text-500">{{ sub.max_marks }}</td>
+                      <td class="text-center">
+                        @if (sub.grade) {
+                          <p-tag [value]="sub.grade" [severity]="getGradeSeverity(sub.grade)" />
+                        } @else {
+                          <span class="text-500">—</span>
+                        }
+                      </td>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="emptymessage">
+                    <tr>
+                      <td colspan="4" class="text-center text-500 py-3">No subject marks recorded.</td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-card>
+
+    <!-- Grade distribution chart -->
+    <p-card header="Grade Distribution">
+      <p-chart type="bar" [data]="chartData" [options]="chartOptions" [style]="{ height: '300px' }" />
+    </p-card>
+
+  }
+
+}

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Attendance Report</title>
+<style>
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    color: #000000;
+    margin: 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 18pt;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  h2 {
+    text-align: center;
+    font-size: 13pt;
+    font-weight: bold;
+    margin-top: 2px;
+    margin-bottom: 16px;
+  }
+  .divider {
+    border-top: 2px solid #000000;
+    margin: 8px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  th {
+    background-color: #333333;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: left;
+    padding: 6px 8px;
+    border: 1px solid #000000;
+  }
+  td {
+    padding: 5px 8px;
+    border: 1px solid #555555;
+  }
+  .info-label {
+    font-weight: bold;
+    width: 30%;
+    background-color: #eeeeee;
+  }
+  .info-value {
+    width: 20%;
+  }
+  .summary-row td {
+    font-weight: bold;
+    background-color: #dddddd;
+  }
+  .section-title {
+    font-size: 12pt;
+    font-weight: bold;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #000000;
+    padding-bottom: 2px;
+  }
+  .generated {
+    font-size: 9pt;
+    color: #666666;
+    text-align: right;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<h1>School Management System</h1>
+<h2>Attendance Report</h2>
+<div class="divider"></div>
+
+<div class="section-title">Report Parameters</div>
+<table>
+  <tr>
+    <td class="info-label">Section ID</td>
+    <td class="info-value">{{ report.section_id }}</td>
+    <td class="info-label">Students</td>
+    <td class="info-value">{{ report.student_count }}</td>
+  </tr>
+  <tr>
+    <td class="info-label">From Date</td>
+    <td class="info-value">{{ report.from_date }}</td>
+    <td class="info-label">To Date</td>
+    <td class="info-value">{{ report.to_date }}</td>
+  </tr>
+</table>
+
+<div class="section-title">Per-Student Attendance</div>
+<table>
+  <thead>
+    <tr>
+      <th>Student</th>
+      <th>Present</th>
+      <th>Absent</th>
+      <th>Late</th>
+      <th>Total</th>
+      <th>Percentage</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if report.students %}
+      {% for s in report.students %}
+      <tr>
+        <td>{{ s.name }}</td>
+        <td>{{ s.present }}</td>
+        <td>{{ s.absent }}</td>
+        <td>{{ s.late }}</td>
+        <td>{{ s.total }}</td>
+        <td>{{ s.percentage }}%</td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="6" style="text-align: center; font-style: italic;">No attendance records for this period.</td>
+      </tr>
+    {% endif %}
+    <tr class="summary-row">
+      <td>CLASS AVERAGE</td>
+      <td colspan="4"></td>
+      <td>{{ report.class_average }}%</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="generated">Generated on: {{ generated_date }}</p>
+
+</body>
+</html>

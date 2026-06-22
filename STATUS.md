@@ -1,14 +1,14 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
-> **Last updated:** 2026-06-21 (session 12) | **Branch:** `develop`
+> **Last updated:** 2026-06-22 (session 13) | **Branch:** `develop`
 
 ---
 
-## Current Sprint: Sprint 9 — Communication & Library
+## Current Sprint: Sprint 10 — Reports & Analytics
 
 > See `docs/sprints/sprint-9-to-11.md` for full story details.
-> Sprint 8 Parent Portal Communication is complete — see archived section below.
+> Sprint 9 Communication & Library is complete — see archived section below.
 
 > **Agent Assignment Convention (Sprint 4+):**
 > Each task in the sprint docs now carries an explicit agent label:
@@ -59,6 +59,50 @@ See `docs/sprints/sprint-9-to-11.md` for full story details.
 > **Note:** Announcement editor uses a plain textarea (not `p-editor`) — the `quill` peer dep isn't installed. To enable rich text later: `npm install quill` and swap to `<p-editor>`.
 
 **Backend test count: 420 passing (0 failures)** — 28 new (`test_announcements.py`, `test_library.py`) | **Angular build: 0 errors**
+
+---
+
+## Sprint 10 Board — ✅ COMPLETE
+
+See `docs/sprints/sprint-9-to-11.md` for full story details.
+
+| Story | Title | Points | Status |
+|-------|-------|--------|--------|
+| SMS-056 | Admin KPI Dashboard | 8 | ✅ Done |
+| SMS-057 | Attendance Analytics Report | 5 | ✅ Done |
+| SMS-058 | Academic Performance Report | 5 | ✅ Done |
+| SMS-059 | Fee Collection Report | 5 | ✅ Done |
+| SMS-060 | Export Reports to PDF/Excel | 5 | ✅ Done |
+
+### Backend
+| Item | File |
+|------|------|
+| `DashboardService.get_admin_kpis()` — totals, today attendance, monthly fee collection, pending leaves, recent announcements, low-attendance (<75%) students, defaulter count (reuses `AttendanceService` + `FeeService`) | `backend/app/services/dashboard_service.py` |
+| `ReportService` — `attendance_report()`, `grades_report()`, `fees_report()` + 6 export methods (`export_*_pdf/excel`) | `backend/app/services/report_service.py` |
+| Generic xlsx helper `build_xlsx(sheet_title, headers, rows)` | `backend/app/utils/excel.py` |
+| `dashboard_bp` — `GET /api/v1/dashboard/admin` (admin) | `backend/app/routes/dashboard.py` |
+| `reports_bp` — `GET /api/v1/reports/{attendance,grades,fees}` + `/{...}/export?format=pdf\|excel` | `backend/app/routes/reports.py` |
+| PDF templates (xhtml2pdf + Jinja2) | `backend/app/templates/report_{attendance,grades,fees}.html` |
+| `openpyxl==3.1.5` added | `backend/requirements.txt` |
+
+> **RBAC:** attendance + grades reports = admin **+** teacher; fees report + admin dashboard = admin only. Export endpoints inherit the same roles as their underlying report.
+
+### Frontend
+| Item | Path |
+|------|------|
+| `DashboardService`, `ReportService` (+ blob export methods) | `frontend/src/app/core/services/` |
+| Admin KPI dashboard (4 KPI cards, fee-collection doughnut, today-attendance doughnut, alerts panel) | `frontend/.../admin/dashboard/dashboard.component.ts` |
+| Attendance report (filters, per-student table, bar chart, class avg) | `frontend/.../admin/reports/attendance-report/` |
+| Grades report (filters, expandable per-subject table, grade-distribution chart, stat cards) | `frontend/.../admin/reports/grades-report/` |
+| Fees report (filters, collection summary, defaulters table) | `frontend/.../admin/reports/fees-report/` |
+| Export PDF / Export Excel buttons on all 3 report pages | each report component |
+| Routes `reports/{attendance,grades,fees}` + 3 sidebar nav items | `admin.routes.ts`, `admin-layout.component.ts` |
+
+> **Contract fix:** the grades-report frontend originally assumed `student_name` + nested `overall.{percentage,grade,gpa}`; backend actually returns `name` + flat `overall_percentage/grade/gpa`. Frontend was aligned to the backend (tested source of truth). Attendance & fees contracts verified matching.
+>
+> **Attendance-trend gap:** `GET /dashboard/admin` returns only a *today* attendance snapshot, not a 30-day trend array. The dashboard renders the today-attendance doughnut instead of a fabricated trend line. To add a real trend chart later, extend `DashboardService` with a 30-day daily series.
+
+**Backend test count: 473 passing (0 failures)** — 53 new (`test_dashboard.py` 9, `test_reports.py` 21, `test_report_export.py` 23) | **Angular build: 0 errors**
 
 ---
 
@@ -602,16 +646,16 @@ See `docs/sprints/sprint-7-parent-portal-core.md` for full story details.
 
 ## ▶ Resume Point — Start Here Next Session
 
-**Sprint 9 is COMPLETE ✅** — SMS-051 → SMS-055 done, PLUS the deferred **SMS-045** (Parent Notice Board) which was unblocked by the new `Announcement` model.
+**Sprint 10 is COMPLETE ✅** — SMS-056 → SMS-060 (Reports & Analytics) done.
 
-- Backend: 3 models (`Announcement`, `LibraryBook`, `BookIssue`), 1 migration `c9a1f0e2b3d4`, `AnnouncementService` + `LibraryService`, `announcements_bp` + `library_bp` + parent `/notices` endpoint.
-- **Backend tests: 420 passing (0 failures)** — 28 new (`test_announcements.py` 16, `test_library.py` 12).
-- Frontend: announcement admin UI, library catalog + issue/return/overdue UI, parent notice board + nav badge. **Angular build: 0 errors.**
-- Demo dev DB (`school_demo.db`) upgraded to head `c9a1f0e2b3d4`.
+- Backend (no new models — pure read/aggregation): `DashboardService` + `ReportService` (+ 6 export methods), `dashboard_bp` + `reports_bp`, generic `build_xlsx` helper, 3 PDF templates, `openpyxl` added. New endpoints: `GET /api/v1/dashboard/admin`, `GET /api/v1/reports/{attendance,grades,fees}` and `/{...}/export?format=pdf|excel`.
+- **Backend tests: 473 passing (0 failures)** — 53 new (`test_dashboard.py` 9, `test_reports.py` 21, `test_report_export.py` 23).
+- Frontend: admin KPI dashboard rebuild, 3 report pages (attendance/grades/fees) with tables + charts + PDF/Excel export buttons, 3 new `/admin/reports/*` routes + sidebar nav. **Angular build: 0 errors.**
+- **Contract fix applied:** grades-report frontend was aligned to the backend's actual keys (`name`, flat `overall_percentage/grade/gpa`). Attendance & fees verified already matching.
 
-**⚠️ Pre-existing dev-DB note (NOT a Sprint 9 issue):** `flask db-upgrade-all` fails on the `greenwood-high` tenant — that DB has tables from `create_all` but is stamped at a pre-Sprint-7 revision (`b7407516626b`), so the Sprint-7 migration errors with "table parents already exists". The `demo` school is marked inactive in `master.db` (so it is skipped by `db-upgrade-all`; it was upgraded manually). Both are local environment drift unrelated to feature work.
+**⚠️ Pre-existing dev-DB note (carried over, NOT a Sprint 10 issue):** `flask db-upgrade-all` fails on the `greenwood-high` tenant — that DB has tables from `create_all` but is stamped at a pre-Sprint-7 revision (`b7407516626b`), so the Sprint-7 migration errors with "table parents already exists". The `demo` school is marked inactive in `master.db`. Both are local environment drift unrelated to feature work. **Sprint 10 added no migrations**, so no dev-DB upgrade was required this session.
 
-**Next sprint: Sprint 10 — Reports & Analytics (SMS-056 → SMS-060). See `docs/sprints/sprint-9-to-11.md`.**
+**Next sprint: Sprint 11 — Transport & Hardening (SMS-061 → SMS-064), the release sprint. See `docs/sprints/sprint-9-to-11.md`.**
 
 ---
 
