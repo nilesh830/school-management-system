@@ -7,6 +7,7 @@ from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_compress import Compress
 from flasgger import Swagger
 from config import config
 
@@ -15,6 +16,7 @@ migrate = Migrate()
 jwt = JWTManager()
 bcrypt = Bcrypt()
 limiter = Limiter(key_func=get_remote_address, default_limits=["500/day", "100/hour"])
+compress = Compress()
 
 _SWAGGER_CONFIG = {
     "headers": [],
@@ -44,7 +46,15 @@ def create_app(config_name='default'):
     jwt.init_app(app)
     bcrypt.init_app(app)
     limiter.init_app(app)
-    CORS(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True,
+    # SMS-064 — gzip response compression for JSON/PDF/HTML payloads.
+    compress.init_app(app)
+    # Security: credentialed CORS must never be combined with a wildcard origin,
+    # which would let any site make authenticated cross-origin requests. Strip
+    # any '*' entry so a misconfigured CORS_ORIGINS env var cannot open the API.
+    cors_origins = [o for o in app.config['CORS_ORIGINS'] if o and o.strip() != '*']
+    if not cors_origins:
+        cors_origins = ['http://localhost:4200']
+    CORS(app, origins=cors_origins, supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization'])
 
     _init_swagger(app)

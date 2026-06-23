@@ -28,6 +28,9 @@ class Attendance(db.Model):
             'student_id', 'section_id', 'date',
             name='uq_attendance_student_section_date'
         ),
+        # SMS-064 — attendance reports query by section over a date range; the
+        # unique constraint leads with student_id and can't serve that pattern.
+        db.Index('ix_attendance_section_date', 'section_id', 'date'),
     )
 
     # Relationships

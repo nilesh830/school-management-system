@@ -49,6 +49,9 @@ class Config:
     PASSWORD_RESET_EXPIRES_HOURS = 1
     FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:4200')
 
+    # SMS-064 — admin dashboard KPI cache TTL in seconds (0 disables caching).
+    DASHBOARD_CACHE_TTL = int(os.environ.get('DASHBOARD_CACHE_TTL', 300))
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
@@ -68,6 +71,7 @@ class TestingConfig(Config):
     MAIL_SUPPRESS_SEND = True
     WTF_CSRF_ENABLED = False
     RATELIMIT_ENABLED = False
+    DASHBOARD_CACHE_TTL = 0  # Disable caching in tests for deterministic results
 
 
 config = {
