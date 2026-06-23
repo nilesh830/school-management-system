@@ -60,16 +60,11 @@ This creates the platform Super Admin:
 
 There is an old "Demo School" (slug `demo`) in the system, but its data is incomplete and it predates the Transport module. **For a clean, complete demo, provision a brand-new school** (steps in Part 1.A) — you choose its admin email/password, and its schema includes every module.
 
-### 0.4 Create the Academic Year (IMPORTANT — no UI for this)
+### 0.4 Academic Year
 
-Fee Structures and Transport Assignments need an Academic Year, but there is **no admin screen** to create one. After you provision your school (slug e.g. `sunrise`), run once:
+Fee Structures and Transport Assignments need an Academic Year. After you log in as the school admin, create one from the **Academic Years** screen (sidebar → *Academic Years* → *Add Academic Year*) — see step **B1.0**. No script needed.
 
-```bash
-cd backend
-python database/seeds/seed_academic_year.py sunrise
-```
-
-This creates academic year **2025-2026** for that school. (Without it, the Fees and Transport screens will have an empty year dropdown.)
+> **Optional CLI fallback** (e.g. to pre-create it before the demo): `cd backend && python database/seeds/seed_academic_year.py sunrise`
 
 ---
 
@@ -135,6 +130,7 @@ Go to **`/login`** → enter the admin email/password **and the slug `sunrise`**
 
 | # | Screen | ➡️ Do | 🗣️ Say |
 |---|--------|-------|--------|
+| B1.0 | **Academic Years** (`/admin/academic-years`) | Add a year e.g. *2025-2026* (start/end date, tick **Set as current**) | "Every record is tied to an academic year — we start here." |
 | B1.1 | **Classes** (`/admin/classes`) | Add classes e.g. *Grade 1*, *Grade 2* (name + grade level) | "We define the school's grades." |
 | B1.2 | **Subjects** (`/admin/subjects`) | Add subjects e.g. *Mathematics*, *English*, *Science* (set **max marks**, e.g. 100) | "Subjects carry their max marks — used later for grading." |
 | B1.3 | **Class detail → Sections** (`/admin/classes/:id`) | Open a class, add a **Section** e.g. *A* (assign a class teacher later) | "Each class splits into sections." |
@@ -249,7 +245,7 @@ Log back in as **admin**. Now that data exists, this is the impressive finish.
 
 Before the client arrives, make sure you've created at least:
 
-- [ ] 1 fresh school provisioned (slug noted) + `seed_academic_year.py <slug>` run
+- [ ] 1 fresh school provisioned (slug noted) + 1 academic year created (Academic Years screen, set as current)
 - [ ] 2 classes, 3 subjects (with max marks), 1–2 sections
 - [ ] 2 teachers (+ subject assignments), 3–4 students (enrolled in a section)
 - [ ] 2 parents, each linked to a child (note their logins)
@@ -277,7 +273,7 @@ Before the client arrives, make sure you've created at least:
 | Symptom | Cause / Fix |
 |---------|-------------|
 | Login fails with valid email/password | Missing or wrong **school slug**. Use the exact slug (e.g. `sunrise`). |
-| Fees / Transport "academic year" dropdown is empty | Run `python database/seeds/seed_academic_year.py <slug>` (Part 0.4). |
+| Fees / Transport "academic year" dropdown is empty | Create a year first: admin sidebar → **Academic Years** → *Add* (mark *Set as current*). |
 | Transport screen errors on an old school | The old `demo`/`greenwood-high` DBs predate the Transport module. **Use a freshly provisioned school** — its schema includes all modules. |
 | Frontend can't reach API | Backend not running on `:5000`, or you didn't use `npm start` (it carries the proxy). Restart both. |
 | Super Admin login won't accept a slug | Correct — Super Admin logs in at `/superadmin/login` with **no** slug. |

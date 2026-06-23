@@ -24,6 +24,7 @@ export class AdminLayoutComponent {
     { label: 'Create User', icon: 'pi-user-plus', route: '/admin/users/new' },
     { label: 'Students', icon: 'pi-graduation-cap', route: '/admin/students' },
     { label: 'Teachers', icon: 'pi-id-card', route: '/admin/teachers' },
+    { label: 'Academic Years', icon: 'pi-calendar-plus', route: '/admin/academic-years' },
     { label: 'Classes', icon: 'pi-building', route: '/admin/classes' },
     { label: 'Subjects', icon: 'pi-book', route: '/admin/subjects' },
     { label: 'Timetable', icon: 'pi-calendar', route: '/admin/timetable' },

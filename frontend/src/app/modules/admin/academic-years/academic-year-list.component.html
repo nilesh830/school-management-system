@@ -1,0 +1,76 @@
+<p-toast></p-toast>
+
+<div class="p-4">
+  <p-toolbar styleClass="mb-3">
+    <ng-template pTemplate="left">
+      <h2 class="text-2xl font-bold m-0">Academic Years</h2>
+    </ng-template>
+    <ng-template pTemplate="right">
+      <button pButton icon="pi pi-plus" label="Add Academic Year" (click)="openDialog()"></button>
+    </ng-template>
+  </p-toolbar>
+
+  <p-table [value]="years" [loading]="loading" responsiveLayout="scroll">
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Name</th>
+        <th>Start Date</th>
+        <th>End Date</th>
+        <th>Current</th>
+        <th>Actions</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-year>
+      <tr>
+        <td>{{ year.name }}</td>
+        <td>{{ year.start_date | date:'d MMM y' }}</td>
+        <td>{{ year.end_date | date:'d MMM y' }}</td>
+        <td>
+          @if (year.is_current) {
+            <p-tag value="Current" severity="success"></p-tag>
+          } @else {
+            <button pButton label="Set current" class="p-button-text p-button-sm"
+                    (click)="setCurrent(year)"></button>
+          }
+        </td>
+        <td>
+          <button pButton icon="pi pi-pencil" class="p-button-text p-button-sm mr-1"
+                  (click)="openDialog(year)"></button>
+          <button pButton icon="pi pi-trash" class="p-button-text p-button-sm p-button-danger"
+                  (click)="deleteYear(year)"></button>
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr><td colspan="5" class="text-center">No academic years yet. Add one to enable Fees and Transport.</td></tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<p-dialog [(visible)]="dialogVisible" [modal]="true" [style]="{ width: '440px' }"
+          [header]="isEdit ? 'Edit Academic Year' : 'Add Academic Year'">
+  <form [formGroup]="form" class="flex flex-column gap-3 pt-2">
+    <div class="flex flex-column gap-1">
+      <label>Name *</label>
+      <input pInputText formControlName="name" placeholder="e.g. 2025-2026" />
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Start Date *</label>
+      <p-calendar formControlName="start_date" dateFormat="dd M yy" [showIcon]="true"
+                  appendTo="body" inputId="ay-start"></p-calendar>
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>End Date *</label>
+      <p-calendar formControlName="end_date" dateFormat="dd M yy" [showIcon]="true"
+                  appendTo="body" inputId="ay-end"></p-calendar>
+    </div>
+    <div class="flex align-items-center gap-2">
+      <p-checkbox formControlName="is_current" [binary]="true" inputId="ay-current"></p-checkbox>
+      <label for="ay-current" class="m-0">Set as current academic year</label>
+    </div>
+  </form>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="dialogVisible = false"></button>
+    <button pButton label="Save" [loading]="saving" [disabled]="form.invalid" (click)="save()"></button>
+  </ng-template>
+</p-dialog>
