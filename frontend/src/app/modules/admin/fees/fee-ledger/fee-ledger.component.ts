@@ -191,7 +191,8 @@ export class FeeLedgerComponent implements OnInit, OnDestroy {
   }
 
   collapseRow(id: number): void {
-    const { [id]: _, ...rest } = this.expandedRows;
+    const rest = { ...this.expandedRows };
+    delete rest[id];
     this.expandedRows = rest;
   }
 

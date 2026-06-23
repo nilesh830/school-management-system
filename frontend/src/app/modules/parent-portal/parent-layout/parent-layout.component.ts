@@ -6,7 +6,6 @@ import { AvatarModule } from 'primeng/avatar';
 import { MenuModule } from 'primeng/menu';
 import { TabMenuModule } from 'primeng/tabmenu';
 import { BadgeModule } from 'primeng/badge';
-import { MenuItem } from 'primeng/api';
 import { AuthService } from '../../../core/services/auth.service';
 import { ParentPortalService } from '../parent-portal.service';
 import { NotificationBellComponent } from '../notifications/notification-bell.component';

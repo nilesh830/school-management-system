@@ -1,6 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormsModule, FormBuilder, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormsModule, FormBuilder } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';

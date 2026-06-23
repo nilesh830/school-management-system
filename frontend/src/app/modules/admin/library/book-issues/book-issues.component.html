@@ -64,7 +64,7 @@
           <td>{{ issue.issued_date | date:'d MMM y' }}</td>
           <td>{{ issue.due_date | date:'d MMM y' }}</td>
           <td class="text-center">
-            @if (issue.days_overdue != null && issue.days_overdue > 0) {
+            @if (issue.days_overdue !== null && issue.days_overdue > 0) {
               <p-tag [value]="issue.days_overdue + 'd'" severity="danger" />
             } @else {
               <span class="text-color-secondary">—</span>
