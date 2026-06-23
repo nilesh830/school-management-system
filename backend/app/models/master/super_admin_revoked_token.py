@@ -3,8 +3,8 @@ from app import db
 
 
 class SuperAdminRevokedToken(db.Model):
-    __bind_key__ = 'master'
-    __tablename__ = 'super_admin_revoked_tokens'
+    __bind_key__ = "master"
+    __tablename__ = "super_admin_revoked_tokens"
 
     id = db.Column(db.Integer, primary_key=True)
     jti = db.Column(db.String(36), unique=True, nullable=False, index=True)
@@ -15,4 +15,4 @@ class SuperAdminRevokedToken(db.Model):
         return db.session.query(cls).filter_by(jti=jti).first() is not None
 
     def __repr__(self):
-        return f'<SuperAdminRevokedToken {self.jti}>'
+        return f"<SuperAdminRevokedToken {self.jti}>"

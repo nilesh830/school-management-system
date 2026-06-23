@@ -3,6 +3,7 @@ from marshmallow import Schema, fields, validate
 
 # ── Routes (SMS-061) ─────────────────────────────────────────────────────────
 
+
 class RouteCreateSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=100))
     description = fields.Str(load_default=None, allow_none=True, validate=validate.Length(max=255))
@@ -17,6 +18,7 @@ class RouteUpdateSchema(Schema):
 
 
 # ── Vehicles (SMS-061) ───────────────────────────────────────────────────────
+
 
 class VehicleCreateSchema(Schema):
     registration_no = fields.Str(required=True, validate=validate.Length(min=1, max=20))
@@ -36,6 +38,7 @@ class VehicleUpdateSchema(Schema):
 
 
 # ── Student assignments (SMS-062) ────────────────────────────────────────────
+
 
 class AssignmentCreateSchema(Schema):
     student_id = fields.Int(required=True)

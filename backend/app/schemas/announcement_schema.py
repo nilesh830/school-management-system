@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields, validate
 
-_VALID_ROLES = ['admin', 'teacher', 'student', 'parent']
+_VALID_ROLES = ["admin", "teacher", "student", "parent"]
 
 
 class AnnouncementCreateSchema(Schema):
@@ -37,5 +37,5 @@ class AnnouncementUpdateSchema(Schema):
     expires_at = fields.DateTime(load_default=None, allow_none=True)
     status = fields.String(
         load_default=None,
-        validate=validate.OneOf(['draft', 'published', 'archived']),
+        validate=validate.OneOf(["draft", "published", "archived"]),
     )

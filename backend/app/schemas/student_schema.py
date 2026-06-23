@@ -2,9 +2,9 @@ from marshmallow import Schema, fields, validate, validates, ValidationError
 from datetime import date
 
 
-VALID_GENDERS = ['Male', 'Female', 'Other']
-VALID_BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
-VALID_STATUSES = ['active', 'alumni', 'transferred', 'expelled']
+VALID_GENDERS = ["Male", "Female", "Other"]
+VALID_BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+VALID_STATUSES = ["active", "alumni", "transferred", "expelled"]
 
 
 class StudentCreateSchema(Schema):
@@ -35,19 +35,20 @@ class StudentCreateSchema(Schema):
     )
     user_id = fields.Int(load_default=None, allow_none=True)
 
-    @validates('date_of_birth')
+    @validates("date_of_birth")
     def validate_dob(self, value):
         if value > date.today():
-            raise ValidationError('Date of birth cannot be in the future.')
+            raise ValidationError("Date of birth cannot be in the future.")
 
-    @validates('admission_date')
+    @validates("admission_date")
     def validate_admission_date(self, value):
         if value > date.today():
-            raise ValidationError('Admission date cannot be in the future.')
+            raise ValidationError("Admission date cannot be in the future.")
 
 
 class StudentUpdateSchema(Schema):
     """Full admin update — all fields optional."""
+
     first_name = fields.Str(validate=validate.Length(min=1, max=100))
     last_name = fields.Str(validate=validate.Length(min=1, max=100))
     date_of_birth = fields.Date()
@@ -60,14 +61,15 @@ class StudentUpdateSchema(Schema):
     phone = fields.Str(validate=validate.Length(max=20), allow_none=True)
     photo_url = fields.Str(validate=validate.Length(max=500), allow_none=True)
 
-    @validates('date_of_birth')
+    @validates("date_of_birth")
     def validate_dob(self, value):
         if value > date.today():
-            raise ValidationError('Date of birth cannot be in the future.')
+            raise ValidationError("Date of birth cannot be in the future.")
 
 
 class StudentSelfUpdateSchema(Schema):
     """Self-service update — students can only change phone and address."""
+
     phone = fields.Str(validate=validate.Length(max=20), allow_none=True)
     address = fields.Str(allow_none=True)
 
@@ -81,7 +83,7 @@ class StudentTransferSchema(Schema):
     new_section_id = fields.Int(required=True)
     effective_date = fields.Date(required=True)
     reason = fields.Str(
-        load_default='',
+        load_default="",
         validate=validate.Length(max=500),
     )
 

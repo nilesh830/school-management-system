@@ -31,8 +31,8 @@ class FeeService:
         fs = db.query(FeeStructure).filter_by(id=fee_structure_id).first()
         if not fs:
             return None, {
-                'message': f'FeeStructure {fee_structure_id} not found',
-                'status': 404,
+                "message": f"FeeStructure {fee_structure_id} not found",
+                "status": 404,
             }
 
         # 2. Find all active students currently enrolled in the class.
@@ -44,7 +44,7 @@ class FeeService:
             .filter(
                 StudentSection.is_current == True,  # noqa: E712
                 Section.class_id == fs.class_id,
-                Student.is_active == True,           # noqa: E712
+                Student.is_active == True,  # noqa: E712
             )
             .all()
         )
@@ -52,10 +52,7 @@ class FeeService:
         # 3. Fetch the set of student_ids that already have a record for this
         #    fee structure so we can skip them without a per-student query.
         existing_student_ids = {
-            row.student_id
-            for row in db.query(FeeRecord.student_id).filter_by(
-                fee_structure_id=fee_structure_id
-            ).all()
+            row.student_id for row in db.query(FeeRecord.student_id).filter_by(fee_structure_id=fee_structure_id).all()
         }
 
         generated = 0
@@ -73,7 +70,7 @@ class FeeService:
                 discount=0,
                 net_amount=fs.amount,
                 due_date=fs.due_date,
-                status='pending',
+                status="pending",
             )
             db.add(record)
             generated += 1
@@ -83,9 +80,9 @@ class FeeService:
             db.commit()
 
         return {
-            'generated': generated,
-            'skipped': skipped,
-            'total_students': generated + skipped,
+            "generated": generated,
+            "skipped": skipped,
+            "total_students": generated + skipped,
         }, None
 
     @classmethod
@@ -100,62 +97,56 @@ class FeeService:
         db = get_db()
 
         # 1. Load the fee record
-        fee_record = db.query(FeeRecord).filter_by(id=data['fee_record_id']).first()
+        fee_record = db.query(FeeRecord).filter_by(id=data["fee_record_id"]).first()
         if not fee_record:
             return None, {
-                'message': f"FeeRecord {data['fee_record_id']} not found",
-                'status': 404,
+                "message": f"FeeRecord {data['fee_record_id']} not found",
+                "status": 404,
             }
 
         # 2. Reject waived records
-        if fee_record.status == 'waived':
+        if fee_record.status == "waived":
             return None, {
-                'message': 'Cannot record payment against a waived fee record',
-                'status': 422,
+                "message": "Cannot record payment against a waived fee record",
+                "status": 422,
             }
 
         # 3. Sum all existing payments for this fee record
-        existing_payments = db.query(FeePayment).filter_by(
-            fee_record_id=fee_record.id
-        ).all()
+        existing_payments = db.query(FeePayment).filter_by(fee_record_id=fee_record.id).all()
         total_already_paid = sum(p.amount_paid for p in existing_payments)
 
         # 4. Check for overpayment
-        amount_paid = data['amount_paid']
+        amount_paid = data["amount_paid"]
         if total_already_paid + amount_paid > fee_record.net_amount:
             return None, {
-                'message': 'Amount exceeds balance due',
-                'status': 422,
+                "message": "Amount exceeds balance due",
+                "status": 422,
             }
 
         # 5. Generate receipt number: REC-{year}-{seq:04d}
-        payment_year = data['payment_date'].year
-        year_count = (
-            db.query(FeePayment)
-            .filter(FeePayment.receipt_no.like(f'REC-{payment_year}-%'))
-            .count()
-        )
-        receipt_no = f'REC-{payment_year}-{year_count + 1:04d}'
+        payment_year = data["payment_date"].year
+        year_count = db.query(FeePayment).filter(FeePayment.receipt_no.like(f"REC-{payment_year}-%")).count()
+        receipt_no = f"REC-{payment_year}-{year_count + 1:04d}"
 
         # 6. Create FeePayment
         payment = FeePayment(
             fee_record_id=fee_record.id,
             amount_paid=amount_paid,
-            payment_method=data['payment_method'],
-            payment_date=data['payment_date'],
+            payment_method=data["payment_method"],
+            payment_date=data["payment_date"],
             receipt_no=receipt_no,
-            transaction_reference=data.get('transaction_reference'),
-            remarks=data.get('remarks'),
-            collected_by=data.get('collected_by'),
+            transaction_reference=data.get("transaction_reference"),
+            remarks=data.get("remarks"),
+            collected_by=data.get("collected_by"),
         )
         db.add(payment)
 
         # 7. Update fee record status
         total_now = total_already_paid + amount_paid
         if total_now >= fee_record.net_amount:
-            fee_record.status = 'paid'
+            fee_record.status = "paid"
         else:
-            fee_record.status = 'partial'
+            fee_record.status = "partial"
 
         # 8. Commit
         db.commit()
@@ -163,10 +154,10 @@ class FeeService:
         # 9. Return result
         balance_due = float(fee_record.net_amount - total_now)
         return {
-            'payment_id': payment.id,
-            'receipt_no': receipt_no,
-            'amount_paid': float(payment.amount_paid),
-            'balance_due': balance_due,
+            "payment_id": payment.id,
+            "receipt_no": receipt_no,
+            "amount_paid": float(payment.amount_paid),
+            "balance_due": balance_due,
         }, None
 
     @classmethod
@@ -179,7 +170,7 @@ class FeeService:
         return [
             {
                 **record.to_dict(),
-                'payments': [p.to_dict() for p in record.payments],
+                "payments": [p.to_dict() for p in record.payments],
             }
             for record in records
         ]
@@ -208,7 +199,7 @@ class FeeService:
             .join(FeeStructure, FeeStructure.id == FeeRecord.fee_structure_id)
             .join(Student, Student.id == FeeRecord.student_id)
             .filter(
-                FeeRecord.status.in_(['pending', 'partial']),
+                FeeRecord.status.in_(["pending", "partial"]),
                 FeeRecord.due_date < today,
             )
         )
@@ -221,26 +212,26 @@ class FeeService:
         result = []
         for fee_record, fee_structure, student in rows:
             # Sum all payments recorded against this fee record
-            payments = db.query(FeePayment).filter_by(
-                fee_record_id=fee_record.id
-            ).all()
+            payments = db.query(FeePayment).filter_by(fee_record_id=fee_record.id).all()
             total_paid = sum(float(p.amount_paid) for p in payments)
             net_amount = float(fee_record.net_amount)
             balance_due = round(net_amount - total_paid, 2)
             days_overdue = (today - fee_record.due_date).days
 
-            result.append({
-                'student_id': student.id,
-                'student_name': f'{student.first_name} {student.last_name}',
-                'roll_number': getattr(student, 'roll_number', None),
-                'fee_record_id': fee_record.id,
-                'fee_type': fee_structure.fee_type,
-                'due_date': fee_record.due_date.isoformat(),
-                'net_amount': net_amount,
-                'total_paid': round(total_paid, 2),
-                'balance_due': balance_due,
-                'days_overdue': days_overdue,
-            })
+            result.append(
+                {
+                    "student_id": student.id,
+                    "student_name": f"{student.first_name} {student.last_name}",
+                    "roll_number": getattr(student, "roll_number", None),
+                    "fee_record_id": fee_record.id,
+                    "fee_type": fee_structure.fee_type,
+                    "due_date": fee_record.due_date.isoformat(),
+                    "net_amount": net_amount,
+                    "total_paid": round(total_paid, 2),
+                    "balance_due": balance_due,
+                    "days_overdue": days_overdue,
+                }
+            )
 
         return result
 
@@ -262,22 +253,22 @@ class FeeService:
         fee_record = db.query(FeeRecord).filter_by(id=fee_record_id).first()
         if not fee_record:
             return None, {
-                'message': f'FeeRecord {fee_record_id} not found',
-                'status': 404,
+                "message": f"FeeRecord {fee_record_id} not found",
+                "status": 404,
             }
 
-        if fee_record.status in ('paid', 'waived'):
+        if fee_record.status in ("paid", "waived"):
             return None, {
-                'message': f'Cannot apply discount to a fee record with status "{fee_record.status}"',
-                'status': 422,
+                "message": f'Cannot apply discount to a fee record with status "{fee_record.status}"',
+                "status": 422,
             }
 
         discount = Discount(
             fee_record_id=fee_record_id,
             student_id=fee_record.student_id,
-            discount_type=discount_data['discount_type'],
-            amount=discount_data['amount'],
-            reason=discount_data.get('reason'),
+            discount_type=discount_data["discount_type"],
+            amount=discount_data["amount"],
+            reason=discount_data.get("reason"),
             approved_by=approved_by_user_id,
             approved_at=datetime.utcnow(),
         )
@@ -294,7 +285,7 @@ class FeeService:
         existing_payments = db.query(FeePayment).filter_by(fee_record_id=fee_record_id).all()
         total_paid = sum(float(p.amount_paid) for p in existing_payments)
         if new_net <= total_paid:
-            fee_record.status = 'paid'
+            fee_record.status = "paid"
 
         db.commit()
         return discount.to_dict(), None
@@ -311,14 +302,14 @@ class FeeService:
         fee_record = db.query(FeeRecord).filter_by(id=fee_record_id).first()
         if not fee_record:
             return None, {
-                'message': f'FeeRecord {fee_record_id} not found',
-                'status': 404,
+                "message": f"FeeRecord {fee_record_id} not found",
+                "status": 404,
             }
 
         discounts = db.query(Discount).filter_by(fee_record_id=fee_record_id).all()
         result = {
             **fee_record.to_dict(),
-            'discounts': [d.to_dict() for d in discounts],
+            "discounts": [d.to_dict() for d in discounts],
         }
         return result, None
 
@@ -340,47 +331,43 @@ class FeeService:
         payment = db.query(FeePayment).filter_by(id=payment_id).first()
         if not payment:
             return None, {
-                'message': f'FeePayment {payment_id} not found',
-                'status': 404,
+                "message": f"FeePayment {payment_id} not found",
+                "status": 404,
             }
 
         # 2. Load FeeRecord
         fee_record = db.query(FeeRecord).filter_by(id=payment.fee_record_id).first()
         if not fee_record:
             return None, {
-                'message': f'FeeRecord {payment.fee_record_id} not found',
-                'status': 404,
+                "message": f"FeeRecord {payment.fee_record_id} not found",
+                "status": 404,
             }
 
         # 3. Load FeeStructure
-        fee_structure = db.query(FeeStructure).filter_by(
-            id=fee_record.fee_structure_id
-        ).first()
+        fee_structure = db.query(FeeStructure).filter_by(id=fee_record.fee_structure_id).first()
         if not fee_structure:
             return None, {
-                'message': f'FeeStructure {fee_record.fee_structure_id} not found',
-                'status': 404,
+                "message": f"FeeStructure {fee_record.fee_structure_id} not found",
+                "status": 404,
             }
 
         # 4. Load Student
         student = db.query(Student).filter_by(id=fee_record.student_id).first()
         if not student:
             return None, {
-                'message': f'Student {fee_record.student_id} not found',
-                'status': 404,
+                "message": f"Student {fee_record.student_id} not found",
+                "status": 404,
             }
 
         # 5. Calculate balance due
-        all_payments = db.query(FeePayment).filter_by(
-            fee_record_id=fee_record.id
-        ).all()
+        all_payments = db.query(FeePayment).filter_by(fee_record_id=fee_record.id).all()
         total_paid = sum(float(p.amount_paid) for p in all_payments)
         balance_due = float(fee_record.net_amount) - total_paid
 
         # 6. Render template
         try:
             html = render_template(
-                'fee_receipt.html',
+                "fee_receipt.html",
                 payment=payment,
                 fee_record=fee_record,
                 fee_structure=fee_structure,
@@ -390,8 +377,8 @@ class FeeService:
             )
         except Exception as exc:
             return None, {
-                'message': f'Template rendering failed: {exc}',
-                'status': 500,
+                "message": f"Template rendering failed: {exc}",
+                "status": 500,
             }
 
         # 7. Convert HTML to PDF bytes
@@ -400,12 +387,12 @@ class FeeService:
             pisa_result = pisa.CreatePDF(html, dest=buffer)
             if pisa_result.err:
                 return None, {
-                    'message': 'PDF generation failed',
-                    'status': 500,
+                    "message": "PDF generation failed",
+                    "status": 500,
                 }
             return buffer.getvalue(), None
         except Exception as exc:
             return None, {
-                'message': f'PDF generation error: {exc}',
-                'status': 500,
+                "message": f"PDF generation error: {exc}",
+                "status": 500,
             }

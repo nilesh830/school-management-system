@@ -3,7 +3,7 @@ from datetime import datetime
 from app.utils.tenant import get_db
 from app.models.announcement import Announcement
 
-_ALL_ROLES = ['admin', 'teacher', 'student', 'parent']
+_ALL_ROLES = ["admin", "teacher", "student", "parent"]
 
 
 class AnnouncementService:
@@ -20,16 +20,16 @@ class AnnouncementService:
         """
         db = get_db()
         ann = Announcement(
-            title=data['title'],
-            content=data['content'],
-            target_roles=data.get('target_roles'),
-            target_class_ids=data.get('target_class_ids'),
-            expires_at=data.get('expires_at'),
-            status='draft',
+            title=data["title"],
+            content=data["content"],
+            target_roles=data.get("target_roles"),
+            target_class_ids=data.get("target_class_ids"),
+            expires_at=data.get("expires_at"),
+            status="draft",
         )
         # Optional immediate/scheduled publish timestamp – stored but status stays
         # draft until publish() is called (keeps dispatch explicit & idempotent).
-        ann.published_at = data.get('publish_at')
+        ann.published_at = data.get("publish_at")
         db.add(ann)
         ann.created_by = created_by
         db.commit()
@@ -47,7 +47,7 @@ class AnnouncementService:
         db = get_db()
         ann = db.query(Announcement).filter_by(id=announcement_id).first()
         if not ann:
-            return None, {'message': f'Announcement {announcement_id} not found', 'status': 404}
+            return None, {"message": f"Announcement {announcement_id} not found", "status": 404}
         return ann.to_dict(), None
 
     @classmethod
@@ -55,20 +55,20 @@ class AnnouncementService:
         db = get_db()
         ann = db.query(Announcement).filter_by(id=announcement_id).first()
         if not ann:
-            return None, {'message': f'Announcement {announcement_id} not found', 'status': 404}
+            return None, {"message": f"Announcement {announcement_id} not found", "status": 404}
 
-        if data.get('title') is not None:
-            ann.title = data['title']
-        if data.get('content') is not None:
-            ann.content = data['content']
-        if 'target_roles' in data:
-            ann.target_roles = data['target_roles']
-        if 'target_class_ids' in data:
-            ann.target_class_ids = data['target_class_ids']
-        if 'expires_at' in data and data['expires_at'] is not None:
-            ann.expires_at = data['expires_at']
-        if data.get('status') is not None:
-            ann.status = data['status']
+        if data.get("title") is not None:
+            ann.title = data["title"]
+        if data.get("content") is not None:
+            ann.content = data["content"]
+        if "target_roles" in data:
+            ann.target_roles = data["target_roles"]
+        if "target_class_ids" in data:
+            ann.target_class_ids = data["target_class_ids"]
+        if "expires_at" in data and data["expires_at"] is not None:
+            ann.expires_at = data["expires_at"]
+        if data.get("status") is not None:
+            ann.status = data["status"]
 
         db.commit()
         return ann.to_dict(), None
@@ -84,11 +84,11 @@ class AnnouncementService:
         db = get_db()
         ann = db.query(Announcement).filter_by(id=announcement_id).first()
         if not ann:
-            return None, {'message': f'Announcement {announcement_id} not found', 'status': 404}
-        if ann.status == 'published':
-            return None, {'message': 'Announcement is already published', 'status': 409}
+            return None, {"message": f"Announcement {announcement_id} not found", "status": 404}
+        if ann.status == "published":
+            return None, {"message": "Announcement is already published", "status": 409}
 
-        ann.status = 'published'
+        ann.status = "published"
         if not ann.published_at:
             ann.published_at = datetime.utcnow()
         db.commit()
@@ -96,7 +96,7 @@ class AnnouncementService:
         notified = cls._dispatch_notifications(ann)
 
         result = ann.to_dict()
-        result['notified_count'] = notified
+        result["notified_count"] = notified
         return result, None
 
     # ------------------------------------------------------- targeted reads
@@ -115,7 +115,7 @@ class AnnouncementService:
 
         rows = (
             db.query(Announcement)
-            .filter(Announcement.status == 'published')
+            .filter(Announcement.status == "published")
             .order_by(Announcement.created_at.desc())
             .all()
         )
@@ -170,22 +170,18 @@ class AnnouncementService:
         recipient_user_ids = set()
 
         # Staff roles are school-wide; class targeting does not narrow them.
-        for staff_role in ('admin', 'teacher'):
+        for staff_role in ("admin", "teacher"):
             if staff_role in roles:
                 ids = db.query(User.id).filter(User.role == staff_role).all()
                 recipient_user_ids.update(i[0] for i in ids)
 
-        if 'student' in roles or 'parent' in roles:
+        if "student" in roles or "parent" in roles:
             # Resolve the set of student ids in scope.
             if class_ids is None:
                 student_rows = db.query(Student.id, Student.user_id).all()
                 in_scope_students = {(s_id, u_id) for s_id, u_id in student_rows}
             else:
-                section_ids = [
-                    r[0] for r in db.query(Section.id)
-                    .filter(Section.class_id.in_(class_ids))
-                    .all()
-                ]
+                section_ids = [r[0] for r in db.query(Section.id).filter(Section.class_id.in_(class_ids)).all()]
                 student_rows = (
                     db.query(Student.id, Student.user_id)
                     .join(StudentSection, StudentSection.student_id == Student.id)
@@ -199,12 +195,10 @@ class AnnouncementService:
 
             student_ids = {s_id for s_id, _ in in_scope_students}
 
-            if 'student' in roles:
-                recipient_user_ids.update(
-                    u_id for _, u_id in in_scope_students if u_id is not None
-                )
+            if "student" in roles:
+                recipient_user_ids.update(u_id for _, u_id in in_scope_students if u_id is not None)
 
-            if 'parent' in roles and student_ids:
+            if "parent" in roles and student_ids:
                 parent_rows = (
                     db.query(Parent.user_id)
                     .join(student_parent, Parent.id == student_parent.c.parent_id)
@@ -216,10 +210,10 @@ class AnnouncementService:
         for uid in recipient_user_ids:
             NotificationService.create(
                 user_id=uid,
-                type='announcement',
+                type="announcement",
                 title=ann.title,
                 body=ann.content,
                 reference_id=ann.id,
-                reference_type='announcement',
+                reference_type="announcement",
             )
         return len(recipient_user_ids)

@@ -7,6 +7,7 @@ dict cache" allowance. Keys are namespaced by tenant (school slug) by the caller
 so tenants never share cached data. A TTL of 0 disables caching entirely, which
 keeps the test suite deterministic (TestingConfig sets DASHBOARD_CACHE_TTL=0).
 """
+
 import time
 import threading
 

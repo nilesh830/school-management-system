@@ -9,10 +9,10 @@ class BookCreateSchema(Schema):
     category = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=100))
     total_copies = fields.Integer(required=True)
 
-    @validates('total_copies')
+    @validates("total_copies")
     def validate_total_copies(self, value):
         if value < 1:
-            raise ValidationError('total_copies must be at least 1')
+            raise ValidationError("total_copies must be at least 1")
 
 
 class BookUpdateSchema(Schema):
@@ -24,10 +24,10 @@ class BookUpdateSchema(Schema):
     total_copies = fields.Integer(load_default=None)
     is_active = fields.Boolean(load_default=None)
 
-    @validates('total_copies')
+    @validates("total_copies")
     def validate_total_copies(self, value):
         if value is not None and value < 1:
-            raise ValidationError('total_copies must be at least 1')
+            raise ValidationError("total_copies must be at least 1")
 
 
 class BookIssueSchema(Schema):

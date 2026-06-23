@@ -6,7 +6,7 @@ from app.models.student_section import StudentSection
 
 
 def _parse_date(date_str: str) -> date:
-    return datetime.strptime(date_str, '%Y-%m-%d').date()
+    return datetime.strptime(date_str, "%Y-%m-%d").date()
 
 
 class AttendanceService:
@@ -22,25 +22,20 @@ class AttendanceService:
         """
         target_date = _parse_date(date_str)
 
-        existing = (
-            get_db()
-            .query(Attendance)
-            .filter_by(section_id=section_id, date=target_date)
-            .first()
-        )
+        existing = get_db().query(Attendance).filter_by(section_id=section_id, date=target_date).first()
         if existing:
             return None, {
-                'message': f'Attendance already marked for section {section_id} on {date_str}',
-                'status': 409,
+                "message": f"Attendance already marked for section {section_id} on {date_str}",
+                "status": 409,
             }
 
         created = []
         for rec in records:
             row = Attendance(
-                student_id=rec['student_id'],
+                student_id=rec["student_id"],
                 section_id=section_id,
                 date=target_date,
-                status=rec['status'],
+                status=rec["status"],
                 marked_by=marked_by_user_id,
             )
             get_db().add(row)
@@ -50,20 +45,22 @@ class AttendanceService:
 
         # Fire absence notifications after commit
         from app.services.notification_service import NotificationService
+
         for row in created:
-            if row.status == 'absent':
+            if row.status == "absent":
                 NotificationService.notify_absence(row.student_id, target_date)
 
         return {
-            'section_id': section_id,
-            'date': date_str,
-            'records_saved': len(created),
+            "section_id": section_id,
+            "date": date_str,
+            "records_saved": len(created),
         }, None
 
     @staticmethod
     def get_for_student(student_id: int, month: int, year: int):
         """Return all attendance rows for a student in the given month/year."""
         import calendar
+
         _, last_day = calendar.monthrange(year, month)
         from_date = date(year, month, 1)
         to_date = date(year, month, last_day)
@@ -106,47 +103,44 @@ class AttendanceService:
         for row in rows:
             sid = row.student_id
             if sid not in student_summary:
-                student_summary[sid] = {'student_id': sid, 'present': 0, 'absent': 0,
-                                        'late': 0, 'leave': 0, 'holiday': 0}
+                student_summary[sid] = {
+                    "student_id": sid,
+                    "present": 0,
+                    "absent": 0,
+                    "late": 0,
+                    "leave": 0,
+                    "holiday": 0,
+                }
             student_summary[sid][row.status] = student_summary[sid].get(row.status, 0) + 1
 
         return {
-            'section_id': section_id,
-            'from_date': from_date_str,
-            'to_date': to_date_str,
-            'total_records': len(rows),
-            'student_summaries': list(student_summary.values()),
+            "section_id": section_id,
+            "from_date": from_date_str,
+            "to_date": to_date_str,
+            "total_records": len(rows),
+            "student_summaries": list(student_summary.values()),
         }
 
     @staticmethod
     def get_today_summary():
         """Count of each status value across all sections for today."""
         today = date.today()
-        rows = (
-            get_db()
-            .query(Attendance)
-            .filter(Attendance.date == today)
-            .all()
-        )
-        summary = {'present': 0, 'absent': 0, 'late': 0, 'leave': 0, 'holiday': 0}
+        rows = get_db().query(Attendance).filter(Attendance.date == today).all()
+        summary = {"present": 0, "absent": 0, "late": 0, "leave": 0, "holiday": 0}
         for row in rows:
             summary[row.status] = summary.get(row.status, 0) + 1
-        summary['total'] = len(rows)
-        summary['date'] = str(today)
+        summary["total"] = len(rows)
+        summary["date"] = str(today)
         return summary
 
     @staticmethod
     def mark_as_leave(student_id: int, from_date, to_date):
         """Mark attendance as 'leave' for each date in [from_date, to_date] inclusive."""
         from datetime import timedelta
+
         current = from_date
         # Get current section for the student
-        section_row = (
-            get_db()
-            .query(StudentSection)
-            .filter_by(student_id=student_id, is_current=True)
-            .first()
-        )
+        section_row = get_db().query(StudentSection).filter_by(student_id=student_id, is_current=True).first()
         section_id = section_row.section_id if section_row else None
 
         while current <= to_date:
@@ -159,15 +153,15 @@ class AttendanceService:
                     .first()
                 )
             if existing:
-                if existing.status != 'leave':
-                    existing.status = 'leave'
+                if existing.status != "leave":
+                    existing.status = "leave"
             else:
                 if section_id:
                     row = Attendance(
                         student_id=student_id,
                         section_id=section_id,
                         date=current,
-                        status='leave',
+                        status="leave",
                     )
                     get_db().add(row)
             current += timedelta(days=1)

@@ -34,12 +34,12 @@ _SWAGGER_CONFIG = {
 }
 
 
-def create_app(config_name='default'):
+def create_app(config_name="default"):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
 
     # Ensure school DBs directory exists before any DB operations
-    os.makedirs(app.config['SCHOOLS_DB_DIR'], exist_ok=True)
+    os.makedirs(app.config["SCHOOLS_DB_DIR"], exist_ok=True)
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -51,23 +51,24 @@ def create_app(config_name='default'):
     # Security: credentialed CORS must never be combined with a wildcard origin,
     # which would let any site make authenticated cross-origin requests. Strip
     # any '*' entry so a misconfigured CORS_ORIGINS env var cannot open the API.
-    cors_origins = [o for o in app.config['CORS_ORIGINS'] if o and o.strip() != '*']
+    cors_origins = [o for o in app.config["CORS_ORIGINS"] if o and o.strip() != "*"]
     if not cors_origins:
-        cors_origins = ['http://localhost:4200']
-    CORS(app, origins=cors_origins, supports_credentials=True,
-         allow_headers=['Content-Type', 'Authorization'])
+        cors_origins = ["http://localhost:4200"]
+    CORS(app, origins=cors_origins, supports_credentials=True, allow_headers=["Content-Type", "Authorization"])
 
     _init_swagger(app)
     _register_jwt_handlers(jwt)
 
     from app.utils.tenant import setup_tenant_db, teardown_tenant_db
+
     app.before_request(setup_tenant_db)
     app.teardown_request(teardown_tenant_db)
 
     from app.cli import register_commands
+
     register_commands(app)
 
-    @app.route('/api/v1/health')
+    @app.route("/api/v1/health")
     def health():
         return jsonify({"success": True, "message": "SMS API is running", "version": "1.0.0"}), 200
 
@@ -133,14 +134,15 @@ def create_app(config_name='default'):
     from app.models.master.school import School  # noqa: F401
     from app.models.master.super_admin import SuperAdmin  # noqa: F401
     from app.models.master.super_admin_revoked_token import SuperAdminRevokedToken  # noqa: F401
+
     with app.app_context():
-        db.create_all(bind_key=['master'])
+        db.create_all(bind_key=["master"])
 
     return app
 
 
 def _init_swagger(app):
-    swagger_yaml = os.path.join(os.path.dirname(__file__), 'swagger.yaml')
+    swagger_yaml = os.path.join(os.path.dirname(__file__), "swagger.yaml")
     Swagger(app, config=_SWAGGER_CONFIG, template_file=swagger_yaml)
 
 
@@ -150,9 +152,10 @@ def _register_jwt_handlers(jwt_manager):
     def check_if_token_revoked(jwt_header, jwt_payload):
         from app.models.revoked_token import RevokedToken
         from app.models.master.super_admin_revoked_token import SuperAdminRevokedToken
-        jti = jwt_payload['jti']
+
+        jti = jwt_payload["jti"]
         # Fast path: super admin tokens are stored in the master DB blocklist
-        if jwt_payload.get('role') == 'super_admin':
+        if jwt_payload.get("role") == "super_admin":
             return SuperAdminRevokedToken.is_jti_blocklisted(jti)
         return RevokedToken.is_jti_blocklisted(jti)
 
@@ -170,4 +173,14 @@ def _register_jwt_handlers(jwt_manager):
 
     @jwt_manager.revoked_token_loader
     def revoked_token_callback(jwt_header, jwt_payload):
-        return jsonify({"success": False, "data": None, "message": "Token has been revoked. Please log in again.", "errors": None}), 401
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "data": None,
+                    "message": "Token has been revoked. Please log in again.",
+                    "errors": None,
+                }
+            ),
+            401,
+        )

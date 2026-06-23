@@ -7,6 +7,7 @@ of row value-lists, and returns the workbook as raw xlsx bytes (in a BytesIO).
 
 Reusable across all report exporters; contains no business logic.
 """
+
 from io import BytesIO
 
 from openpyxl import Workbook
@@ -14,9 +15,9 @@ from openpyxl.styles import Font, PatternFill, Alignment
 
 
 # Header styling — dark fill + white bold text to match the PDF table headers.
-_HEADER_FONT = Font(bold=True, color='FFFFFF')
-_HEADER_FILL = PatternFill(start_color='333333', end_color='333333', fill_type='solid')
-_HEADER_ALIGN = Alignment(horizontal='left', vertical='center')
+_HEADER_FONT = Font(bold=True, color="FFFFFF")
+_HEADER_FILL = PatternFill(start_color="333333", end_color="333333", fill_type="solid")
+_HEADER_ALIGN = Alignment(horizontal="left", vertical="center")
 
 
 def build_xlsx(sheet_title: str, headers: list, rows: list) -> bytes:
@@ -34,7 +35,7 @@ def build_xlsx(sheet_title: str, headers: list, rows: list) -> bytes:
     wb = Workbook()
     ws = wb.active
     # Excel caps sheet titles at 31 characters.
-    ws.title = (sheet_title or 'Report')[:31]
+    ws.title = (sheet_title or "Report")[:31]
 
     # Header row
     ws.append(list(headers))
@@ -56,9 +57,7 @@ def build_xlsx(sheet_title: str, headers: list, rows: list) -> bytes:
                 value = row[col_idx - 1]
                 max_len = max(max_len, len(str(value)) if value is not None else 0)
         # +2 padding, capped so a stray long value doesn't blow out the sheet.
-        ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = min(
-            max_len + 2, 60
-        )
+        ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = min(max_len + 2, 60)
 
     buffer = BytesIO()
     wb.save(buffer)

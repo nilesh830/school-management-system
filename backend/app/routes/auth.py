@@ -6,35 +6,37 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import (
-    create_access_token, create_refresh_token,
-    jwt_required, get_jwt_identity, get_jwt,
+    create_access_token,
+    create_refresh_token,
+    jwt_required,
+    get_jwt_identity,
+    get_jwt,
 )
 from werkzeug.utils import secure_filename
 
-from app import db, limiter
+from app import limiter
 from app.models.user import User
-from app.models.parent import Parent
 from app.models.revoked_token import RevokedToken
 from app.models.password_reset_token import PasswordResetToken
 from app.utils.response import success_response, error_response
-from app.utils.validators import validate_password, validate_email
+from app.utils.validators import validate_password
 from app.utils.tenant import get_db
 
 logger = logging.getLogger(__name__)
 
-auth_bp = Blueprint('auth', __name__, url_prefix='/api/v1/auth')
+auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 
-ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 
 def _allowed_image(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 
 def _build_additional_claims(user, school_slug: str):
-    claims = {'role': user.role, 'user_id': user.id, 'school_slug': school_slug}
-    if user.role == 'parent' and user.parent:
-        claims['parent_id'] = user.parent.id
+    claims = {"role": user.role, "user_id": user.id, "school_slug": school_slug}
+    if user.role == "parent" and user.parent:
+        claims["parent_id"] = user.parent.id
     return claims
 
 
@@ -42,22 +44,24 @@ def _build_additional_claims(user, school_slug: str):
 # SMS-001 — Login
 # ---------------------------------------------------------------------------
 
-@auth_bp.route('/login', methods=['POST'])
+
+@auth_bp.route("/login", methods=["POST"])
 @limiter.limit("5/minute")
 def login():
     data = request.get_json()
-    if not data or not data.get('email') or not data.get('password') or not data.get('school_slug'):
+    if not data or not data.get("email") or not data.get("password") or not data.get("school_slug"):
         return error_response("Email, password, and school_slug are required", status=400)
 
     # Validate school exists and is active in master.db
     from app.models.master.school import School
-    school_slug = data['school_slug'].lower().strip()
+
+    school_slug = data["school_slug"].lower().strip()
     school = School.query.filter_by(slug=school_slug, is_active=True).first()
     if not school:
         return error_response("School not found or inactive", status=404)
 
-    user = get_db().query(User).filter_by(email=data['email'].lower().strip(), is_active=True).first()
-    if not user or not user.check_password(data['password']):
+    user = get_db().query(User).filter_by(email=data["email"].lower().strip(), is_active=True).first()
+    if not user or not user.check_password(data["password"]):
         return error_response("Invalid email or password", status=401)
 
     user.last_login = datetime.utcnow()
@@ -68,8 +72,8 @@ def login():
     refresh_token = create_refresh_token(identity=str(user.id), additional_claims=claims)
 
     return success_response(
-        data={'access_token': access_token, 'refresh_token': refresh_token, 'user': user.to_dict()},
-        message="Login successful"
+        data={"access_token": access_token, "refresh_token": refresh_token, "user": user.to_dict()},
+        message="Login successful",
     )
 
 
@@ -77,7 +81,8 @@ def login():
 # SMS-002 — Token Refresh & Logout
 # ---------------------------------------------------------------------------
 
-@auth_bp.route('/refresh', methods=['POST'])
+
+@auth_bp.route("/refresh", methods=["POST"])
 @jwt_required(refresh=True)
 @limiter.limit("10/minute")
 def refresh():
@@ -87,16 +92,16 @@ def refresh():
     if not user or not user.is_active:
         return error_response("User not found or inactive", status=401)
 
-    school_slug = current_claims.get('school_slug', '')
+    school_slug = current_claims.get("school_slug", "")
     claims = _build_additional_claims(user, school_slug)
     access_token = create_access_token(identity=str(user_id), additional_claims=claims)
-    return success_response(data={'access_token': access_token}, message="Token refreshed")
+    return success_response(data={"access_token": access_token}, message="Token refreshed")
 
 
-@auth_bp.route('/logout', methods=['DELETE'])
+@auth_bp.route("/logout", methods=["DELETE"])
 @jwt_required()
 def logout():
-    jti = get_jwt()['jti']
+    jti = get_jwt()["jti"]
     revoked = RevokedToken(jti=jti)
     get_db().add(revoked)
     get_db().commit()
@@ -107,7 +112,8 @@ def logout():
 # SMS-001 — Me endpoint
 # ---------------------------------------------------------------------------
 
-@auth_bp.route('/me', methods=['GET'])
+
+@auth_bp.route("/me", methods=["GET"])
 @jwt_required()
 def me():
     user_id_raw = get_jwt_identity()
@@ -121,11 +127,12 @@ def me():
 # SMS-005 — Forgot Password & Reset Password
 # ---------------------------------------------------------------------------
 
-@auth_bp.route('/forgot-password', methods=['POST'])
+
+@auth_bp.route("/forgot-password", methods=["POST"])
 @limiter.limit("3/minute")
 def forgot_password():
     data = request.get_json()
-    email = (data or {}).get('email', '').lower().strip()
+    email = (data or {}).get("email", "").lower().strip()
     if not email:
         return error_response("Email is required", status=400)
 
@@ -134,12 +141,10 @@ def forgot_password():
     if user:
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-        expires = datetime.utcnow() + timedelta(
-            hours=current_app.config.get('PASSWORD_RESET_EXPIRES_HOURS', 1)
-        )
+        expires = datetime.utcnow() + timedelta(hours=current_app.config.get("PASSWORD_RESET_EXPIRES_HOURS", 1))
 
         # Invalidate any existing tokens for this user
-        get_db().query(PasswordResetToken).filter_by(user_id=user.id, is_used=False).update({'is_used': True})
+        get_db().query(PasswordResetToken).filter_by(user_id=user.id, is_used=False).update({"is_used": True})
 
         reset_token = PasswordResetToken(
             user_id=user.id,
@@ -149,10 +154,10 @@ def forgot_password():
         get_db().add(reset_token)
         get_db().commit()
 
-        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:4200')
+        frontend_url = current_app.config.get("FRONTEND_URL", "http://localhost:4200")
         reset_link = f"{frontend_url}/auth/reset-password?token={raw_token}"
 
-        if current_app.config.get('MAIL_SUPPRESS_SEND', True):
+        if current_app.config.get("MAIL_SUPPRESS_SEND", True):
             logger.info("PASSWORD RESET LINK (dev only): %s", reset_link)
         else:
             _send_reset_email(user.email, reset_link)
@@ -160,12 +165,12 @@ def forgot_password():
     return success_response(message="If that email exists, a reset link has been sent")
 
 
-@auth_bp.route('/reset-password', methods=['POST'])
+@auth_bp.route("/reset-password", methods=["POST"])
 @limiter.limit("5/minute")
 def reset_password():
     data = request.get_json()
-    raw_token = (data or {}).get('token', '').strip()
-    new_password = (data or {}).get('password', '')
+    raw_token = (data or {}).get("token", "").strip()
+    new_password = (data or {}).get("password", "")
 
     if not raw_token or not new_password:
         return error_response("Token and new password are required", status=400)
@@ -175,9 +180,7 @@ def reset_password():
         return error_response("Password does not meet requirements", errors=pw_errors, status=422)
 
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-    reset_token = get_db().query(PasswordResetToken).filter_by(
-        token_hash=token_hash, is_used=False
-    ).first()
+    reset_token = get_db().query(PasswordResetToken).filter_by(token_hash=token_hash, is_used=False).first()
 
     if not reset_token or not reset_token.is_valid:
         return error_response("Invalid or expired reset token", status=400)
@@ -197,7 +200,8 @@ def reset_password():
 # SMS-006 — Profile Edit & Photo Upload
 # ---------------------------------------------------------------------------
 
-@auth_bp.route('/profile', methods=['PATCH'])
+
+@auth_bp.route("/profile", methods=["PATCH"])
 @jwt_required()
 def update_profile():
     user_id = int(get_jwt_identity())
@@ -209,7 +213,7 @@ def update_profile():
     if not data:
         return error_response("No data provided", status=400)
 
-    allowed_fields = {'first_name', 'last_name'}
+    allowed_fields = {"first_name", "last_name"}
     updated = {}
     for field in allowed_fields:
         if field in data and data[field] and data[field].strip():
@@ -223,7 +227,7 @@ def update_profile():
     return success_response(data=user.to_dict(), message="Profile updated successfully")
 
 
-@auth_bp.route('/profile/photo', methods=['POST'])
+@auth_bp.route("/profile/photo", methods=["POST"])
 @jwt_required()
 def upload_profile_photo():
     user_id = int(get_jwt_identity())
@@ -231,22 +235,20 @@ def upload_profile_photo():
     if not user or not user.is_active:
         return error_response("User not found", status=404)
 
-    if 'photo' not in request.files:
+    if "photo" not in request.files:
         return error_response("No photo file provided", status=400)
 
-    file = request.files['photo']
+    file = request.files["photo"]
     if not file.filename:
         return error_response("No file selected", status=400)
 
     if not _allowed_image(file.filename):
-        return error_response(
-            f"Invalid file type. Allowed: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}", status=400
-        )
+        return error_response(f"Invalid file type. Allowed: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}", status=400)
 
-    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'profile_photos')
+    upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "profile_photos")
     os.makedirs(upload_dir, exist_ok=True)
 
-    ext = file.filename.rsplit('.', 1)[1].lower()
+    ext = file.filename.rsplit(".", 1)[1].lower()
     filename = secure_filename(f"user_{user_id}_{secrets.token_hex(8)}.{ext}")
     filepath = os.path.join(upload_dir, filename)
     file.save(filepath)
@@ -254,16 +256,14 @@ def upload_profile_photo():
     user.photo_url = f"/uploads/profile_photos/{filename}"
     get_db().commit()
 
-    return success_response(
-        data={'photo_url': user.photo_url},
-        message="Profile photo uploaded successfully"
-    )
+    return success_response(data={"photo_url": user.photo_url}, message="Profile photo uploaded successfully")
 
 
 def _send_reset_email(email, reset_link):
     """Send password reset email. Requires Flask-Mail to be configured."""
     try:
         from flask_mail import Mail, Message
+
         mail = Mail(current_app)
         msg = Message(
             subject="SMS — Password Reset Request",

@@ -16,25 +16,25 @@ class FeeStructureService:
         """
         db = get_db()
 
-        class_ = db.query(Class).filter_by(id=data['class_id']).first()
+        class_ = db.query(Class).filter_by(id=data["class_id"]).first()
         if not class_:
-            return None, {'message': f"Class {data['class_id']} not found", 'status': 404}
+            return None, {"message": f"Class {data['class_id']} not found", "status": 404}
 
-        academic_year = db.query(AcademicYear).filter_by(id=data['academic_year_id']).first()
+        academic_year = db.query(AcademicYear).filter_by(id=data["academic_year_id"]).first()
         if not academic_year:
             return None, {
-                'message': f"AcademicYear {data['academic_year_id']} not found",
-                'status': 404,
+                "message": f"AcademicYear {data['academic_year_id']} not found",
+                "status": 404,
             }
 
         fs = FeeStructure(
-            class_id=data['class_id'],
-            academic_year_id=data['academic_year_id'],
-            fee_type=data['fee_type'],
-            amount=data['amount'],
-            due_date=data.get('due_date'),
-            is_recurring=data.get('is_recurring', False),
-            frequency=data.get('frequency', 'one_time'),
+            class_id=data["class_id"],
+            academic_year_id=data["academic_year_id"],
+            fee_type=data["fee_type"],
+            amount=data["amount"],
+            due_date=data.get("due_date"),
+            is_recurring=data.get("is_recurring", False),
+            frequency=data.get("frequency", "one_time"),
         )
         db.add(fs)
         db.commit()
@@ -65,8 +65,8 @@ class FeeStructureService:
         fs = db.query(FeeStructure).filter_by(id=fee_structure_id).first()
         if not fs:
             return None, {
-                'message': f'FeeStructure {fee_structure_id} not found',
-                'status': 404,
+                "message": f"FeeStructure {fee_structure_id} not found",
+                "status": 404,
             }
         return fs.to_dict(), None
 
@@ -82,23 +82,23 @@ class FeeStructureService:
         fs = db.query(FeeStructure).filter_by(id=fee_structure_id).first()
         if not fs:
             return None, {
-                'message': f'FeeStructure {fee_structure_id} not found',
-                'status': 404,
+                "message": f"FeeStructure {fee_structure_id} not found",
+                "status": 404,
             }
 
-        if data.get('fee_type') is not None:
-            fs.fee_type = data['fee_type']
-        if data.get('amount') is not None:
-            fs.amount = data['amount']
+        if data.get("fee_type") is not None:
+            fs.fee_type = data["fee_type"]
+        if data.get("amount") is not None:
+            fs.amount = data["amount"]
         # due_date may legitimately be set to None (clear it), so check key presence
-        if 'due_date' in data:
-            fs.due_date = data['due_date']
-        if data.get('is_recurring') is not None:
-            fs.is_recurring = data['is_recurring']
-        if data.get('frequency') is not None:
-            fs.frequency = data['frequency']
-        if data.get('is_active') is not None:
-            fs.is_active = data['is_active']
+        if "due_date" in data:
+            fs.due_date = data["due_date"]
+        if data.get("is_recurring") is not None:
+            fs.is_recurring = data["is_recurring"]
+        if data.get("frequency") is not None:
+            fs.frequency = data["frequency"]
+        if data.get("is_active") is not None:
+            fs.is_active = data["is_active"]
 
         db.commit()
         return fs.to_dict(), None
@@ -114,10 +114,10 @@ class FeeStructureService:
         fs = db.query(FeeStructure).filter_by(id=fee_structure_id).first()
         if not fs:
             return None, {
-                'message': f'FeeStructure {fee_structure_id} not found',
-                'status': 404,
+                "message": f"FeeStructure {fee_structure_id} not found",
+                "status": 404,
             }
 
         fs.is_active = False
         db.commit()
-        return {'id': fee_structure_id, 'deleted': True}, None
+        return {"id": fee_structure_id, "deleted": True}, None

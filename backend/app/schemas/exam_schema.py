@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields, validate
 
-VALID_EXAM_TYPES = ['midterm', 'final', 'unit_test', 'practical']
+VALID_EXAM_TYPES = ["midterm", "final", "unit_test", "practical"]
 
 
 class ExamCreateSchema(Schema):

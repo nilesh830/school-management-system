@@ -8,6 +8,7 @@ SMS-059  fees_report       — collected vs pending per fee type + defaulters.
 All queries use the tenant session via get_db(); no raw SQL. Aggregates are
 defensive against empty data and never divide by zero.
 """
+
 from collections import defaultdict
 from datetime import datetime, date
 from io import BytesIO
@@ -26,11 +27,11 @@ from app.models.fee_record import FeeRecord
 from app.models.fee_payment import FeePayment
 
 
-_COUNTED_STATUSES = ('present', 'absent', 'late')
+_COUNTED_STATUSES = ("present", "absent", "late")
 
 
 def _parse_date(date_str: str) -> date:
-    return datetime.strptime(date_str, '%Y-%m-%d').date()
+    return datetime.strptime(date_str, "%Y-%m-%d").date()
 
 
 class ReportService:
@@ -55,21 +56,21 @@ class ReportService:
             to_date = _parse_date(to_date_str)
         except (ValueError, TypeError):
             return None, {
-                'message': 'from_date and to_date must be valid YYYY-MM-DD dates',
-                'status': 400,
+                "message": "from_date and to_date must be valid YYYY-MM-DD dates",
+                "status": 400,
             }
 
         if from_date > to_date:
             return None, {
-                'message': 'from_date must not be after to_date',
-                'status': 400,
+                "message": "from_date must not be after to_date",
+                "status": 400,
             }
 
         section = db.query(Section).filter_by(id=section_id).first()
         if not section:
             return None, {
-                'message': f'Section {section_id} not found',
-                'status': 404,
+                "message": f"Section {section_id} not found",
+                "status": 404,
             }
 
         rows = (
@@ -85,50 +86,51 @@ class ReportService:
 
         # Resolve student names for everyone with at least one row
         student_ids = {r.student_id for r in rows}
-        names = {
-            s.id: f'{s.first_name} {s.last_name}'
-            for s in db.query(Student).filter(Student.id.in_(student_ids)).all()
-        } if student_ids else {}
+        names = (
+            {s.id: f"{s.first_name} {s.last_name}" for s in db.query(Student).filter(Student.id.in_(student_ids)).all()}
+            if student_ids
+            else {}
+        )
 
         summary = {}
         for row in rows:
             sid = row.student_id
             if sid not in summary:
                 summary[sid] = {
-                    'student_id': sid,
-                    'name': names.get(sid, f'Student {sid}'),
-                    'present': 0,
-                    'absent': 0,
-                    'late': 0,
-                    'total': 0,
-                    'percentage': 0.0,
+                    "student_id": sid,
+                    "name": names.get(sid, f"Student {sid}"),
+                    "present": 0,
+                    "absent": 0,
+                    "late": 0,
+                    "total": 0,
+                    "percentage": 0.0,
                 }
             entry = summary[sid]
             if row.status in entry:
                 entry[row.status] += 1
             # total counts only present/absent/late as attendance opportunities
             if row.status in _COUNTED_STATUSES:
-                entry['total'] += 1
+                entry["total"] += 1
 
         # Per-student percentages (present + late counted as attended)
         pct_values = []
         for entry in summary.values():
-            total = entry['total']
-            attended = entry['present'] + entry['late']
+            total = entry["total"]
+            attended = entry["present"] + entry["late"]
             pct = round((attended / total) * 100, 2) if total else 0.0
-            entry['percentage'] = pct
+            entry["percentage"] = pct
             if total:
                 pct_values.append(pct)
 
         class_average = round(sum(pct_values) / len(pct_values), 2) if pct_values else 0.0
 
         return {
-            'section_id': section_id,
-            'from_date': from_date_str,
-            'to_date': to_date_str,
-            'students': list(summary.values()),
-            'student_count': len(summary),
-            'class_average': class_average,
+            "section_id": section_id,
+            "from_date": from_date_str,
+            "to_date": to_date_str,
+            "students": list(summary.values()),
+            "student_count": len(summary),
+            "class_average": class_average,
         }, None
 
     # -----------------------------------------------------------------------
@@ -152,7 +154,7 @@ class ReportService:
 
         exam = db.query(Exam).filter_by(id=exam_id).first()
         if not exam:
-            return None, {'message': f'Exam {exam_id} not found', 'status': 404}
+            return None, {"message": f"Exam {exam_id} not found", "status": 404}
 
         # Optional section filter — restrict to students currently in that section.
         allowed_student_ids = None
@@ -160,14 +162,11 @@ class ReportService:
             section = db.query(Section).filter_by(id=section_id).first()
             if not section:
                 return None, {
-                    'message': f'Section {section_id} not found',
-                    'status': 404,
+                    "message": f"Section {section_id} not found",
+                    "status": 404,
                 }
             allowed_student_ids = {
-                ss.student_id
-                for ss in db.query(StudentSection).filter_by(
-                    section_id=section_id, is_current=True
-                ).all()
+                ss.student_id for ss in db.query(StudentSection).filter_by(section_id=section_id, is_current=True).all()
             }
 
         rows = (
@@ -198,39 +197,29 @@ class ReportService:
             total_max = 0
 
             for result, subject in entries:
-                mo = (
-                    float(result.marks_obtained)
-                    if result.marks_obtained is not None
-                    else None
+                mo = float(result.marks_obtained) if result.marks_obtained is not None else None
+                pct = round((mo / subject.max_marks) * 100, 2) if mo is not None and subject.max_marks else None
+                subjects.append(
+                    {
+                        "subject_id": subject.id,
+                        "subject_name": subject.name,
+                        "subject_code": subject.code,
+                        "max_marks": subject.max_marks,
+                        "marks_obtained": mo,
+                        "grade": result.grade,
+                        "gpa": float(result.gpa) if result.gpa is not None else None,
+                        "percentage": pct,
+                    }
                 )
-                pct = (
-                    round((mo / subject.max_marks) * 100, 2)
-                    if mo is not None and subject.max_marks
-                    else None
-                )
-                subjects.append({
-                    'subject_id': subject.id,
-                    'subject_name': subject.name,
-                    'subject_code': subject.code,
-                    'max_marks': subject.max_marks,
-                    'marks_obtained': mo,
-                    'grade': result.grade,
-                    'gpa': float(result.gpa) if result.gpa is not None else None,
-                    'percentage': pct,
-                })
                 total_max += subject.max_marks
                 if mo is not None:
                     total_obtained = (total_obtained or 0) + mo
                 if result.gpa is not None:
                     gpa_values.append(float(result.gpa))
 
-            overall_gpa = (
-                round(sum(gpa_values) / len(gpa_values), 2) if gpa_values else None
-            )
+            overall_gpa = round(sum(gpa_values) / len(gpa_values), 2) if gpa_values else None
             overall_percentage = (
-                round((total_obtained / total_max) * 100, 2)
-                if total_obtained is not None and total_max
-                else None
+                round((total_obtained / total_max) * 100, 2) if total_obtained is not None and total_max else None
             )
             overall_grade = (
                 ExamService.calculate_grade(total_obtained, total_max)[0]
@@ -241,25 +230,27 @@ class ReportService:
             if overall_grade is not None:
                 grade_distribution[overall_grade] += 1
 
-            students.append({
-                'student_id': student_id,
-                'name': f'{student.first_name} {student.last_name}',
-                'admission_no': student.admission_no,
-                'subjects': subjects,
-                'overall_percentage': overall_percentage,
-                'overall_grade': overall_grade,
-                'overall_gpa': overall_gpa,
-            })
+            students.append(
+                {
+                    "student_id": student_id,
+                    "name": f"{student.first_name} {student.last_name}",
+                    "admission_no": student.admission_no,
+                    "subjects": subjects,
+                    "overall_percentage": overall_percentage,
+                    "overall_grade": overall_grade,
+                    "overall_gpa": overall_gpa,
+                }
+            )
 
-        students.sort(key=lambda s: s['student_id'])
+        students.sort(key=lambda s: s["student_id"])
 
         return {
-            'exam_id': exam_id,
-            'exam_name': exam.name,
-            'section_id': section_id,
-            'students': students,
-            'student_count': len(students),
-            'grade_distribution': dict(grade_distribution),
+            "exam_id": exam_id,
+            "exam_name": exam.name,
+            "section_id": section_id,
+            "students": students,
+            "student_count": len(students),
+            "grade_distribution": dict(grade_distribution),
         }, None
 
     # -----------------------------------------------------------------------
@@ -287,58 +278,50 @@ class ReportService:
         if academic_year_id is not None:
             fs_query = fs_query.filter(FeeStructure.academic_year_id == academic_year_id)
         structures = fs_query.all()
-        structure_ids = [fs.id for fs in structures]
 
         by_type = []
         total_collected = 0.0
         total_pending = 0.0
 
         for fs in structures:
-            records = (
-                db.query(FeeRecord)
-                .filter(FeeRecord.fee_structure_id == fs.id)
-                .all()
-            )
+            records = db.query(FeeRecord).filter(FeeRecord.fee_structure_id == fs.id).all()
             collected = 0.0
             pending = 0.0
             for rec in records:
-                paid = sum(
-                    float(p.amount_paid)
-                    for p in db.query(FeePayment).filter_by(
-                        fee_record_id=rec.id
-                    ).all()
-                )
+                paid = sum(float(p.amount_paid) for p in db.query(FeePayment).filter_by(fee_record_id=rec.id).all())
                 collected += paid
-                if rec.status in ('pending', 'partial'):
+                if rec.status in ("pending", "partial"):
                     balance = float(rec.net_amount) - paid
                     if balance > 0:
                         pending += balance
 
-            by_type.append({
-                'fee_structure_id': fs.id,
-                'fee_type': fs.fee_type,
-                'class_id': fs.class_id,
-                'academic_year_id': fs.academic_year_id,
-                'amount': float(fs.amount) if fs.amount is not None else 0.0,
-                'collected': round(collected, 2),
-                'pending': round(pending, 2),
-                'record_count': len(records),
-            })
+            by_type.append(
+                {
+                    "fee_structure_id": fs.id,
+                    "fee_type": fs.fee_type,
+                    "class_id": fs.class_id,
+                    "academic_year_id": fs.academic_year_id,
+                    "amount": float(fs.amount) if fs.amount is not None else 0.0,
+                    "collected": round(collected, 2),
+                    "pending": round(pending, 2),
+                    "record_count": len(records),
+                }
+            )
             total_collected += collected
             total_pending += pending
 
         defaulters = FeeService.get_defaulters(class_id=class_id)
 
         return {
-            'class_id': class_id,
-            'academic_year_id': academic_year_id,
-            'by_fee_type': by_type,
-            'totals': {
-                'collected': round(total_collected, 2),
-                'pending': round(total_pending, 2),
+            "class_id": class_id,
+            "academic_year_id": academic_year_id,
+            "by_fee_type": by_type,
+            "totals": {
+                "collected": round(total_collected, 2),
+                "pending": round(total_pending, 2),
             },
-            'defaulters': defaulters,
-            'defaulters_count': len(defaulters),
+            "defaulters": defaulters,
+            "defaulters_count": len(defaulters),
         }, None
 
     # -----------------------------------------------------------------------
@@ -361,18 +344,18 @@ class ReportService:
             html = render_template(template_name, **context)
         except Exception as exc:
             return None, {
-                'message': f'Template rendering failed: {exc}',
-                'status': 500,
+                "message": f"Template rendering failed: {exc}",
+                "status": 500,
             }
 
         try:
             buffer = BytesIO()
             result = pisa.CreatePDF(html, dest=buffer)
             if result.err:
-                return None, {'message': 'PDF generation failed', 'status': 500}
+                return None, {"message": "PDF generation failed", "status": 500}
             return buffer.getvalue(), None
         except Exception as exc:
-            return None, {'message': f'PDF generation error: {exc}', 'status': 500}
+            return None, {"message": f"PDF generation error: {exc}", "status": 500}
 
     # --- Attendance -------------------------------------------------------
 
@@ -382,9 +365,9 @@ class ReportService:
         if err:
             return None, err
         return cls._render_pdf(
-            'report_attendance.html',
+            "report_attendance.html",
             report=report,
-            generated_date=date.today().strftime('%d %B %Y'),
+            generated_date=date.today().strftime("%d %B %Y"),
         )
 
     @classmethod
@@ -392,13 +375,12 @@ class ReportService:
         report, err = cls.attendance_report(section_id, from_date_str, to_date_str)
         if err:
             return None, err
-        headers = ['Student', 'Present', 'Absent', 'Late', 'Total', 'Percentage']
+        headers = ["Student", "Present", "Absent", "Late", "Total", "Percentage"]
         rows = [
-            [s['name'], s['present'], s['absent'], s['late'], s['total'], s['percentage']]
-            for s in report['students']
+            [s["name"], s["present"], s["absent"], s["late"], s["total"], s["percentage"]] for s in report["students"]
         ]
-        rows.append(['CLASS AVERAGE', '', '', '', '', report['class_average']])
-        return build_xlsx('Attendance Report', headers, rows), None
+        rows.append(["CLASS AVERAGE", "", "", "", "", report["class_average"]])
+        return build_xlsx("Attendance Report", headers, rows), None
 
     # --- Grades -----------------------------------------------------------
 
@@ -408,9 +390,9 @@ class ReportService:
         if err:
             return None, err
         return cls._render_pdf(
-            'report_grades.html',
+            "report_grades.html",
             report=report,
-            generated_date=date.today().strftime('%d %B %Y'),
+            generated_date=date.today().strftime("%d %B %Y"),
         )
 
     @classmethod
@@ -418,18 +400,18 @@ class ReportService:
         report, err = cls.grades_report(exam_id, section_id)
         if err:
             return None, err
-        headers = ['Student', 'Admission No.', 'Overall %', 'Grade', 'GPA']
+        headers = ["Student", "Admission No.", "Overall %", "Grade", "GPA"]
         rows = [
             [
-                s['name'],
-                s['admission_no'],
-                s['overall_percentage'],
-                s['overall_grade'],
-                s['overall_gpa'],
+                s["name"],
+                s["admission_no"],
+                s["overall_percentage"],
+                s["overall_grade"],
+                s["overall_gpa"],
             ]
-            for s in report['students']
+            for s in report["students"]
         ]
-        return build_xlsx('Grades Report', headers, rows), None
+        return build_xlsx("Grades Report", headers, rows), None
 
     # --- Fees -------------------------------------------------------------
 
@@ -439,9 +421,9 @@ class ReportService:
         if err:
             return None, err
         return cls._render_pdf(
-            'report_fees.html',
+            "report_fees.html",
             report=report,
-            generated_date=date.today().strftime('%d %B %Y'),
+            generated_date=date.today().strftime("%d %B %Y"),
         )
 
     @classmethod
@@ -449,18 +431,24 @@ class ReportService:
         report, err = cls.fees_report(class_id, academic_year_id)
         if err:
             return None, err
-        headers = ['Fee Type', 'Amount', 'Collected', 'Pending', 'Records']
+        headers = ["Fee Type", "Amount", "Collected", "Pending", "Records"]
         rows = [
             [
-                ft['fee_type'],
-                ft['amount'],
-                ft['collected'],
-                ft['pending'],
-                ft['record_count'],
+                ft["fee_type"],
+                ft["amount"],
+                ft["collected"],
+                ft["pending"],
+                ft["record_count"],
             ]
-            for ft in report['by_fee_type']
+            for ft in report["by_fee_type"]
         ]
-        rows.append([
-            'TOTALS', '', report['totals']['collected'], report['totals']['pending'], '',
-        ])
-        return build_xlsx('Fee Collection Report', headers, rows), None
+        rows.append(
+            [
+                "TOTALS",
+                "",
+                report["totals"]["collected"],
+                report["totals"]["pending"],
+                "",
+            ]
+        )
+        return build_xlsx("Fee Collection Report", headers, rows), None

@@ -16,26 +16,21 @@ class SuperAdminService:
     # -------------------------------------------------------------------------
 
     @staticmethod
-    def get_all_schools(page=1, per_page=20, search=''):
+    def get_all_schools(page=1, per_page=20, search=""):
         """Paginated list of all schools from master.db."""
         query = School.query
 
         if search:
-            query = query.filter(
-                School.name.ilike(f'%{search}%')
-                | School.slug.ilike(f'%{search}%')
-            )
+            query = query.filter(School.name.ilike(f"%{search}%") | School.slug.ilike(f"%{search}%"))
 
-        pagination = query.order_by(School.created_at.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
-        )
+        pagination = query.order_by(School.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
         return {
-            'schools': [s.to_dict() for s in pagination.items],
-            'meta': {
-                'total': pagination.total,
-                'page': pagination.page,
-                'per_page': pagination.per_page,
-                'pages': pagination.pages,
+            "schools": [s.to_dict() for s in pagination.items],
+            "meta": {
+                "total": pagination.total,
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "pages": pagination.pages,
             },
         }
 
@@ -66,26 +61,26 @@ class SuperAdminService:
 
         Atomic-ish: if DB creation fails the School record is rolled back.
         """
-        slug = data['slug'].lower().strip()
+        slug = data["slug"].lower().strip()
 
         # 1. Uniqueness check
         if School.query.filter_by(slug=slug).first():
-            return None, {'message': f"Slug '{slug}' is already taken.", 'status': 409}
+            return None, {"message": f"Slug '{slug}' is already taken.", "status": 409}
 
         # 2. Build db_url
-        schools_dir = current_app.config['SCHOOLS_DB_DIR']
-        db_path = os.path.join(schools_dir, f'school_{slug}.db')
-        db_url = 'sqlite:///' + db_path.replace('\\', '/')
+        schools_dir = current_app.config["SCHOOLS_DB_DIR"]
+        db_path = os.path.join(schools_dir, f"school_{slug}.db")
+        db_url = "sqlite:///" + db_path.replace("\\", "/")
 
         # 3. Persist School record
         school = School(
-            name=data['name'],
+            name=data["name"],
             slug=slug,
             db_url=db_url,
-            address=data.get('address'),
-            phone=data.get('phone'),
-            email=data.get('email'),
-            academic_year_start_month=data.get('academic_year_start_month', 6),
+            address=data.get("address"),
+            phone=data.get("phone"),
+            email=data.get("email"),
+            academic_year_start_month=data.get("academic_year_start_month", 6),
             is_active=True,
         )
         db.session.add(school)
@@ -99,10 +94,10 @@ class SuperAdminService:
             # 5. Seed first admin user
             SuperAdminService._seed_school_admin(
                 db_url=db_url,
-                admin_email=data['admin_email'],
-                admin_password=data['admin_password'],
-                first_name=data.get('admin_first_name', 'School'),
-                last_name=data.get('admin_last_name', 'Admin'),
+                admin_email=data["admin_email"],
+                admin_password=data["admin_password"],
+                first_name=data.get("admin_first_name", "School"),
+                last_name=data.get("admin_last_name", "Admin"),
             )
 
             db.session.commit()
@@ -118,7 +113,7 @@ class SuperAdminService:
                     os.remove(db_path)
                 except OSError:
                     pass
-            return None, {'message': f'Provisioning failed: {exc}', 'status': 500}
+            return None, {"message": f"Provisioning failed: {exc}", "status": 500}
 
     # -------------------------------------------------------------------------
     # ERP-003 — Update school metadata
@@ -132,11 +127,16 @@ class SuperAdminService:
         """
         school = db.session.get(School, school_id)
         if not school:
-            return None, {'message': 'School not found', 'status': 404}
+            return None, {"message": "School not found", "status": 404}
 
         allowed = [
-            'name', 'address', 'phone', 'email',
-            'logo_url', 'is_active', 'academic_year_start_month',
+            "name",
+            "address",
+            "phone",
+            "email",
+            "logo_url",
+            "is_active",
+            "academic_year_start_month",
         ]
         for field in allowed:
             if field in data:
@@ -168,31 +168,28 @@ class SuperAdminService:
         engine = create_engine(db_url)
 
         # Filter to school-scoped tables (exclude master-bound tables)
-        school_tables = [
-            t for t in _db.metadata.sorted_tables
-            if t.info.get('bind_key') != 'master'
-        ]
+        school_tables = [t for t in _db.metadata.sorted_tables if t.info.get("bind_key") != "master"]
         _db.metadata.create_all(engine, tables=school_tables)
 
         # Stamp with current Alembic head revision
-        migrations_dir = os.path.abspath(
-            os.path.join(current_app.root_path, '..', 'migrations')
-        )
+        migrations_dir = os.path.abspath(os.path.join(current_app.root_path, "..", "migrations"))
         alembic_cfg = AlembicConfig()
-        alembic_cfg.set_main_option('script_location', migrations_dir)
+        alembic_cfg.set_main_option("script_location", migrations_dir)
         script = ScriptDirectory.from_config(alembic_cfg)
         head_rev = script.get_current_head()
 
         with engine.connect() as conn:
-            conn.execute(text(
-                "CREATE TABLE IF NOT EXISTS alembic_version "
-                "(version_num VARCHAR(32) NOT NULL, "
-                "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
-            ))
+            conn.execute(
+                text(
+                    "CREATE TABLE IF NOT EXISTS alembic_version "
+                    "(version_num VARCHAR(32) NOT NULL, "
+                    "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
+                )
+            )
             if head_rev:
                 conn.execute(
                     text("INSERT OR IGNORE INTO alembic_version VALUES (:rev)"),
-                    {'rev': head_rev},
+                    {"rev": head_rev},
                 )
             conn.commit()
 
@@ -203,8 +200,8 @@ class SuperAdminService:
         db_url: str,
         admin_email: str,
         admin_password: str,
-        first_name: str = 'School',
-        last_name: str = 'Admin',
+        first_name: str = "School",
+        last_name: str = "Admin",
     ) -> None:
         """
         Create the first admin user in the new school's DB.
@@ -227,12 +224,10 @@ class SuperAdminService:
                     email=admin_email.lower().strip(),
                     first_name=first_name,
                     last_name=last_name,
-                    role='admin',
+                    role="admin",
                     is_active=True,
                 )
-                user.password_hash = bcrypt.generate_password_hash(
-                    admin_password
-                ).decode('utf-8')
+                user.password_hash = bcrypt.generate_password_hash(admin_password).decode("utf-8")
                 session.add(user)
                 session.commit()
         finally:

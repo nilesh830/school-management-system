@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields, validate
 
-VALID_FREQUENCIES = ('monthly', 'quarterly', 'annual', 'one_time')
+VALID_FREQUENCIES = ("monthly", "quarterly", "annual", "one_time")
 
 
 class FeeStructureCreateSchema(Schema):
@@ -16,7 +16,7 @@ class FeeStructureCreateSchema(Schema):
     due_date = fields.Date(load_default=None, allow_none=True)
     is_recurring = fields.Bool(load_default=False)
     frequency = fields.Str(
-        load_default='one_time',
+        load_default="one_time",
         validate=validate.OneOf(VALID_FREQUENCIES),
     )
 
