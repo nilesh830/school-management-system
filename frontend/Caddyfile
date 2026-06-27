@@ -3,13 +3,21 @@
 	encode gzip
 	root * /usr/share/caddy
 
-	# Forward API calls to the backend Railway service (set BACKEND_URL env var,
-	# e.g. https://sms-backend-production.up.railway.app). Keeps the browser on a
-	# single origin, so no CORS is needed.
-	@api path /api/*
-	reverse_proxy @api {$BACKEND_URL}
+	# handle blocks are mutually exclusive and evaluated in order, so the SPA
+	# fallback below can never rewrite an /api request. (A plain `try_files`
+	# directive runs BEFORE reverse_proxy in Caddy's ordering and would rewrite
+	# /api/* to /index.html — hence explicit handle blocks.)
 
-	# SPA fallback: every other path serves index.html for Angular routing.
-	try_files {path} /index.html
-	file_server
+	# Forward API calls to the backend Railway service. Set BACKEND_URL env var,
+	# e.g. https://school-management-system-production-fbf4.up.railway.app
+	handle /api/* {
+		reverse_proxy {$BACKEND_URL}
+	}
+
+	# Everything else: serve static files, falling back to index.html so Angular
+	# client-side routing works on deep links / refresh.
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
 }
