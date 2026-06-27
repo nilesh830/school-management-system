@@ -19,8 +19,9 @@ import { AuthService } from '../../../core/services/auth.service';
 export class AdminLayoutComponent {
   auth = inject(AuthService);
 
-  navItems = [
+  navItems: { label: string; icon: string; route: string; exact?: boolean }[] = [
     { label: 'Dashboard', icon: 'pi-home', route: '/admin/dashboard' },
+    { label: 'Users', icon: 'pi-users', route: '/admin/users', exact: true },
     { label: 'Create User', icon: 'pi-user-plus', route: '/admin/users/new' },
     { label: 'Students', icon: 'pi-graduation-cap', route: '/admin/students' },
     { label: 'Teachers', icon: 'pi-id-card', route: '/admin/teachers' },

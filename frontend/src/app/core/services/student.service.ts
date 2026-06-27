@@ -36,6 +36,7 @@ export interface StudentPayload {
   address?: string | null;
   phone?: string | null;
   user_id?: number | null;
+  section_id?: number | null;
 }
 
 export interface StudentListMeta {
@@ -54,6 +55,7 @@ export interface Parent {
   id: number;
   first_name: string;
   last_name: string;
+  full_name?: string;
   relationship_type: string;
   phone_primary: string;
   email?: string | null;
@@ -140,6 +142,13 @@ export class StudentService {
 
   getStudentParents(studentId: number): Observable<ApiResponse<Parent[]>> {
     return this.http.get<ApiResponse<Parent[]>>(`${this.apiUrl}/${studentId}/parents`);
+  }
+
+  /** Admin directory of parents available to link (optionally filtered). */
+  listParents(search?: string): Observable<ApiResponse<Parent[]>> {
+    let params = new HttpParams();
+    if (search) params = params.set('q', search);
+    return this.http.get<ApiResponse<Parent[]>>('/api/v1/parents', { params });
   }
 
   linkParent(studentId: number, parentId: number, isPrimary: boolean): Observable<ApiResponse<any>> {

@@ -129,6 +129,8 @@ export class StudentDetailComponent implements OnInit {
   parents: Parent[] = [];
   loadingParents = false;
   linkingParent = false;
+  parentDirectory: Parent[] = [];
+  loadingDirectory = false;
 
   // ── Report Cards ──────────────────────────────────────────────────────────
   exams: any[] = [];
@@ -242,6 +244,7 @@ export class StudentDetailComponent implements OnInit {
         this.loading = false;
         this.loadDocuments();
         this.loadParents();
+        this.loadParentDirectory();
       },
       error: (err) => {
         this.loading = false;
@@ -489,6 +492,20 @@ export class StudentDetailComponent implements OnInit {
       error: () => {
         this.loadingParents = false;
         this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load parent records.' });
+      }
+    });
+  }
+
+  loadParentDirectory(): void {
+    this.loadingDirectory = true;
+    this.studentService.listParents().subscribe({
+      next: (res) => {
+        this.parentDirectory = res.data ?? [];
+        this.loadingDirectory = false;
+      },
+      error: () => {
+        this.loadingDirectory = false;
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load parent directory.' });
       }
     });
   }

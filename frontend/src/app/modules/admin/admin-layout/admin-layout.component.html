@@ -16,6 +16,7 @@
         <a
           [routerLink]="item.route"
           routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
           class="sms-nav-link"
         >
           <i class="pi {{ item.icon }} text-sm"></i>

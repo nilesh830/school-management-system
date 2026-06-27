@@ -12,7 +12,15 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./dashboard/dashboard.component').then(m => m.AdminDashboardComponent)
       },
       {
+        path: 'users',
+        loadComponent: () => import('./users/user-list/user-list.component').then(m => m.UserListComponent)
+      },
+      {
         path: 'users/new',
+        loadComponent: () => import('./users/create-user/create-user.component').then(m => m.CreateUserComponent)
+      },
+      {
+        path: 'users/:id/edit',
         loadComponent: () => import('./users/create-user/create-user.component').then(m => m.CreateUserComponent)
       },
       // ── Academic Years (SMS-023) ─────────────────────────────────────────────
