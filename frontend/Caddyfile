@@ -1,0 +1,23 @@
+# Railway sets $PORT; fall back to 80 for local runs.
+:{$PORT:80} {
+	encode gzip
+	root * /usr/share/caddy
+
+	# handle blocks are mutually exclusive and evaluated in order, so the SPA
+	# fallback below can never rewrite an /api request. (A plain `try_files`
+	# directive runs BEFORE reverse_proxy in Caddy's ordering and would rewrite
+	# /api/* to /index.html — hence explicit handle blocks.)
+
+	# Forward API calls to the backend Railway service. Set BACKEND_URL env var,
+	# e.g. https://school-management-system-production-fbf4.up.railway.app
+	handle /api/* {
+		reverse_proxy {$BACKEND_URL}
+	}
+
+	# Everything else: serve static files, falling back to index.html so Angular
+	# client-side routing works on deep links / refresh.
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}

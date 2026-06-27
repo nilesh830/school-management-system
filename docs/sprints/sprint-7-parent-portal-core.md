@@ -4,17 +4,22 @@
 **Velocity Target:** 32 pts | **Epic:** EPIC-08
 **Dependencies:** Sprints 1–6 complete (students, attendance, grades, fees all working)
 
+> **How to invoke agents:**
+> - Database work → `@database-engineer` (models, migrations, schema)
+> - Backend work → `@backend-engineer` (routes, services, business logic, tests)
+> - Frontend work → `@frontend-engineer` (Angular components, PrimeNG UI, HTTP services)
+
 ---
 
 ## Sprint Board
 
-| Story | Title | Points | Assignee | Status |
-|-------|-------|--------|----------|--------|
-| SMS-041 | Parent Dashboard (All Children Overview) | 8 | @frontend-engineer + @backend-engineer | To Do |
-| SMS-042 | Child Attendance Monitor | 8 | @frontend-engineer + @backend-engineer | To Do |
-| SMS-043 | Academic Performance View | 8 | @frontend-engineer + @backend-engineer | To Do |
-| SMS-044 | Fee Status & History | 5 | @frontend-engineer + @backend-engineer | To Do |
-| SMS-045 | School Notice Board (Parent View) | 3 | @frontend-engineer | To Do |
+| Story | Title | Points | Agents |
+|-------|-------|--------|--------|
+| SMS-041 | Parent Dashboard (All Children Overview) | 8 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` |
+| SMS-042 | Child Attendance Monitor | 8 | `@backend-engineer` → `@frontend-engineer` |
+| SMS-043 | Academic Performance View | 8 | `@backend-engineer` → `@frontend-engineer` |
+| SMS-044 | Fee Status & History | 5 | `@backend-engineer` → `@frontend-engineer` |
+| SMS-045 | School Notice Board (Parent View) | 3 | `@backend-engineer` → `@frontend-engineer` |
 
 ---
 
@@ -78,7 +83,6 @@ modules/parent-portal/
 │   └── parent-header.component.ts    # Child switcher + notification bell
 ├── dashboard/
 │   ├── dashboard.component.ts
-│   ├── dashboard.component.html
 │   └── child-summary-card.component.ts   # Reusable card per child
 ```
 
@@ -118,17 +122,17 @@ modules/parent-portal/
 
 #### Tasks — SMS-041
 
-| # | Task | Layer | Assignee | Est. |
-|---|------|-------|----------|------|
-| T-041-01 | Implement `GET /api/v1/parent-portal/dashboard` with real attendance/fee/grade data | BE | @backend-engineer | 3h |
-| T-041-02 | Implement `ParentPortalService.get_dashboard()` aggregating all child data | BE | @backend-engineer | 2h |
-| T-041-03 | Create `parent-portal.module.ts` with lazy-loaded routing | FE | @frontend-engineer | 1h |
-| T-041-04 | Build parent layout shell (sidebar + header + notification bell) | FE | @frontend-engineer | 3h |
-| T-041-05 | Build `dashboard.component` with child summary cards | FE | @frontend-engineer | 3h |
-| T-041-06 | Build reusable `child-summary-card` component with PrimeNG Knob | FE | @frontend-engineer | 2h |
-| T-041-07 | Implement mobile-responsive layout (375px breakpoint) | FE | @frontend-engineer | 1h |
-| T-041-08 | Test: 1 child, 3 children, 0 children, data isolation (parent can't see other's child) | QA | @qa-engineer | 2h |
-| T-041-09 | Security: verify parent_id in JWT matches student_parent link, no enumeration | SEC | @security-engineer | 1h |
+| # | Task | Agent File | Est. |
+|---|------|-----------|------|
+| T-041-01 | Create `Parent` model + `student_parent` association table + migration | [`@database-engineer`](.claude/agents/database-engineer.md) | 1.5h |
+| T-041-02 | Implement `GET /api/v1/parent-portal/dashboard` with real attendance/fee/grade data | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 3h |
+| T-041-03 | Implement `ParentPortalService.get_dashboard()` aggregating all child data | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 2h |
+| T-041-04 | Create `parent-portal` lazy-loaded routing module | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1h |
+| T-041-05 | Build parent layout shell (sidebar + header + notification bell) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 3h |
+| T-041-06 | Build `dashboard.component` with child summary cards | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 3h |
+| T-041-07 | Build reusable `child-summary-card` component with PrimeNG Knob | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 2h |
+| T-041-08 | Mobile-responsive layout (375px breakpoint — stacked cards) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1h |
+| T-041-09 | Tests: 1 child, 3 children, 0 children, data isolation (parent cannot see other's child) | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 2h |
 
 ---
 
@@ -173,39 +177,19 @@ Response 200: {
 }
 ```
 
-**Frontend Component:**
-```typescript
-// attendance.component.ts
-export class AttendanceComponent implements OnInit {
-  selectedChild: any;
-  currentMonth = new Date().getMonth() + 1;
-  currentYear = new Date().getFullYear();
-  attendanceMap = new Map<string, string>(); // date → status
-
-  getStatusClass(date: Date): string {
-    const key = date.toISOString().split('T')[0];
-    const status = this.attendanceMap.get(key);
-    return { 'present': 'bg-green-200', 'absent': 'bg-red-200',
-             'late': 'bg-yellow-200', 'holiday': 'bg-gray-100' }[status] || '';
-  }
-}
-```
-
-**UI Pattern:** Use PrimeNG `p-calendar` in `inline` mode as a read-only display, OR build a custom month grid with colored cells (custom grid gives better mobile control).
-
 ---
 
 #### Tasks — SMS-042
 
-| # | Task | Layer | Assignee | Est. |
-|---|------|-------|----------|------|
-| T-042-01 | Implement `GET /api/v1/parent-portal/children/:id/attendance` — query attendance by month | BE | @backend-engineer | 2h |
-| T-042-02 | Compute monthly summary stats (present, absent, late, %) | BE | @backend-engineer | 1h |
-| T-042-03 | Build attendance calendar grid component (color-coded cells) | FE | @frontend-engineer | 3h |
-| T-042-04 | Add month prev/next navigation without page reload | FE | @frontend-engineer | 1h |
-| T-042-05 | Add monthly summary stats row (present/absent/late/%) | FE | @frontend-engineer | 1h |
-| T-042-06 | Child switcher dropdown in header (switch between linked children) | FE | @frontend-engineer | 1h |
-| T-042-07 | Test: correct data per month, data isolation, no-data state, month navigation | QA | @qa-engineer | 2h |
+| # | Task | Agent File | Est. |
+|---|------|-----------|------|
+| T-042-01 | Implement `GET /api/v1/parent-portal/children/:id/attendance` — query by month | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 2h |
+| T-042-02 | Compute monthly summary stats (present, absent, late, %) | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1h |
+| T-042-03 | Build attendance calendar grid component (color-coded cells) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 3h |
+| T-042-04 | Add month prev/next navigation without page reload | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1h |
+| T-042-05 | Add monthly summary stats row (present/absent/late/%) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1h |
+| T-042-06 | Child switcher dropdown in header | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1h |
+| T-042-07 | Tests: correct data per month, data isolation, no-data state, month navigation | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 2h |
 
 ---
 
@@ -233,54 +217,22 @@ export class AttendanceComponent implements OnInit {
 **Backend API:**
 ```
 GET /api/v1/parent-portal/children/:id/grades
-Response 200: {
-  "data": {
-    "student_id": 5,
-    "student_name": "Alice Johnson",
-    "section": "Grade 5 - A",
-    "exams": [
-      {
-        "exam_id": 1,
-        "exam_name": "Midterm 2026",
-        "term": "Term 1",
-        "conducted_date": "2026-03-15",
-        "subjects": [
-          { "subject": "Mathematics", "marks_obtained": 82, "max_marks": 100, "grade": "A", "pass": true },
-          { "subject": "Science", "marks_obtained": 35, "max_marks": 100, "grade": "F", "pass": false }
-        ],
-        "total_marks": 117,
-        "total_max": 200,
-        "percentage": 58.5,
-        "gpa": 2.8,
-        "overall_grade": "C"
-      }
-    ]
-  }
-}
-
-GET /api/v1/parent-portal/children/:id/report-card/:exam_id → returns PDF
+GET /api/v1/parent-portal/children/:id/report-card/:exam_id  → PDF
 ```
-
-**Frontend Components:**
-- Exam list with `p-accordion` (each exam is an accordion panel)
-- Inside each panel: `p-table` with subject marks
-- Failed subjects (< 40%) highlighted with `bg-red-50` row class
-- Bar chart (`p-chart` type=bar) showing subject-wise performance
-- "Download Report Card" button calls the PDF endpoint
 
 ---
 
 #### Tasks — SMS-043
 
-| # | Task | Layer | Assignee | Est. |
-|---|------|-------|----------|------|
-| T-043-01 | Implement `GET /api/v1/parent-portal/children/:id/grades` | BE | @backend-engineer | 2h |
-| T-043-02 | Add report card PDF download endpoint | BE | @backend-engineer | 2h |
-| T-043-03 | Build grades view with `p-accordion` per exam | FE | @frontend-engineer | 2h |
-| T-043-04 | Add subject-wise bar chart with `p-chart` | FE | @frontend-engineer | 1.5h |
-| T-043-05 | Highlight failed subjects in red | FE | @frontend-engineer | 0.5h |
-| T-043-06 | Wire PDF download button | FE | @frontend-engineer | 0.5h |
-| T-043-07 | Test: multi-exam, fail highlight, PDF download, data isolation | QA | @qa-engineer | 1.5h |
+| # | Task | Agent File | Est. |
+|---|------|-----------|------|
+| T-043-01 | Implement `GET /api/v1/parent-portal/children/:id/grades` | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 2h |
+| T-043-02 | Add report card PDF download endpoint for parent portal | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1h |
+| T-043-03 | Build grades view with `p-accordion` per exam | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 2h |
+| T-043-04 | Add subject-wise bar chart with `p-chart` | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1.5h |
+| T-043-05 | Highlight failed subjects (< 40%) in red | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 0.5h |
+| T-043-06 | Wire PDF download button | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 0.5h |
+| T-043-07 | Tests: multi-exam, fail highlight, PDF download, data isolation | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1.5h |
 
 ---
 
@@ -328,23 +280,18 @@ Response 200: {
 }
 ```
 
-**Frontend:**
-- Total due shown in a red `p-message` banner if > 0
-- Fee records in `p-table` with status badge: green=paid, amber=pending, red=overdue
-- "Download Receipt" button on paid rows
-
 ---
 
 #### Tasks — SMS-044
 
-| # | Task | Layer | Assignee | Est. |
-|---|------|-------|----------|------|
-| T-044-01 | Implement `GET /api/v1/parent-portal/children/:id/fees` | BE | @backend-engineer | 1.5h |
-| T-044-02 | Compute overdue status (compare due_date vs today) | BE | @backend-engineer | 0.5h |
-| T-044-03 | Build fee status table with status badges | FE | @frontend-engineer | 2h |
-| T-044-04 | Add total outstanding banner | FE | @frontend-engineer | 0.5h |
-| T-044-05 | Wire receipt download button | FE | @frontend-engineer | 0.5h |
-| T-044-06 | Test: pending, overdue, paid, receipt download, data isolation | QA | @qa-engineer | 1h |
+| # | Task | Agent File | Est. |
+|---|------|-----------|------|
+| T-044-01 | Implement `GET /api/v1/parent-portal/children/:id/fees` | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1.5h |
+| T-044-02 | Compute overdue status (compare due_date vs today) | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 0.5h |
+| T-044-03 | Build fee status table with status badges (green/amber/red) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 2h |
+| T-044-04 | Add total outstanding banner (`p-message` red if > 0) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 0.5h |
+| T-044-05 | Wire receipt download button on paid rows | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 0.5h |
+| T-044-06 | Tests: pending, overdue, paid, receipt download, data isolation | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1h |
 
 ---
 
@@ -374,30 +321,15 @@ Response 200: {
 GET /api/v1/parent-portal/notices?page=1&per_page=10
 Role Required: parent
 Returns: announcements targeted to 'parent' role OR to child's class_id
-
-Response 200: {
-  "data": {
-    "notices": [
-      { "id": 1, "title": "Parent-Teacher Meeting", "content": "...",
-        "published_at": "2026-06-01", "target": "school-wide", "is_new": true }
-    ],
-    "meta": { "total": 12, "page": 1 }
-  }
-}
 ```
-
-**Frontend:**
-- Simple list with `p-timeline` or `p-card` list
-- "New" badge on unread notices
-- Expand/collapse full notice content
 
 ---
 
 #### Tasks — SMS-045
 
-| # | Task | Layer | Assignee | Est. |
-|---|------|-------|----------|------|
-| T-045-01 | Implement `GET /api/v1/parent-portal/notices` with role + class targeting | BE | @backend-engineer | 1.5h |
-| T-045-02 | Build notice board component with `p-timeline` | FE | @frontend-engineer | 1.5h |
-| T-045-03 | Add unread badge on sidebar menu item | FE | @frontend-engineer | 0.5h |
-| T-045-04 | Test: school-wide, class-targeted, archived, no notices | QA | @qa-engineer | 0.5h |
+| # | Task | Agent File | Est. |
+|---|------|-----------|------|
+| T-045-01 | Implement `GET /api/v1/parent-portal/notices` with role + class targeting | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1.5h |
+| T-045-02 | Build notice board component with `p-timeline` or card list | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1.5h |
+| T-045-03 | Add unread badge on sidebar menu item | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 0.5h |
+| T-045-04 | Tests: school-wide, class-targeted, archived section, no notices | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 0.5h |

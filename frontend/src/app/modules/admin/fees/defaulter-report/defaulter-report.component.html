@@ -1,0 +1,118 @@
+<p-toast />
+
+<div class="card">
+  <!-- Toolbar -->
+  <p-toolbar>
+    <ng-template pTemplate="left">
+      <h2 class="m-0">Fee Defaulter Report</h2>
+    </ng-template>
+    <ng-template pTemplate="right">
+      <div class="flex gap-2">
+        <p-button
+          label="Export CSV"
+          icon="pi pi-download"
+          severity="secondary"
+          (onClick)="exportCsv()"
+        />
+      </div>
+    </ng-template>
+  </p-toolbar>
+
+  <!-- Summary stat bar -->
+  <div class="flex flex-wrap gap-3 my-3">
+    <div class="flex align-items-center gap-2 border-round surface-100 px-4 py-3 flex-1" style="min-width: 180px;">
+      <i class="pi pi-users text-2xl text-primary"></i>
+      <div>
+        <div class="text-color-secondary text-sm">Total Defaulters</div>
+        <div class="text-2xl font-bold text-primary">{{ defaulters().length }}</div>
+      </div>
+    </div>
+    <div class="flex align-items-center gap-2 border-round surface-100 px-4 py-3 flex-1" style="min-width: 180px;">
+      <i class="pi pi-indian-rupee text-2xl text-red-500"></i>
+      <div>
+        <div class="text-color-secondary text-sm">Total Balance Due</div>
+        <div class="text-2xl font-bold text-red-500">{{ totalBalanceDue() | number:'1.2-2' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter row -->
+  <div class="flex flex-wrap align-items-end gap-3 mb-3">
+    <div class="flex flex-column gap-1">
+      <label class="font-semibold text-sm">Filter by Class</label>
+      <p-dropdown
+        [options]="classes()"
+        [(ngModel)]="selectedClassId"
+        optionLabel="name"
+        optionValue="id"
+        placeholder="All Classes"
+        [showClear]="true"
+        [style]="{ 'min-width': '220px' }"
+      />
+    </div>
+    <p-button
+      label="Search"
+      icon="pi pi-search"
+      (onClick)="loadDefaulters()"
+    />
+  </div>
+
+  <!-- Defaulters table -->
+  <p-table
+    [value]="defaulters()"
+    [loading]="loading()"
+    [sortMode]="'single'"
+    [paginator]="true"
+    [rows]="20"
+    [rowsPerPageOptions]="[10, 20, 50]"
+    dataKey="fee_record_id"
+    responsiveLayout="scroll"
+    styleClass="p-datatable-sm"
+  >
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="student_name">Student Name <p-sortIcon field="student_name" /></th>
+        <th pSortableColumn="roll_number">Roll No <p-sortIcon field="roll_number" /></th>
+        <th pSortableColumn="fee_type">Fee Type <p-sortIcon field="fee_type" /></th>
+        <th pSortableColumn="due_date">Due Date <p-sortIcon field="due_date" /></th>
+        <th pSortableColumn="net_amount" class="text-right">Net Amount <p-sortIcon field="net_amount" /></th>
+        <th pSortableColumn="total_paid" class="text-right">Total Paid <p-sortIcon field="total_paid" /></th>
+        <th pSortableColumn="balance_due" class="text-right">Balance Due <p-sortIcon field="balance_due" /></th>
+        <th pSortableColumn="days_overdue">Days Overdue <p-sortIcon field="days_overdue" /></th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-row>
+      <tr>
+        <td class="font-semibold">{{ row.student_name }}</td>
+        <td>{{ row.roll_number }}</td>
+        <td>{{ row.fee_type }}</td>
+        <td>{{ row.due_date }}</td>
+        <td class="text-right">{{ row.net_amount | number:'1.2-2' }}</td>
+        <td class="text-right">{{ row.total_paid | number:'1.2-2' }}</td>
+        <td class="text-right font-semibold">
+          <span [class]="row.balance_due > 0 ? 'text-red-500' : ''">
+            {{ row.balance_due | number:'1.2-2' }}
+          </span>
+        </td>
+        <td>
+          <p-tag
+            [value]="row.days_overdue + ' days'"
+            [severity]="getSeverity(row.days_overdue)"
+          />
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="8" class="text-center py-5 text-color-secondary">
+          <div class="flex flex-column align-items-center gap-2">
+            <i class="pi pi-check-circle text-4xl text-green-400"></i>
+            <span>No defaulters found. All fees are up to date.</span>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>

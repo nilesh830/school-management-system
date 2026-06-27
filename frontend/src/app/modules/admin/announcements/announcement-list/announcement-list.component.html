@@ -1,0 +1,224 @@
+<p-toast />
+
+<div class="card">
+  <!-- Toolbar -->
+  <p-toolbar>
+    <ng-template pTemplate="left">
+      <h2 class="m-0">Announcements</h2>
+    </ng-template>
+    <ng-template pTemplate="right">
+      <p-button
+        label="New Announcement"
+        icon="pi pi-plus"
+        (onClick)="openDialog()"
+      />
+    </ng-template>
+  </p-toolbar>
+
+  <!-- Loading spinner -->
+  @if (loading) {
+    <div class="flex justify-content-center align-items-center py-6">
+      <p-progressSpinner strokeWidth="4" />
+    </div>
+  }
+
+  <!-- Announcements table -->
+  @if (!loading) {
+    <p-table
+      [value]="announcements"
+      [rows]="20"
+      [paginator]="true"
+      [rowsPerPageOptions]="[10, 20, 50]"
+      dataKey="id"
+      responsiveLayout="scroll"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th pSortableColumn="title">Title <p-sortIcon field="title" /></th>
+          <th>Status</th>
+          <th>Target</th>
+          <th pSortableColumn="published_at">Published <p-sortIcon field="published_at" /></th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-a>
+        <tr>
+          <td class="font-medium">{{ a.title }}</td>
+          <td>
+            <p-tag
+              [value]="a.status | titlecase"
+              [severity]="getStatusSeverity(a.status)"
+            />
+          </td>
+          <td>{{ getTargetLabel(a) }}</td>
+          <td>
+            @if (a.published_at) {
+              {{ a.published_at | date:'d MMM y, h:mm a' }}
+            } @else {
+              <span class="text-color-secondary">—</span>
+            }
+          </td>
+          <td class="flex gap-2 align-items-center">
+            <p-button
+              icon="pi pi-pencil"
+              [rounded]="true"
+              [text]="true"
+              severity="secondary"
+              (onClick)="openDialog(a)"
+              pTooltip="Edit"
+            />
+            @if (a.status === 'draft') {
+              <p-button
+                label="Publish"
+                icon="pi pi-send"
+                size="small"
+                severity="success"
+                [loading]="publishingId === a.id"
+                [disabled]="publishingId === a.id"
+                (onClick)="publish(a)"
+                pTooltip="Publish & Notify"
+              />
+            }
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="5" class="text-center py-4 text-color-secondary">
+            No announcements found. Click "New Announcement" to create one.
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  }
+</div>
+
+<!-- Create / Edit Dialog -->
+<p-dialog
+  [header]="isEdit ? 'Edit Announcement' : 'New Announcement'"
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [style]="{ width: '560px' }"
+  [closable]="!saving"
+  (onHide)="closeDialog()"
+>
+  <form [formGroup]="form" class="flex flex-column gap-3 pt-2">
+    <!-- Title -->
+    <div class="flex flex-column gap-1">
+      <label for="annTitle" class="font-semibold">Title <span class="text-red-500">*</span></label>
+      <input
+        id="annTitle"
+        type="text"
+        pInputText
+        formControlName="title"
+        placeholder="e.g. Annual Sports Day"
+        class="w-full"
+      />
+      @if (form.get('title')?.invalid && form.get('title')?.touched) {
+        <small class="text-red-500">Title is required.</small>
+      }
+    </div>
+
+    <!-- Content -->
+    <div class="flex flex-column gap-1">
+      <label for="annContent" class="font-semibold">Content <span class="text-red-500">*</span></label>
+      <textarea
+        id="annContent"
+        pInputTextarea
+        formControlName="content"
+        rows="6"
+        placeholder="Write the announcement details here..."
+        class="w-full"
+      ></textarea>
+      @if (form.get('content')?.invalid && form.get('content')?.touched) {
+        <small class="text-red-500">Content is required.</small>
+      }
+    </div>
+
+    <!-- Target Roles -->
+    <div class="flex flex-column gap-1">
+      <label for="annRoles" class="font-semibold">Target Roles</label>
+      <p-multiSelect
+        inputId="annRoles"
+        formControlName="target_roles"
+        [options]="roleOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="School-wide (all roles)"
+        styleClass="w-full"
+        [showClear]="true"
+      />
+      <small class="text-color-secondary">Leave empty for a school-wide announcement (all roles).</small>
+    </div>
+
+    <!-- Target Classes -->
+    <div class="flex flex-column gap-1">
+      <label for="annClasses" class="font-semibold">Target Classes</label>
+      <p-multiSelect
+        inputId="annClasses"
+        formControlName="target_class_ids"
+        [options]="classOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="All classes"
+        styleClass="w-full"
+        [showClear]="true"
+        [filter]="true"
+      />
+      <small class="text-color-secondary">Leave empty to target all classes.</small>
+    </div>
+
+    <!-- Expires At (optional) -->
+    <div class="flex flex-column gap-1">
+      <label for="annExpires" class="font-semibold">Expires At</label>
+      <p-calendar
+        inputId="annExpires"
+        formControlName="expires_at"
+        dateFormat="yy-mm-dd"
+        [showIcon]="true"
+        [showTime]="true"
+        hourFormat="24"
+        placeholder="Optional"
+        styleClass="w-full"
+        inputStyleClass="w-full"
+      />
+    </div>
+
+    <!-- Status (edit only) -->
+    @if (isEdit) {
+      <div class="flex flex-column gap-1">
+        <label for="annStatus" class="font-semibold">Status</label>
+        <p-dropdown
+          inputId="annStatus"
+          formControlName="status"
+          [options]="statusOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Keep current status"
+          styleClass="w-full"
+        />
+      </div>
+    }
+  </form>
+
+  <ng-template pTemplate="footer">
+    <p-button
+      label="Cancel"
+      icon="pi pi-times"
+      severity="secondary"
+      [text]="true"
+      [disabled]="saving"
+      (onClick)="closeDialog()"
+    />
+    <p-button
+      [label]="saving ? 'Saving...' : 'Save'"
+      icon="pi pi-check"
+      [loading]="saving"
+      [disabled]="form.invalid || saving"
+      (onClick)="save()"
+    />
+  </ng-template>
+</p-dialog>

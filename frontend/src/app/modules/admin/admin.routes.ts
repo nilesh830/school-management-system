@@ -15,6 +15,11 @@ export const ADMIN_ROUTES: Routes = [
         path: 'users/new',
         loadComponent: () => import('./users/create-user/create-user.component').then(m => m.CreateUserComponent)
       },
+      // ── Academic Years (SMS-023) ─────────────────────────────────────────────
+      {
+        path: 'academic-years',
+        loadComponent: () => import('./academic-years/academic-year-list.component').then(m => m.AcademicYearListComponent)
+      },
       // ── Students ───────────────────────────────────────────────────────────
       {
         path: 'students',
@@ -63,6 +68,113 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'timetable',
         loadComponent: () => import('./timetable/timetable-view/timetable-view.component').then(m => m.TimetableViewComponent)
+      },
+      // ── Attendance (SMS-024 / SMS-025) ────────────────────────────────────────
+      {
+        path: 'attendance',
+        redirectTo: 'attendance/mark',
+        pathMatch: 'full'
+      },
+      {
+        path: 'attendance/mark',
+        loadComponent: () => import('./attendance/attendance-mark/attendance-mark.component')
+          .then(m => m.AttendanceMarkComponent)
+      },
+      {
+        path: 'attendance/view',
+        loadComponent: () => import('./attendance/attendance-calendar/attendance-calendar.component')
+          .then(m => m.AttendanceCalendarComponent)
+      },
+      {
+        path: 'attendance/report',
+        loadComponent: () => import('./attendance/attendance-report/attendance-report.component')
+          .then(m => m.AttendanceReportComponent)
+      },
+      // ── Exams (SMS-029 / SMS-030) ─────────────────────────────────────────────
+      {
+        path: 'exams',
+        loadComponent: () => import('./exams/exam-list/exam-list.component')
+          .then(m => m.ExamListComponent)
+      },
+      {
+        path: 'exams/:examId/marks',
+        loadComponent: () => import('./exams/marks-entry/marks-entry.component')
+          .then(m => m.MarksEntryComponent)
+      },
+      {
+        path: 'exams/:examId/results',
+        loadComponent: () => import('./exams/class-results/class-results.component')
+          .then(m => m.ClassResultsComponent)
+      },
+      // ── Fees (SMS-035 / SMS-037) ──────────────────────────────────────────────
+      {
+        path: 'fees',
+        loadComponent: () => import('./fees/fee-structure-list/fee-structure-list.component')
+          .then(m => m.FeeStructureListComponent)
+      },
+      {
+        path: 'fees/payment',
+        loadComponent: () => import('./fees/fee-payment/fee-payment.component')
+          .then(m => m.FeePaymentComponent)
+      },
+      {
+        path: 'fees/ledger',
+        loadComponent: () => import('./fees/fee-ledger/fee-ledger.component')
+          .then(m => m.FeeLedgerComponent)
+      },
+      {
+        path: 'fees/defaulters',
+        loadComponent: () => import('./fees/defaulter-report/defaulter-report.component')
+          .then(m => m.DefaulterReportComponent)
+      },
+      // ── Announcements (SMS-051 / SMS-052) ─────────────────────────────────────
+      {
+        path: 'announcements',
+        loadComponent: () => import('./announcements/announcement-list/announcement-list.component')
+          .then(m => m.AnnouncementListComponent)
+      },
+      // ── Library (SMS-053 / SMS-054 / SMS-055) ─────────────────────────────────
+      {
+        path: 'library',
+        loadComponent: () => import('./library/book-catalog/book-catalog.component')
+          .then(m => m.BookCatalogComponent)
+      },
+      {
+        path: 'library/issues',
+        loadComponent: () => import('./library/book-issues/book-issues.component')
+          .then(m => m.BookIssuesComponent)
+      },
+      // ── Reports & Analytics (SMS-056 / SMS-057 / SMS-058 / SMS-059 / SMS-060) ─
+      {
+        path: 'reports',
+        redirectTo: 'reports/attendance',
+        pathMatch: 'full'
+      },
+      {
+        path: 'reports/attendance',
+        loadComponent: () => import('./reports/attendance-report/attendance-report.component')
+          .then(m => m.ReportAttendanceComponent)
+      },
+      {
+        path: 'reports/grades',
+        loadComponent: () => import('./reports/grades-report/grades-report.component')
+          .then(m => m.ReportGradesComponent)
+      },
+      {
+        path: 'reports/fees',
+        loadComponent: () => import('./reports/fees-report/fees-report.component')
+          .then(m => m.ReportFeesComponent)
+      },
+      // ── Transport (SMS-061 / SMS-062) ─────────────────────────────────────────
+      {
+        path: 'transport',
+        loadComponent: () => import('./transport/transport-management/transport-management.component')
+          .then(m => m.TransportManagementComponent)
+      },
+      // ── Leave Requests (SMS-046/SMS-047) ──────────────────────────────────────
+      {
+        path: 'leave-requests',
+        loadComponent: () => import('./leave-review/leave-review.component').then(m => m.LeaveReviewComponent)
       },
       // ── Profile ────────────────────────────────────────────────────────────
       {

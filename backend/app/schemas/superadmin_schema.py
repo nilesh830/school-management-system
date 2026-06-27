@@ -2,7 +2,7 @@ import re
 
 from marshmallow import Schema, ValidationError, fields, validate, validates
 
-_SLUG_RE = re.compile(r'^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$')
+_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$")
 
 
 class SchoolCreateSchema(Schema):
@@ -17,18 +17,15 @@ class SchoolCreateSchema(Schema):
     phone = fields.Str(load_default=None, validate=validate.Length(max=20))
     email = fields.Email(load_default=None)
     logo_url = fields.Str(load_default=None, validate=validate.Length(max=500))
-    academic_year_start_month = fields.Int(
-        load_default=6, validate=validate.Range(min=1, max=12)
-    )
-    admin_first_name = fields.Str(load_default='School', validate=validate.Length(max=100))
-    admin_last_name = fields.Str(load_default='Admin', validate=validate.Length(max=100))
+    academic_year_start_month = fields.Int(load_default=6, validate=validate.Range(min=1, max=12))
+    admin_first_name = fields.Str(load_default="School", validate=validate.Length(max=100))
+    admin_last_name = fields.Str(load_default="Admin", validate=validate.Length(max=100))
 
-    @validates('slug')
+    @validates("slug")
     def validate_slug(self, value):
         if not _SLUG_RE.match(value):
             raise ValidationError(
-                'Slug must be lowercase alphanumeric with hyphens, 3-50 chars, '
-                'no leading/trailing hyphens.'
+                "Slug must be lowercase alphanumeric with hyphens, 3-50 chars, " "no leading/trailing hyphens."
             )
 
 

@@ -1,0 +1,160 @@
+<p-toast />
+
+<div class="mb-4">
+  <h2 class="text-2xl font-bold text-900 m-0">Attendance Report</h2>
+  <p class="text-600 mt-1 mb-0">Generate attendance summaries for a section over a date range.</p>
+</div>
+
+<!-- Filter Bar -->
+<p-card styleClass="mb-4">
+  <form [formGroup]="filterForm" (ngSubmit)="runReport()">
+    <div class="grid align-items-end">
+
+      <div class="col-12 md:col-4">
+        <label class="block text-600 text-sm mb-1" for="sectionId">Section</label>
+        <p-dropdown
+          inputId="sectionId"
+          formControlName="sectionId"
+          [options]="sectionOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Select section"
+          [showClear]="true"
+          styleClass="w-full"
+          [loading]="sectionsLoading"
+        />
+        @if (filterForm.get('sectionId')?.invalid && filterForm.get('sectionId')?.touched) {
+          <small class="text-red-500">Section is required.</small>
+        }
+      </div>
+
+      <div class="col-12 md:col-3">
+        <label class="block text-600 text-sm mb-1" for="fromDate">From Date</label>
+        <p-calendar
+          inputId="fromDate"
+          formControlName="fromDate"
+          dateFormat="yy-mm-dd"
+          [showIcon]="true"
+          styleClass="w-full"
+          placeholder="YYYY-MM-DD"
+        />
+        @if (filterForm.get('fromDate')?.invalid && filterForm.get('fromDate')?.touched) {
+          <small class="text-red-500">From date is required.</small>
+        }
+      </div>
+
+      <div class="col-12 md:col-3">
+        <label class="block text-600 text-sm mb-1" for="toDate">To Date</label>
+        <p-calendar
+          inputId="toDate"
+          formControlName="toDate"
+          dateFormat="yy-mm-dd"
+          [showIcon]="true"
+          styleClass="w-full"
+          placeholder="YYYY-MM-DD"
+        />
+        @if (filterForm.get('toDate')?.invalid && filterForm.get('toDate')?.touched) {
+          <small class="text-red-500">To date is required.</small>
+        }
+      </div>
+
+      <div class="col-12 md:col-2">
+        <p-button
+          type="submit"
+          label="Run Report"
+          icon="pi pi-chart-bar"
+          styleClass="w-full"
+          [loading]="loading"
+          [disabled]="loading"
+        />
+      </div>
+
+    </div>
+  </form>
+</p-card>
+
+<!-- Loading Spinner -->
+@if (loading) {
+  <div class="flex justify-content-center align-items-center py-6">
+    <p-progressSpinner strokeWidth="4" styleClass="w-4rem h-4rem" />
+  </div>
+}
+
+<!-- Results -->
+@if (!loading && hasRun) {
+
+  @if (reportData && reportData.total_records === 0) {
+    <p-message severity="info" text="No records for selected range." styleClass="mb-4 w-full" />
+  }
+
+  @if (reportData && reportData.total_records > 0) {
+
+    <p-card>
+      <p-toolbar styleClass="mb-3">
+        <ng-template pTemplate="left">
+          <span class="text-lg font-semibold text-900">Results</span>
+          <span class="ml-3 text-500 text-sm">{{ reportRows.length }} student(s)</span>
+        </ng-template>
+        <ng-template pTemplate="right">
+          <p-button
+            label="Export CSV"
+            icon="pi pi-download"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="exportCsv()"
+            [disabled]="!reportRows.length"
+          />
+        </ng-template>
+      </p-toolbar>
+
+      <p-table
+        [value]="reportRows"
+        responsiveLayout="scroll"
+        styleClass="p-datatable-sm"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Student ID</th>
+            <th class="text-center">Present</th>
+            <th class="text-center">Absent</th>
+            <th class="text-center">Late</th>
+            <th class="text-center">Leave</th>
+            <th class="text-center">Holiday</th>
+            <th class="text-center">Attendance %</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-row>
+          <tr>
+            <td>{{ row.student_id }}</td>
+            <td class="text-center text-green-600">{{ row.present }}</td>
+            <td class="text-center text-red-500">{{ row.absent }}</td>
+            <td class="text-center text-orange-500">{{ row.late }}</td>
+            <td class="text-center text-blue-500">{{ row.leave }}</td>
+            <td class="text-center text-500">{{ row.holiday }}</td>
+            <td class="text-center">
+              <span [ngClass]="getPercentageClass(row.percentage)">
+                {{ row.percentage | number:'1.1-1' }}%
+              </span>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="footer">
+          <tr class="bg-blue-50">
+            <td class="font-bold text-900">School-wide Total</td>
+            <td class="text-center font-bold text-green-700">{{ totalPresent }}</td>
+            <td class="text-center font-bold text-red-600">{{ totalAbsent }}</td>
+            <td class="text-center font-bold text-500" colspan="3">—</td>
+            <td class="text-center font-bold" [ngClass]="getPercentageClass(averagePercentage)">
+              Avg: {{ averagePercentage | number:'1.1-1' }}%
+            </td>
+          </tr>
+        </ng-template>
+
+      </p-table>
+    </p-card>
+
+  }
+
+}

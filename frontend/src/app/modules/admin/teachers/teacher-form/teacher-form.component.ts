@@ -14,7 +14,7 @@ import { ToastModule } from 'primeng/toast';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import { DividerModule } from 'primeng/divider';
 
-import { TeacherService, Teacher } from '../../../../core/services/teacher.service';
+import { TeacherService } from '../../../../core/services/teacher.service';
 
 @Component({
   selector: 'app-teacher-form',

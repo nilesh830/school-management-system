@@ -535,6 +535,86 @@
 
       </p-tabPanel>
 
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB 5 — Report Cards                                              -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <p-tabPanel header="Report Cards" leftIcon="pi pi-file-pdf">
+
+        <div class="mt-2">
+
+          <!-- Load button (shown when no exams fetched yet and not loading) -->
+          <div class="mb-3" *ngIf="exams.length === 0 && !loadingExams">
+            <p-button
+              label="Load Exams"
+              icon="pi pi-refresh"
+              severity="secondary"
+              (onClick)="loadExams()"
+            />
+            <small class="text-500 text-xs ml-3">Click to fetch exams for this student's section.</small>
+          </div>
+
+          <!-- Spinner -->
+          <div class="flex justify-content-center py-4" *ngIf="loadingExams">
+            <p-progressSpinner strokeWidth="4" styleClass="w-4rem h-4rem" />
+          </div>
+
+          <!-- Exams table -->
+          <p-table
+            *ngIf="!loadingExams && exams.length > 0"
+            [value]="exams"
+            dataKey="id"
+            responsiveLayout="scroll"
+            styleClass="p-datatable-sm"
+            [rowHover]="true"
+            [tableStyle]="{'min-width': '50rem'}"
+          >
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Exam Name</th>
+                <th>Term</th>
+                <th>Type</th>
+                <th>Date</th>
+                <th style="width: 160px">Action</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-exam>
+              <tr>
+                <td class="font-medium">{{ exam.name }}</td>
+                <td>{{ exam.term }}</td>
+                <td>{{ exam.exam_type }}</td>
+                <td>{{ exam.conducted_date || '—' }}</td>
+                <td>
+                  <p-button
+                    label="Download PDF"
+                    icon="pi pi-download"
+                    size="small"
+                    [loading]="downloadingExamId === exam.id"
+                    (onClick)="downloadReportCard(exam.id)"
+                  />
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td colspan="5" class="text-center text-600 py-4">
+                  No exams found for this student's section.
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+
+          <!-- Empty state after load -->
+          <p-message
+            *ngIf="!loadingExams && exams.length === 0"
+            severity="info"
+            text="No exams available for this student's section, or the student is not assigned to a section."
+            styleClass="w-full"
+          />
+
+        </div>
+
+      </p-tabPanel>
+
     </p-tabView>
   </p-card>
 

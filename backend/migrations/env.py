@@ -83,20 +83,17 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
-    override_url = config.attributes.get('target_db_url')
-    if override_url:
-        from sqlalchemy import create_engine as _create_engine
-        connectable = _create_engine(
-            override_url, connect_args={'check_same_thread': False}
+    # Schema-per-school upgrades pass a live connection (search_path already set
+    # to the target school schema) via cfg.attributes['connection'].
+    override_conn = config.attributes.get('connection')
+    if override_conn is not None:
+        context.configure(
+            connection=override_conn,
+            target_metadata=get_metadata(),
+            version_table_schema=config.attributes.get('version_table_schema'),
         )
-        with connectable.connect() as connection:
-            context.configure(
-                connection=connection,
-                target_metadata=get_metadata(),
-            )
-            with context.begin_transaction():
-                context.run_migrations()
-        connectable.dispose()
+        with context.begin_transaction():
+            context.run_migrations()
         return
 
     # Original Flask-Migrate path (unchanged)

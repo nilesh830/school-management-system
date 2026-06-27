@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Fee Collection Report</title>
+<style>
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    color: #000000;
+    margin: 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 18pt;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  h2 {
+    text-align: center;
+    font-size: 13pt;
+    font-weight: bold;
+    margin-top: 2px;
+    margin-bottom: 16px;
+  }
+  .divider {
+    border-top: 2px solid #000000;
+    margin: 8px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  th {
+    background-color: #333333;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: left;
+    padding: 6px 8px;
+    border: 1px solid #000000;
+  }
+  td {
+    padding: 5px 8px;
+    border: 1px solid #555555;
+  }
+  .info-label {
+    font-weight: bold;
+    width: 30%;
+    background-color: #eeeeee;
+  }
+  .info-value {
+    width: 20%;
+  }
+  .summary-row td {
+    font-weight: bold;
+    background-color: #dddddd;
+  }
+  .section-title {
+    font-size: 12pt;
+    font-weight: bold;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #000000;
+    padding-bottom: 2px;
+  }
+  .generated {
+    font-size: 9pt;
+    color: #666666;
+    text-align: right;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<h1>School Management System</h1>
+<h2>Fee Collection Report</h2>
+<div class="divider"></div>
+
+<div class="section-title">Report Parameters</div>
+<table>
+  <tr>
+    <td class="info-label">Class ID</td>
+    <td class="info-value">{% if report.class_id is not none %}{{ report.class_id }}{% else %}All{% endif %}</td>
+    <td class="info-label">Academic Year ID</td>
+    <td class="info-value">{% if report.academic_year_id is not none %}{{ report.academic_year_id }}{% else %}All{% endif %}</td>
+  </tr>
+</table>
+
+<div class="section-title">Collection by Fee Type</div>
+<table>
+  <thead>
+    <tr>
+      <th>Fee Type</th>
+      <th>Amount</th>
+      <th>Collected</th>
+      <th>Pending</th>
+      <th>Records</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if report.by_fee_type %}
+      {% for ft in report.by_fee_type %}
+      <tr>
+        <td>{{ ft.fee_type }}</td>
+        <td>{{ ft.amount }}</td>
+        <td>{{ ft.collected }}</td>
+        <td>{{ ft.pending }}</td>
+        <td>{{ ft.record_count }}</td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="5" style="text-align: center; font-style: italic;">No fee structures in scope.</td>
+      </tr>
+    {% endif %}
+    <tr class="summary-row">
+      <td>TOTALS</td>
+      <td></td>
+      <td>{{ report.totals.collected }}</td>
+      <td>{{ report.totals.pending }}</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="section-title">Defaulters ({{ report.defaulters_count }})</div>
+<table>
+  <thead>
+    <tr>
+      <th>Student</th>
+      <th>Fee Type</th>
+      <th>Due Date</th>
+      <th>Balance Due</th>
+      <th>Days Overdue</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if report.defaulters %}
+      {% for d in report.defaulters %}
+      <tr>
+        <td>{{ d.student_name }}</td>
+        <td>{{ d.fee_type }}</td>
+        <td>{{ d.due_date }}</td>
+        <td>{{ d.balance_due }}</td>
+        <td>{{ d.days_overdue }}</td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="5" style="text-align: center; font-style: italic;">No defaulters.</td>
+      </tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<p class="generated">Generated on: {{ generated_date }}</p>
+
+</body>
+</html>

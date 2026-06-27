@@ -3,8 +3,8 @@ from app import db
 
 
 class School(db.Model):
-    __bind_key__ = 'master'
-    __tablename__ = 'schools'
+    __bind_key__ = "master"
+    __tablename__ = "schools"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
@@ -26,18 +26,18 @@ class School(db.Model):
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'name': self.name,
-            'slug': self.slug,
-            'address': self.address,
-            'phone': self.phone,
-            'email': self.email,
-            'logo_url': self.logo_url,
-            'is_active': self.is_active,
-            'academic_year_start_month': self.academic_year_start_month,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            "id": self.id,
+            "name": self.name,
+            "slug": self.slug,
+            "address": self.address,
+            "phone": self.phone,
+            "email": self.email,
+            "logo_url": self.logo_url,
+            "is_active": self.is_active,
+            "academic_year_start_month": self.academic_year_start_month,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
     def __repr__(self):
-        return f'<School {self.slug}: {self.name}>'
+        return f"<School {self.slug}: {self.name}>"

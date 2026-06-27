@@ -1,0 +1,335 @@
+<p-toast />
+
+<div class="card">
+  <!-- Toolbar with navigation -->
+  <p-toolbar styleClass="mb-3">
+    <ng-template pTemplate="left">
+      <h2 class="m-0">Fee Ledger</h2>
+    </ng-template>
+    <ng-template pTemplate="right">
+      <div class="flex gap-2">
+        <p-button
+          label="Fee Structures"
+          icon="pi pi-list"
+          severity="secondary"
+          [text]="true"
+          (onClick)="navigateTo('/admin/fees')"
+        />
+        <p-button
+          label="Record Payment"
+          icon="pi pi-credit-card"
+          (onClick)="navigateTo('/admin/fees/payment')"
+        />
+      </div>
+    </ng-template>
+  </p-toolbar>
+
+  <!-- Student Search -->
+  <div class="mb-4">
+    <label class="font-semibold block mb-2">
+      <i class="pi pi-search mr-1"></i> Search Student
+    </label>
+    <div class="p-inputgroup" style="max-width: 480px; position: relative;">
+      <span class="p-inputgroup-addon"><i class="pi pi-user"></i></span>
+      <input
+        type="text"
+        pInputText
+        [value]="searchQuery"
+        (input)="onSearchInput($event)"
+        placeholder="Type admission no. or student name (min. 2 chars)..."
+        class="w-full"
+        autocomplete="off"
+      />
+      @if (searching) {
+        <span class="p-inputgroup-addon">
+          <i class="pi pi-spin pi-spinner"></i>
+        </span>
+      }
+    </div>
+
+    <!-- Search Results Dropdown -->
+    @if (searchResults.length > 0) {
+      <div class="surface-overlay border-1 surface-border border-round shadow-2 mt-1"
+           style="max-width: 480px; max-height: 260px; overflow-y: auto; z-index: 1000; position: relative;">
+        @for (student of searchResults; track student.id) {
+          <div
+            class="flex align-items-center gap-2 px-3 py-2 cursor-pointer hover:surface-hover"
+            (click)="selectStudent(student)"
+          >
+            <i class="pi pi-user text-color-secondary"></i>
+            <div>
+              <div class="font-semibold">{{ student.first_name }} {{ student.last_name }}</div>
+              <div class="text-sm text-color-secondary">{{ student.admission_no }}
+                @if (student.class_name) {
+                  &nbsp;&bull;&nbsp;{{ student.class_name }}
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Selected student info strip -->
+  @if (selectedStudent) {
+    <div class="surface-100 border-round px-3 py-2 mb-3 flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="flex align-items-center gap-3">
+        <i class="pi pi-user-edit text-primary text-xl"></i>
+        <div>
+          <span class="font-semibold">{{ selectedStudent.first_name }} {{ selectedStudent.last_name }}</span>
+          <span class="text-color-secondary ml-2">{{ selectedStudent.admission_no }}</span>
+          @if (selectedStudent.class_name) {
+            <span class="ml-2 text-color-secondary">&bull; {{ selectedStudent.class_name }}</span>
+          }
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <p-button
+          label="Expand All"
+          icon="pi pi-chevron-down"
+          size="small"
+          severity="secondary"
+          [text]="true"
+          (onClick)="expandAll()"
+        />
+        <p-button
+          label="Collapse All"
+          icon="pi pi-chevron-up"
+          size="small"
+          severity="secondary"
+          [text]="true"
+          (onClick)="collapseAll()"
+        />
+        <p-button
+          label="Record Payment"
+          icon="pi pi-credit-card"
+          size="small"
+          (onClick)="navigateToPayment(selectedStudent.id)"
+        />
+      </div>
+    </div>
+  }
+
+  <!-- Fee Records Table with Row Expansion -->
+  @if (loadingRecords) {
+    <div class="flex justify-content-center align-items-center py-6">
+      <p-progressSpinner strokeWidth="4" />
+    </div>
+  }
+
+  @if (!loadingRecords && selectedStudent) {
+    <p-table
+      [value]="feeRecords"
+      dataKey="id"
+      [expandedRowKeys]="expandedRows"
+      (onRowExpand)="expandedRows[$event.data.id] = true"
+      (onRowCollapse)="collapseRow($event.data.id)"
+      responsiveLayout="scroll"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 3rem"></th>
+          <th>Fee Type</th>
+          <th class="text-right">Net Amount</th>
+          <th class="text-right">Total Paid</th>
+          <th class="text-right">Balance Due</th>
+          <th>Due Date</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-record let-expanded="expanded">
+        <tr>
+          <td>
+            <p-button
+              [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+              [pRowToggler]="record"
+              [rounded]="true"
+              [text]="true"
+              size="small"
+              severity="secondary"
+              [pTooltip]="expanded ? 'Collapse' : 'View payments'"
+            />
+          </td>
+          <td>
+            <span class="font-semibold">Fee #{{ record.fee_structure_id }}</span>
+            @if (record.payments.length > 0) {
+              <span class="text-sm text-color-secondary ml-2">({{ record.payments.length }} payment{{ record.payments.length > 1 ? 's' : '' }})</span>
+            }
+          </td>
+          <td class="text-right font-semibold">{{ record.net_amount | number:'1.2-2' }}</td>
+          <td class="text-right text-green-600">{{ getTotalPaid(record) | number:'1.2-2' }}</td>
+          <td class="text-right font-bold"
+              [class.text-red-600]="getBalanceDue(record) > 0"
+              [class.text-green-600]="getBalanceDue(record) === 0">
+            {{ getBalanceDue(record) | number:'1.2-2' }}
+          </td>
+          <td>
+            @if (record.due_date) {
+              {{ record.due_date }}
+            } @else {
+              <span class="text-color-secondary">—</span>
+            }
+          </td>
+          <td>
+            <p-tag
+              [value]="record.status | titlecase"
+              [severity]="getStatusSeverity(record.status)"
+            />
+          </td>
+          <td>
+            <p-button
+              label="Pay"
+              icon="pi pi-credit-card"
+              size="small"
+              [disabled]="isPayDisabled(record)"
+              (onClick)="navigateTo('/admin/fees/payment')"
+              pTooltip="{{ record.status === 'paid' ? 'Already paid' : record.status === 'waived' ? 'Waived' : 'Record payment' }}"
+            />
+          </td>
+        </tr>
+      </ng-template>
+
+      <!-- Expanded row: payment history + discounts -->
+      <ng-template pTemplate="rowexpansion" let-record>
+        <tr>
+          <td colspan="9" class="surface-50">
+            <div class="px-3 py-2">
+              <!-- Payments section -->
+              <p class="font-semibold text-sm text-color-secondary mb-2 mt-1">
+                <i class="pi pi-credit-card mr-1"></i> Payments
+              </p>
+              @if (record.payments.length === 0) {
+                <p class="text-color-secondary m-0 py-2 pl-2">
+                  <i class="pi pi-info-circle mr-1"></i>
+                  No payments recorded for this fee record.
+                </p>
+              } @else {
+                <p-table
+                  [value]="record.payments"
+                  styleClass="p-datatable-sm p-datatable-striped"
+                  responsiveLayout="scroll"
+                >
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th>Date</th>
+                      <th class="text-right">Amount</th>
+                      <th>Method</th>
+                      <th>Receipt No.</th>
+                      <th>Reference</th>
+                      <th>Remarks</th>
+                      <th>Receipt</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-payment>
+                    <tr>
+                      <td>{{ payment.payment_date }}</td>
+                      <td class="text-right font-semibold text-green-700">₹{{ payment.amount_paid | number:'1.2-2' }}</td>
+                      <td>{{ getMethodLabel(payment.payment_method) }}</td>
+                      <td>
+                        <span class="font-mono text-sm">{{ payment.receipt_no }}</span>
+                      </td>
+                      <td>
+                        @if (payment.transaction_reference) {
+                          <span class="font-mono text-sm">{{ payment.transaction_reference }}</span>
+                        } @else {
+                          <span class="text-color-secondary">—</span>
+                        }
+                      </td>
+                      <td>
+                        @if (payment.remarks) {
+                          {{ payment.remarks }}
+                        } @else {
+                          <span class="text-color-secondary">—</span>
+                        }
+                      </td>
+                      <td>
+                        <p-button
+                          icon="pi pi-download"
+                          size="small"
+                          severity="secondary"
+                          [text]="true"
+                          pTooltip="Download PDF Receipt"
+                          (onClick)="downloadReceipt(payment.id)"
+                        />
+                      </td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+              }
+
+              <!-- Discounts section -->
+              <p class="font-semibold text-sm text-color-secondary mb-2 mt-4">
+                <i class="pi pi-tag mr-1"></i> Discounts
+                @if (getTotalDiscount(record) > 0) {
+                  <span class="text-green-600 ml-2">— Total: ₹{{ getTotalDiscount(record) | number:'1.2-2' }}</span>
+                }
+              </p>
+              @if (!record.discounts || record.discounts.length === 0) {
+                <p class="text-color-secondary m-0 py-2 pl-2">
+                  <i class="pi pi-info-circle mr-1"></i>
+                  No discounts applied.
+                </p>
+              } @else {
+                <p-table
+                  [value]="record.discounts"
+                  styleClass="p-datatable-sm p-datatable-striped"
+                  responsiveLayout="scroll"
+                >
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th>Type</th>
+                      <th class="text-right">Amount</th>
+                      <th>Reason</th>
+                      <th>Applied At</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-discount>
+                    <tr>
+                      <td>
+                        <p-tag
+                          [value]="getDiscountTypeLabel(discount.discount_type)"
+                          severity="success"
+                        />
+                      </td>
+                      <td class="text-right font-semibold text-green-700">₹{{ discount.amount | number:'1.2-2' }}</td>
+                      <td>
+                        @if (discount.reason) {
+                          {{ discount.reason }}
+                        } @else {
+                          <span class="text-color-secondary">—</span>
+                        }
+                      </td>
+                      <td class="text-sm text-color-secondary">
+                        {{ discount.created_at | date:'dd MMM yyyy, HH:mm' }}
+                      </td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+              }
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="9" class="text-center py-5 text-color-secondary">
+            <i class="pi pi-inbox text-3xl block mb-2"></i>
+            No fee records found for this student.
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  }
+
+  @if (!loadingRecords && !selectedStudent) {
+    <div class="text-center py-6 text-color-secondary">
+      <i class="pi pi-book text-4xl block mb-3"></i>
+      <p class="text-lg m-0">Search for a student above to view their fee ledger.</p>
+    </div>
+  }
+</div>

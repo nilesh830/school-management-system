@@ -1,0 +1,259 @@
+<p-toast />
+
+<div class="card">
+  <!-- Toolbar -->
+  <p-toolbar>
+    <ng-template pTemplate="left">
+      <h2 class="m-0">Fee Structures</h2>
+    </ng-template>
+    <ng-template pTemplate="right">
+      <div class="flex gap-2">
+        <p-button
+          label="Record Payment"
+          icon="pi pi-credit-card"
+          severity="secondary"
+          [text]="true"
+          (onClick)="navigateTo('/admin/fees/payment')"
+        />
+        <p-button
+          label="Fee Ledger"
+          icon="pi pi-book"
+          severity="secondary"
+          [text]="true"
+          (onClick)="navigateTo('/admin/fees/ledger')"
+        />
+        <p-button
+          label="Defaulters"
+          icon="pi pi-exclamation-triangle"
+          severity="secondary"
+          [text]="true"
+          (onClick)="navigateTo('/admin/fees/defaulters')"
+        />
+        <p-button
+          label="New Fee Structure"
+          icon="pi pi-plus"
+          (onClick)="openDialog()"
+        />
+      </div>
+    </ng-template>
+  </p-toolbar>
+
+  <!-- Loading spinner -->
+  @if (loading) {
+    <div class="flex justify-content-center align-items-center py-6">
+      <p-progressSpinner strokeWidth="4" />
+    </div>
+  }
+
+  <!-- Fee structures table -->
+  @if (!loading) {
+    <p-table
+      [value]="feeStructures"
+      [rows]="20"
+      [paginator]="true"
+      [rowsPerPageOptions]="[10, 20, 50]"
+      dataKey="id"
+      responsiveLayout="scroll"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th pSortableColumn="fee_type">Fee Type <p-sortIcon field="fee_type" /></th>
+          <th pSortableColumn="class_id">Class ID <p-sortIcon field="class_id" /></th>
+          <th pSortableColumn="academic_year_id">Academic Year ID <p-sortIcon field="academic_year_id" /></th>
+          <th pSortableColumn="amount">Amount <p-sortIcon field="amount" /></th>
+          <th pSortableColumn="frequency">Frequency <p-sortIcon field="frequency" /></th>
+          <th>Recurring</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-fs>
+        <tr>
+          <td>{{ fs.fee_type }}</td>
+          <td>{{ fs.class_id }}</td>
+          <td>{{ fs.academic_year_id }}</td>
+          <td>{{ fs.amount | number:'1.2-2' }}</td>
+          <td>{{ getFrequencyLabel(fs.frequency) }}</td>
+          <td>
+            <p-tag
+              [value]="fs.is_recurring ? 'Yes' : 'No'"
+              [severity]="fs.is_recurring ? 'info' : 'secondary'"
+            />
+          </td>
+          <td>
+            <p-tag
+              [value]="fs.is_active ? 'Active' : 'Inactive'"
+              [severity]="getStatusSeverity(fs.is_active)"
+            />
+          </td>
+          <td class="flex gap-2 align-items-center">
+            <p-button
+              icon="pi pi-pencil"
+              [rounded]="true"
+              [text]="true"
+              severity="secondary"
+              (onClick)="openDialog(fs)"
+              pTooltip="Edit"
+            />
+            <p-button
+              icon="pi pi-trash"
+              [rounded]="true"
+              [text]="true"
+              severity="danger"
+              (onClick)="deleteFeeStructure(fs)"
+              pTooltip="Delete"
+            />
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="8" class="text-center py-4 text-color-secondary">
+            No fee structures found. Click "New Fee Structure" to create one.
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  }
+</div>
+
+<!-- Create / Edit Dialog -->
+<p-dialog
+  [header]="isEdit ? 'Edit Fee Structure' : 'New Fee Structure'"
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [style]="{ width: '480px' }"
+  [closable]="true"
+  (onHide)="closeDialog()"
+>
+  <form [formGroup]="form" class="flex flex-column gap-3 pt-2">
+    <!-- Fee Type -->
+    <div class="flex flex-column gap-1">
+      <label for="feeType" class="font-semibold">Fee Type <span class="text-red-500">*</span></label>
+      <input
+        id="feeType"
+        type="text"
+        pInputText
+        formControlName="fee_type"
+        placeholder="e.g. Tuition Fee"
+        class="w-full"
+      />
+      @if (form.get('fee_type')?.invalid && form.get('fee_type')?.touched) {
+        <small class="text-red-500">Fee type is required.</small>
+      }
+    </div>
+
+    <!-- Class ID -->
+    <div class="flex flex-column gap-1">
+      <label for="classId" class="font-semibold">Class ID <span class="text-red-500">*</span></label>
+      <p-inputNumber
+        inputId="classId"
+        formControlName="class_id"
+        [min]="1"
+        [useGrouping]="false"
+        placeholder="e.g. 3"
+        styleClass="w-full"
+        inputStyleClass="w-full"
+      />
+      @if (form.get('class_id')?.invalid && form.get('class_id')?.touched) {
+        <small class="text-red-500">Class ID is required.</small>
+      }
+    </div>
+
+    <!-- Academic Year ID -->
+    <div class="flex flex-column gap-1">
+      <label for="academicYearId" class="font-semibold">Academic Year ID <span class="text-red-500">*</span></label>
+      <p-inputNumber
+        inputId="academicYearId"
+        formControlName="academic_year_id"
+        [min]="1"
+        [useGrouping]="false"
+        placeholder="e.g. 1"
+        styleClass="w-full"
+        inputStyleClass="w-full"
+      />
+      @if (form.get('academic_year_id')?.invalid && form.get('academic_year_id')?.touched) {
+        <small class="text-red-500">Academic Year ID is required.</small>
+      }
+    </div>
+
+    <!-- Amount -->
+    <div class="flex flex-column gap-1">
+      <label for="amount" class="font-semibold">Amount <span class="text-red-500">*</span></label>
+      <p-inputNumber
+        inputId="amount"
+        formControlName="amount"
+        [min]="0"
+        [minFractionDigits]="2"
+        [maxFractionDigits]="2"
+        placeholder="e.g. 5000.00"
+        styleClass="w-full"
+        inputStyleClass="w-full"
+      />
+      @if (form.get('amount')?.invalid && form.get('amount')?.touched) {
+        <small class="text-red-500">A valid amount is required.</small>
+      }
+    </div>
+
+    <!-- Frequency -->
+    <div class="flex flex-column gap-1">
+      <label for="frequency" class="font-semibold">Frequency <span class="text-red-500">*</span></label>
+      <p-dropdown
+        id="frequency"
+        formControlName="frequency"
+        [options]="frequencyOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select frequency"
+        styleClass="w-full"
+      />
+      @if (form.get('frequency')?.invalid && form.get('frequency')?.touched) {
+        <small class="text-red-500">Frequency is required.</small>
+      }
+    </div>
+
+    <!-- Due Date (optional) -->
+    <div class="flex flex-column gap-1">
+      <label for="dueDate" class="font-semibold">Due Date</label>
+      <p-calendar
+        inputId="dueDate"
+        formControlName="due_date"
+        dateFormat="yy-mm-dd"
+        [showIcon]="true"
+        placeholder="Optional"
+        styleClass="w-full"
+        inputStyleClass="w-full"
+      />
+    </div>
+
+    <!-- Is Recurring -->
+    <div class="flex align-items-center gap-2">
+      <p-checkbox
+        inputId="isRecurring"
+        formControlName="is_recurring"
+        [binary]="true"
+      />
+      <label for="isRecurring" class="font-semibold">Recurring</label>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <p-button
+      label="Cancel"
+      icon="pi pi-times"
+      severity="secondary"
+      [text]="true"
+      (onClick)="closeDialog()"
+    />
+    <p-button
+      [label]="saving ? 'Saving...' : 'Save'"
+      icon="pi pi-check"
+      [loading]="saving"
+      [disabled]="form.invalid || saving"
+      (onClick)="saveFeeStructure()"
+    />
+  </ng-template>
+</p-dialog>

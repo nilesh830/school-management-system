@@ -1,5 +1,10 @@
 """
-Tests for ERP-003 — School Provisioning API.
+Tests for ERP-003 — School Provisioning API (SQLite-safe subset).
+
+These cover request validation, authorization, and master-table CRUD (list /
+get / update) — none of which require a real school schema. The actual
+schema-per-school provisioning behaviour (CREATE SCHEMA, seeded admin, etc.) is
+verified against PostgreSQL in tests/integration_pg/test_provisioning_pg.py.
 
 Endpoints under test:
   GET    /api/v1/superadmin/schools/
@@ -7,20 +12,18 @@ Endpoints under test:
   GET    /api/v1/superadmin/schools/<id>
   PATCH  /api/v1/superadmin/schools/<id>
 """
-import os
 import pytest
-from sqlalchemy import create_engine, inspect, text
 
 from app import db as _db, bcrypt
 
 
 # ---------------------------------------------------------------------------
-# Fixtures
+# Fixtures / helpers
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
 def super_admin(app):
-    """Create a super admin in master.db and tear it down afterwards."""
+    """Create a super admin in the master tables and tear it down afterwards."""
     with app.app_context():
         from app.models.master.super_admin import SuperAdmin
         sa = SuperAdmin(
@@ -49,28 +52,20 @@ def sa_token(client, super_admin):
     return resp.get_json()['data']['access_token']
 
 
-@pytest.fixture
-def school_db_cleanup(app):
-    """
-    Yield a list that tests can append slug strings to.
-    After the test, remove each corresponding .db file from SCHOOLS_DB_DIR.
-    """
-    slugs_to_clean = []
-    yield slugs_to_clean
-    with app.app_context():
-        schools_dir = app.config['SCHOOLS_DB_DIR']
-    for slug in slugs_to_clean:
-        db_path = os.path.join(schools_dir, f'school_{slug}.db')
-        if os.path.exists(db_path):
-            try:
-                os.remove(db_path)
-            except OSError:
-                pass
+def _make_school(slug, name='Some School', **kwargs):
+    """Insert a School row directly in the master table (no schema creation)."""
+    from app.models.master.school import School
+    school = School(
+        name=name,
+        slug=slug,
+        db_url=f'school_{slug}'.replace('-', '_'),
+        is_active=kwargs.pop('is_active', True),
+        **kwargs,
+    )
+    _db.session.add(school)
+    _db.session.commit()
+    return school
 
-
-# ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
 
 def _provision_payload(**overrides):
     base = {
@@ -87,76 +82,11 @@ def _provision_payload(**overrides):
 
 
 # ---------------------------------------------------------------------------
-# ERP-003: Provision school (POST /)
+# ERP-003: Provision school — request validation (SQLite-safe; rejected before
+# any schema is created)
 # ---------------------------------------------------------------------------
 
-class TestProvisionSchool:
-
-    def test_provision_school_success(self, client, sa_token, app, school_db_cleanup):
-        slug = 'sunrise-academy'
-        school_db_cleanup.append(slug)
-
-        resp = client.post(
-            '/api/v1/superadmin/schools/',
-            json=_provision_payload(slug=slug),
-            headers={'Authorization': f'Bearer {sa_token}'},
-        )
-        assert resp.status_code == 201, resp.get_json()
-        body = resp.get_json()
-        assert body['success'] is True
-
-        data = body['data']
-        assert data['slug'] == slug
-        assert data['name'] == 'Sunrise Academy'
-        assert data['is_active'] is True
-        # Sensitive provisioning fields must NOT appear in the response
-        assert 'admin_email' not in data
-        assert 'admin_password' not in data
-
-        # School record must be in master.db
-        with app.app_context():
-            from app.models.master.school import School
-            school = School.query.filter_by(slug=slug).first()
-            assert school is not None
-            assert school.name == 'Sunrise Academy'
-
-        # The school .db file must exist on disk
-        with app.app_context():
-            schools_dir = app.config['SCHOOLS_DB_DIR']
-        db_path = os.path.join(schools_dir, f'school_{slug}.db')
-        assert os.path.exists(db_path), f"Expected DB file at {db_path}"
-
-        # alembic_version table must exist in the new DB
-        engine = create_engine(f'sqlite:///{db_path}')
-        try:
-            inspector = inspect(engine)
-            assert 'alembic_version' in inspector.get_table_names()
-            with engine.connect() as conn:
-                row = conn.execute(text("SELECT version_num FROM alembic_version")).fetchone()
-                assert row is not None, "alembic_version table is empty"
-        finally:
-            engine.dispose()
-
-    def test_provision_school_duplicate_slug(self, client, sa_token, app, school_db_cleanup):
-        slug = 'duplicate-slug'
-        school_db_cleanup.append(slug)
-
-        # First provision succeeds
-        r1 = client.post(
-            '/api/v1/superadmin/schools/',
-            json=_provision_payload(slug=slug, name='First School'),
-            headers={'Authorization': f'Bearer {sa_token}'},
-        )
-        assert r1.status_code == 201, r1.get_json()
-
-        # Second provision with same slug must fail
-        r2 = client.post(
-            '/api/v1/superadmin/schools/',
-            json=_provision_payload(slug=slug, name='Second School'),
-            headers={'Authorization': f'Bearer {sa_token}'},
-        )
-        assert r2.status_code == 409, r2.get_json()
-        assert r2.get_json()['success'] is False
+class TestProvisionSchoolValidation:
 
     def test_provision_school_missing_required_fields(self, client, sa_token):
         # Missing name, admin_email, admin_password
@@ -210,47 +140,6 @@ class TestProvisionSchool:
         errors = resp.get_json()['errors']
         assert 'admin_password' in errors
 
-    def test_provision_school_seeds_admin_user(self, client, sa_token, app, school_db_cleanup):
-        """The first admin user must be created in the school's own DB."""
-        slug = 'seed-check'
-        school_db_cleanup.append(slug)
-
-        resp = client.post(
-            '/api/v1/superadmin/schools/',
-            json=_provision_payload(
-                slug=slug,
-                name='Seed Check School',
-                admin_email='first@seedcheck.sms',
-                admin_password='SeedAdmin@1',
-            ),
-            headers={'Authorization': f'Bearer {sa_token}'},
-        )
-        assert resp.status_code == 201, resp.get_json()
-
-        with app.app_context():
-            schools_dir = app.config['SCHOOLS_DB_DIR']
-        db_path = os.path.join(schools_dir, f'school_{slug}.db')
-
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker
-        from app.models.user import User
-        from app import bcrypt
-
-        engine = create_engine(f'sqlite:///{db_path}')
-        Session = sessionmaker(bind=engine)
-        session = Session()
-        try:
-            user = session.query(User).filter_by(email='first@seedcheck.sms').first()
-            assert user is not None, "Admin user not seeded in school DB"
-            assert user.role == 'admin'
-            assert user.is_active is True
-            # Password must be stored as a hash, not plaintext
-            assert user.password_hash != 'SeedAdmin@1'
-            assert bcrypt.check_password_hash(user.password_hash, 'SeedAdmin@1')
-        finally:
-            session.close()
-            engine.dispose()
-
 
 # ---------------------------------------------------------------------------
 # ERP-003: List schools (GET /)
@@ -258,16 +147,8 @@ class TestProvisionSchool:
 
 class TestListSchools:
 
-    def test_list_schools(self, client, sa_token, app, school_db_cleanup):
-        slug = 'list-test-school'
-        school_db_cleanup.append(slug)
-
-        # Provision one school
-        client.post(
-            '/api/v1/superadmin/schools/',
-            json=_provision_payload(slug=slug, name='List Test School'),
-            headers={'Authorization': f'Bearer {sa_token}'},
-        )
+    def test_list_schools(self, client, sa_token):
+        _make_school('list-test-school', name='List Test School')
 
         resp = client.get(
             '/api/v1/superadmin/schools/',
@@ -283,7 +164,7 @@ class TestListSchools:
         assert data['meta']['total'] >= 1
 
         slugs = [s['slug'] for s in data['schools']]
-        assert slug in slugs
+        assert 'list-test-school' in slugs
 
     def test_list_schools_pagination_meta(self, client, sa_token):
         resp = client.get(
@@ -305,26 +186,18 @@ class TestListSchools:
 
 class TestGetSchoolById:
 
-    def test_get_school_by_id(self, client, sa_token, app, school_db_cleanup):
-        slug = 'get-by-id-school'
-        school_db_cleanup.append(slug)
-
-        provision_resp = client.post(
-            '/api/v1/superadmin/schools/',
-            json=_provision_payload(slug=slug, name='Get By ID School'),
-            headers={'Authorization': f'Bearer {sa_token}'},
-        )
-        school_id = provision_resp.get_json()['data']['id']
+    def test_get_school_by_id(self, client, sa_token):
+        school = _make_school('get-by-id-school', name='Get By ID School')
 
         resp = client.get(
-            f'/api/v1/superadmin/schools/{school_id}',
+            f'/api/v1/superadmin/schools/{school.id}',
             headers={'Authorization': f'Bearer {sa_token}'},
         )
         assert resp.status_code == 200, resp.get_json()
         body = resp.get_json()
         assert body['success'] is True
-        assert body['data']['id'] == school_id
-        assert body['data']['slug'] == slug
+        assert body['data']['id'] == school.id
+        assert body['data']['slug'] == 'get-by-id-school'
 
     def test_get_school_not_found(self, client, sa_token):
         resp = client.get(
@@ -341,19 +214,11 @@ class TestGetSchoolById:
 
 class TestUpdateSchool:
 
-    def test_deactivate_school(self, client, sa_token, app, school_db_cleanup):
-        slug = 'deactivate-school'
-        school_db_cleanup.append(slug)
-
-        provision_resp = client.post(
-            '/api/v1/superadmin/schools/',
-            json=_provision_payload(slug=slug, name='Deactivate Me'),
-            headers={'Authorization': f'Bearer {sa_token}'},
-        )
-        school_id = provision_resp.get_json()['data']['id']
+    def test_deactivate_school(self, client, sa_token, app):
+        school = _make_school('deactivate-school', name='Deactivate Me')
 
         resp = client.patch(
-            f'/api/v1/superadmin/schools/{school_id}',
+            f'/api/v1/superadmin/schools/{school.id}',
             json={'is_active': False},
             headers={'Authorization': f'Bearer {sa_token}'},
         )
@@ -361,25 +226,16 @@ class TestUpdateSchool:
         data = resp.get_json()['data']
         assert data['is_active'] is False
 
-        # Verify persisted in master.db
         with app.app_context():
             from app.models.master.school import School
-            school = _db.session.get(School, school_id)
-            assert school.is_active is False
+            refreshed = _db.session.get(School, school.id)
+            assert refreshed.is_active is False
 
-    def test_update_school_name_and_address(self, client, sa_token, app, school_db_cleanup):
-        slug = 'update-name-school'
-        school_db_cleanup.append(slug)
-
-        provision_resp = client.post(
-            '/api/v1/superadmin/schools/',
-            json=_provision_payload(slug=slug, name='Original Name'),
-            headers={'Authorization': f'Bearer {sa_token}'},
-        )
-        school_id = provision_resp.get_json()['data']['id']
+    def test_update_school_name_and_address(self, client, sa_token):
+        school = _make_school('update-name-school', name='Original Name')
 
         resp = client.patch(
-            f'/api/v1/superadmin/schools/{school_id}',
+            f'/api/v1/superadmin/schools/{school.id}',
             json={'name': 'Updated Name', 'address': '999 New Street'},
             headers={'Authorization': f'Bearer {sa_token}'},
         )
@@ -396,19 +252,11 @@ class TestUpdateSchool:
         )
         assert resp.status_code == 404
 
-    def test_update_school_invalid_month(self, client, sa_token, app, school_db_cleanup):
-        slug = 'invalid-month-school'
-        school_db_cleanup.append(slug)
-
-        provision_resp = client.post(
-            '/api/v1/superadmin/schools/',
-            json=_provision_payload(slug=slug, name='Month Test School'),
-            headers={'Authorization': f'Bearer {sa_token}'},
-        )
-        school_id = provision_resp.get_json()['data']['id']
+    def test_update_school_invalid_month(self, client, sa_token):
+        school = _make_school('invalid-month-school', name='Month Test School')
 
         resp = client.patch(
-            f'/api/v1/superadmin/schools/{school_id}',
+            f'/api/v1/superadmin/schools/{school.id}',
             json={'academic_year_start_month': 13},
             headers={'Authorization': f'Bearer {sa_token}'},
         )

@@ -1,0 +1,227 @@
+<p-toast />
+
+<div class="card">
+  <!-- Toolbar -->
+  <p-toolbar>
+    <ng-template pTemplate="left">
+      <h2 class="m-0">Exams</h2>
+    </ng-template>
+    <ng-template pTemplate="right">
+      <p-button
+        label="New Exam"
+        icon="pi pi-plus"
+        (onClick)="openDialog()"
+      />
+    </ng-template>
+  </p-toolbar>
+
+  <!-- Loading spinner -->
+  @if (loading) {
+    <div class="flex justify-content-center align-items-center py-6">
+      <p-progressSpinner strokeWidth="4" />
+    </div>
+  }
+
+  <!-- Exams table -->
+  @if (!loading) {
+    <p-table
+      [value]="exams"
+      [rows]="20"
+      [paginator]="true"
+      [rowsPerPageOptions]="[10, 20, 50]"
+      dataKey="id"
+      responsiveLayout="scroll"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
+          <th pSortableColumn="term">Term <p-sortIcon field="term" /></th>
+          <th pSortableColumn="exam_type">Type <p-sortIcon field="exam_type" /></th>
+          <th pSortableColumn="section_id">Section ID <p-sortIcon field="section_id" /></th>
+          <th pSortableColumn="conducted_date">Conducted Date <p-sortIcon field="conducted_date" /></th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-exam>
+        <tr>
+          <td>{{ exam.name }}</td>
+          <td>{{ exam.term }}</td>
+          <td>{{ getExamTypeLabel(exam.exam_type) }}</td>
+          <td>{{ exam.section_id }}</td>
+          <td>{{ exam.conducted_date ?? '—' }}</td>
+          <td>
+            <p-tag
+              [value]="exam.is_active ? 'Active' : 'Inactive'"
+              [severity]="getStatusSeverity(exam.is_active)"
+            />
+          </td>
+          <td class="flex gap-2 align-items-center">
+            <p-button
+              icon="pi pi-pencil"
+              [rounded]="true"
+              [text]="true"
+              severity="secondary"
+              (onClick)="openDialog(exam)"
+              pTooltip="Edit"
+            />
+            <p-button
+              label="Enter Marks"
+              icon="pi pi-file-edit"
+              size="small"
+              severity="info"
+              [text]="true"
+              [routerLink]="['/admin/exams', exam.id, 'marks']"
+              pTooltip="Enter Marks"
+            />
+            <p-button
+              label="Results"
+              icon="pi pi-chart-bar"
+              size="small"
+              severity="success"
+              [text]="true"
+              [routerLink]="['/admin/exams', exam.id, 'results']"
+              pTooltip="View Class Results"
+            />
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="7" class="text-center py-4 text-color-secondary">
+            No exams found. Click "New Exam" to create one.
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  }
+</div>
+
+<!-- Create / Edit Dialog -->
+<p-dialog
+  [header]="isEdit ? 'Edit Exam' : 'New Exam'"
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [style]="{ width: '480px' }"
+  [closable]="true"
+  (onHide)="closeDialog()"
+>
+  <form [formGroup]="form" class="flex flex-column gap-3 pt-2">
+    <!-- Name -->
+    <div class="flex flex-column gap-1">
+      <label for="examName" class="font-semibold">Name <span class="text-red-500">*</span></label>
+      <input
+        id="examName"
+        type="text"
+        pInputText
+        formControlName="name"
+        placeholder="e.g. Mid-Year Examination"
+        class="w-full"
+      />
+      @if (form.get('name')?.invalid && form.get('name')?.touched) {
+        <small class="text-red-500">Name is required.</small>
+      }
+    </div>
+
+    <!-- Term -->
+    <div class="flex flex-column gap-1">
+      <label for="examTerm" class="font-semibold">Term <span class="text-red-500">*</span></label>
+      <input
+        id="examTerm"
+        type="text"
+        pInputText
+        formControlName="term"
+        placeholder="e.g. Term 1"
+        class="w-full"
+      />
+      @if (form.get('term')?.invalid && form.get('term')?.touched) {
+        <small class="text-red-500">Term is required.</small>
+      }
+    </div>
+
+    <!-- Exam Type -->
+    <div class="flex flex-column gap-1">
+      <label for="examType" class="font-semibold">Exam Type <span class="text-red-500">*</span></label>
+      <p-dropdown
+        id="examType"
+        formControlName="exam_type"
+        [options]="examTypeOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select type"
+        styleClass="w-full"
+      />
+      @if (form.get('exam_type')?.invalid && form.get('exam_type')?.touched) {
+        <small class="text-red-500">Exam type is required.</small>
+      }
+    </div>
+
+    <!-- Section ID -->
+    <div class="flex flex-column gap-1">
+      <label for="sectionId" class="font-semibold">Section ID <span class="text-red-500">*</span></label>
+      <p-inputNumber
+        inputId="sectionId"
+        formControlName="section_id"
+        [min]="1"
+        [useGrouping]="false"
+        placeholder="e.g. 3"
+        styleClass="w-full"
+        inputStyleClass="w-full"
+      />
+      @if (form.get('section_id')?.invalid && form.get('section_id')?.touched) {
+        <small class="text-red-500">Section ID is required.</small>
+      }
+    </div>
+
+    <!-- Academic Year ID -->
+    <div class="flex flex-column gap-1">
+      <label for="academicYearId" class="font-semibold">Academic Year ID <span class="text-red-500">*</span></label>
+      <p-inputNumber
+        inputId="academicYearId"
+        formControlName="academic_year_id"
+        [min]="1"
+        [useGrouping]="false"
+        placeholder="e.g. 1"
+        styleClass="w-full"
+        inputStyleClass="w-full"
+      />
+      @if (form.get('academic_year_id')?.invalid && form.get('academic_year_id')?.touched) {
+        <small class="text-red-500">Academic Year ID is required.</small>
+      }
+    </div>
+
+    <!-- Conducted Date (optional) -->
+    <div class="flex flex-column gap-1">
+      <label for="conductedDate" class="font-semibold">Conducted Date</label>
+      <p-calendar
+        inputId="conductedDate"
+        formControlName="conducted_date"
+        dateFormat="yy-mm-dd"
+        [showIcon]="true"
+        placeholder="Optional"
+        styleClass="w-full"
+        inputStyleClass="w-full"
+      />
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <p-button
+      label="Cancel"
+      icon="pi pi-times"
+      severity="secondary"
+      [text]="true"
+      (onClick)="closeDialog()"
+    />
+    <p-button
+      [label]="saving ? 'Saving...' : 'Save'"
+      icon="pi pi-check"
+      [loading]="saving"
+      [disabled]="form.invalid || saving"
+      (onClick)="saveExam()"
+    />
+  </ng-template>
+</p-dialog>

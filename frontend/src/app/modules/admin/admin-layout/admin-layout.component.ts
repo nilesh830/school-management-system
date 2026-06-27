@@ -24,12 +24,21 @@ export class AdminLayoutComponent {
     { label: 'Create User', icon: 'pi-user-plus', route: '/admin/users/new' },
     { label: 'Students', icon: 'pi-graduation-cap', route: '/admin/students' },
     { label: 'Teachers', icon: 'pi-id-card', route: '/admin/teachers' },
+    { label: 'Academic Years', icon: 'pi-calendar-plus', route: '/admin/academic-years' },
     { label: 'Classes', icon: 'pi-building', route: '/admin/classes' },
     { label: 'Subjects', icon: 'pi-book', route: '/admin/subjects' },
     { label: 'Timetable', icon: 'pi-calendar', route: '/admin/timetable' },
     { label: 'Attendance', icon: 'pi-calendar-clock', route: '/admin/attendance' },
+    { label: 'Exams', icon: 'pi-file-edit', route: '/admin/exams' },
     { label: 'Fees', icon: 'pi-indian-rupee', route: '/admin/fees' },
-    { label: 'Reports', icon: 'pi-chart-bar', route: '/admin/reports' },
+    { label: 'Fee Defaulters', icon: 'pi-exclamation-triangle', route: '/admin/fees/defaulters' },
+    { label: 'Leave Requests', icon: 'pi-file-check', route: '/admin/leave-requests' },
+    { label: 'Announcements', icon: 'pi-megaphone', route: '/admin/announcements' },
+    { label: 'Library', icon: 'pi-bookmark', route: '/admin/library' },
+    { label: 'Transport', icon: 'pi-car', route: '/admin/transport' },
+    { label: 'Attendance Report', icon: 'pi-chart-line', route: '/admin/reports/attendance' },
+    { label: 'Grades Report', icon: 'pi-chart-bar', route: '/admin/reports/grades' },
+    { label: 'Fees Report', icon: 'pi-chart-pie', route: '/admin/reports/fees' },
   ];
 
   profileMenuItems = [

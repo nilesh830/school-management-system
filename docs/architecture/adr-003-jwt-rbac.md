@@ -1,5 +1,16 @@
 # ADR-003: JWT Claims Strategy & RBAC Design
-**Date:** 2026-06-06 | **Status:** Accepted | **Author:** @solution-architect
+**Date:** 2026-06-06 | **Status:** Accepted (extended for multi-tenancy) | **Author:** @solution-architect
+
+> **Amendment (2026-06-24) — multi-tenancy:** Two additions since this ADR was
+> written (see [ADR-004](adr-004-postgresql-schema-per-school.md) and
+> [ERP_MULTI_TENANCY.md](ERP_MULTI_TENANCY.md)):
+> - A **5th role, `super_admin`**, sits above `admin`. Its token uses identity
+>   `"sa:<id>"`, claim `role: super_admin`, and **no `school_slug`**; it is
+>   blocklisted in the `public.super_admin_revoked_tokens` table.
+> - School-user tokens now carry a **`school_slug`** claim. The tenant
+>   middleware reads it on every request to select the school's PostgreSQL
+>   schema. `revoked_tokens` lives inside each school schema.
+> Full hierarchy: `super_admin > admin > teacher > student > parent`.
 
 ## Context
 We need a Role-Based Access Control system that:

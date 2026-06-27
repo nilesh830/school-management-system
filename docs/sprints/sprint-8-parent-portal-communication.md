@@ -4,17 +4,22 @@
 **Velocity Target:** 29 pts | **Epic:** EPIC-09
 **Dependencies:** Sprint 7 complete (parent dashboard, attendance, grades, fees working)
 
+> **How to invoke agents:**
+> - Database work → `@database-engineer` (models, migrations, schema)
+> - Backend work → `@backend-engineer` (routes, services, business logic, tests)
+> - Frontend work → `@frontend-engineer` (Angular components, PrimeNG UI, HTTP services)
+
 ---
 
 ## Sprint Board
 
-| Story | Title | Points | Assignee | Status |
-|-------|-------|--------|----------|--------|
-| SMS-046 | Leave Application Submission | 8 | @backend-engineer + @frontend-engineer | To Do |
-| SMS-047 | Leave Application Tracking & Review | 5 | @backend-engineer + @frontend-engineer | To Do |
-| SMS-048 | Parent-Teacher Messaging | 8 | @backend-engineer + @frontend-engineer | To Do |
-| SMS-049 | In-App Notifications (Parent) | 5 | @backend-engineer + @frontend-engineer | To Do |
-| SMS-050 | Parent Profile Management | 3 | @frontend-engineer | To Do |
+| Story | Title | Points | Agents |
+|-------|-------|--------|--------|
+| SMS-046 | Leave Application Submission | 8 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` |
+| SMS-047 | Leave Application Tracking & Review | 5 | `@backend-engineer` → `@frontend-engineer` |
+| SMS-048 | Parent-Teacher Messaging | 8 | `@database-engineer` → `@backend-engineer` → `@frontend-engineer` |
+| SMS-049 | In-App Notifications (Parent) | 5 | `@backend-engineer` → `@frontend-engineer` |
+| SMS-050 | Parent Profile Management | 3 | `@backend-engineer` → `@frontend-engineer` |
 
 ---
 
@@ -83,35 +88,43 @@ class LeaveApplicationSchema(Schema):
     leave_type = fields.Str(validate=validate.OneOf(['sick','family','personal','other']))
 ```
 
-**Frontend Component:**
+**DB Schema:**
+```
+leave_applications: (id, student_id FK, parent_id FK, from_date DATE, to_date DATE,
+                     leave_type ENUM['sick','family','personal','other'],
+                     reason TEXT, status ENUM['pending','approved','rejected'],
+                     reviewed_by FK→users.id, reviewed_at, reviewer_remarks TEXT, created_at)
+```
+
+**Frontend Components:**
 ```
 parent-portal/leave/
-├── leave-list.component.ts     # List of all leave applications
-├── leave-form.component.ts     # Submit new leave (dialog/panel)
-└── leave-status.component.ts   # Status badge component
+├── leave-list.component.ts     # List of all leave applications with status badges
+├── leave-form.component.ts     # Submit new leave (child selector, date range, reason)
+└── leave-status.component.ts   # Reusable status badge
 ```
 
 **Leave Form Fields:**
-- Child selector (PrimeNG `p-dropdown` — only parent's children)
+- Child selector (`p-dropdown` — only parent's linked children)
 - Leave type (`p-selectButton`: Sick / Family / Personal / Other)
 - Date range (`p-calendar` range mode)
 - Reason (`p-inputTextarea` — min 10 chars)
-- Submit button with `p-confirmDialog`
+- Submit with `p-confirmDialog`
 
 ---
 
 #### Tasks — SMS-046
 
-| # | Task | Layer | Assignee | Est. |
-|---|------|-------|----------|------|
-| T-046-01 | Create Marshmallow `LeaveApplicationSchema` with date validation | BE | @backend-engineer | 1h |
-| T-046-02 | Implement `LeaveService.submit()` with all business rule validations | BE | @backend-engineer | 2h |
-| T-046-03 | Implement `POST /api/v1/leave-applications` route | BE | @backend-engineer | 0.5h |
-| T-046-04 | Trigger teacher + admin notification on leave submission | BE | @backend-engineer | 1h |
-| T-046-05 | Build leave submission form (child selector, date range, reason) | FE | @frontend-engineer | 3h |
-| T-046-06 | Add leave list view with status badges | FE | @frontend-engineer | 1h |
-| T-046-07 | Test: valid leave, past date, wrong child, missing reason, notifications sent | QA | @qa-engineer | 2h |
-| T-046-08 | Security: parent cannot submit leave for unlinked student | SEC | @security-engineer | 0.5h |
+| # | Task | Agent File | Est. |
+|---|------|-----------|------|
+| T-046-01 | Create `LeaveApplication` model + migration | [`@database-engineer`](.claude/agents/database-engineer.md) | 1h |
+| T-046-02 | Create Marshmallow `LeaveApplicationSchema` with date validation | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1h |
+| T-046-03 | Implement `LeaveService.submit()` with all business rule validations | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 2h |
+| T-046-04 | Implement `POST /api/v1/leave-applications` route | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 0.5h |
+| T-046-05 | Trigger teacher + admin notification on leave submission | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1h |
+| T-046-06 | Build leave submission form (child selector, date range, reason) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 3h |
+| T-046-07 | Add leave list view with status badges | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1h |
+| T-046-08 | Tests: valid leave, past date 422, wrong child 403, missing reason, notifications sent | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 2h |
 
 ---
 
@@ -130,12 +143,12 @@ parent-portal/leave/
 **Acceptance Criteria (Parent):**
 - [ ] Given I view my leave applications, Then I see: child name, dates, reason, status, reviewer remarks
 - [ ] Given a leave is approved/rejected, Then I receive an in-app notification
-- [ ] Given status=approved, Then the badge is green; rejected=red; pending=amber
+- [ ] Status badge: approved=green, rejected=red, pending=amber
 
 **Acceptance Criteria (Admin/Teacher):**
-- [ ] Given I am admin/teacher, When I GET `/api/v1/leave-applications?status=pending`, Then I see all pending leaves
+- [ ] Given I am admin/teacher, `GET /api/v1/leave-applications?status=pending` returns all pending
 - [ ] Given I approve/reject with remarks, Then status updates and parent is notified
-- [ ] Given a leave is approved, Then the affected attendance dates are flagged as "leave" (not "absent")
+- [ ] Given a leave is approved, Then the affected attendance dates are flagged as "leave"
 
 **Dependencies:** SMS-046, SMS-049 (notifications)
 
@@ -145,32 +158,27 @@ parent-portal/leave/
 
 **Backend API:**
 ```
-GET /api/v1/leave-applications                     → parent: own applications; admin/teacher: all
+GET /api/v1/leave-applications                     → parent: own; admin/teacher: all
 GET /api/v1/leave-applications?status=pending      → admin/teacher only
 PUT /api/v1/leave-applications/:id/review
     Role Required: admin, teacher
-    Body: { "status": "approved"|"rejected", "remarks": "Doctor's certificate required" }
-    Response 200: { "data": { ...updated leave... } }
+    Body: { "status": "approved"|"rejected", "remarks": "..." }
 ```
 
-**Attendance Integration:** On approval, `LeaveService.review()` calls `AttendanceService.mark_as_leave(student_id, from_date, to_date)` — inserts attendance records with `status='leave'` for the date range.
-
-**Admin/Teacher View:**
-- `/admin/leave-applications` — filterable table (pending/approved/rejected)
-- Quick approve/reject action buttons with remarks dialog
+**Attendance Integration:** On approval, calls `AttendanceService.mark_as_leave(student_id, from_date, to_date)`.
 
 ---
 
 #### Tasks — SMS-047
 
-| # | Task | Layer | Assignee | Est. |
-|---|------|-------|----------|------|
-| T-047-01 | Implement `GET /api/v1/leave-applications` with role-based filtering | BE | @backend-engineer | 1h |
-| T-047-02 | Implement `PUT /api/v1/leave-applications/:id/review` + attendance integration | BE | @backend-engineer | 2h |
-| T-047-03 | Trigger parent notification on review decision | BE | @backend-engineer | 0.5h |
-| T-047-04 | Build leave review table for admin/teacher | FE | @frontend-engineer | 2h |
-| T-047-05 | Add approve/reject dialog with remarks input | FE | @frontend-engineer | 1h |
-| T-047-06 | Test: parent tracking, admin review, attendance integration, notification | QA | @qa-engineer | 1.5h |
+| # | Task | Agent File | Est. |
+|---|------|-----------|------|
+| T-047-01 | Implement `GET /api/v1/leave-applications` with role-based filtering | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1h |
+| T-047-02 | Implement `PUT /api/v1/leave-applications/:id/review` + attendance integration | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 2h |
+| T-047-03 | Trigger parent notification on review decision | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 0.5h |
+| T-047-04 | Build leave review table for admin/teacher (filterable by status) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 2h |
+| T-047-05 | Add approve/reject dialog with remarks input | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1h |
+| T-047-06 | Tests: parent tracking, admin review, attendance integration, notification | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1.5h |
 
 ---
 
@@ -187,13 +195,13 @@ PUT /api/v1/leave-applications/:id/review
 > So that communication is tracked and I can respond at a convenient time.
 
 **Acceptance Criteria:**
-- [ ] Given I start a new conversation, Then I select the child and the message subject, and write my first message
+- [ ] Given I start a new conversation, Then I select the child and write my first message
 - [ ] Given I send a message, Then the teacher receives an in-app notification
 - [ ] Given I view my messages, Then I see conversation threads sorted by latest message
 - [ ] Given a thread, When I open it, Then I see the full conversation history (oldest to newest)
-- [ ] Given I send a reply, Then the other party sees it immediately on page refresh
-- [ ] Given an unread message, Then the Messages menu badge shows count
-- [ ] Parent can only message the class teacher of their linked child (not any teacher)
+- [ ] Given I send a reply, Then the other party sees it on page refresh
+- [ ] Given an unread message, Then the Messages badge shows count
+- [ ] Parent can only message the class teacher of their linked child
 
 **Dependencies:** SMS-010 (parent-student link establishes which teacher to contact), SMS-049
 
@@ -214,10 +222,18 @@ PUT  /api/v1/messages/threads/:thread_id/read    → mark all as read
 
 **Thread Creation Logic:**
 1. Find child's current section (`student_sections` where `is_current=true`)
-2. Find section's class teacher from `timetables` or assign class teacher from `sections.teacher_id`
+2. Resolve class teacher from `sections.class_teacher_id`
 3. Create `MessageThread` linking parent ↔ teacher ↔ child
 
-**Frontend:**
+**DB Schema:**
+```
+message_threads: (id UUID, subject, parent_id FK, teacher_id FK, student_id FK,
+                  created_at, last_message_at, is_archived)
+parent_messages: (id, thread_id FK, sender_id FK→users.id, body TEXT,
+                  is_read BOOL, created_at)
+```
+
+**Frontend Components:**
 ```
 parent-portal/messages/
 ├── thread-list.component.ts       # List of all conversations
@@ -225,25 +241,23 @@ parent-portal/messages/
 └── new-thread-dialog.component.ts # Start new conversation dialog
 ```
 
-**UI Pattern:** Chat-style bubble layout:
-- Parent messages: right-aligned, blue background
-- Teacher messages: left-aligned, grey background
-- `p-scrollPanel` to contain message history, auto-scroll to bottom
+**UI Pattern:** Chat-style bubble layout — parent messages right-aligned blue, teacher messages left-aligned grey.
 
 ---
 
 #### Tasks — SMS-048
 
-| # | Task | Layer | Assignee | Est. |
-|---|------|-------|----------|------|
-| T-048-01 | Implement thread creation — auto-resolve class teacher | BE | @backend-engineer | 2h |
-| T-048-02 | Implement GET thread list + thread detail endpoints | BE | @backend-engineer | 1.5h |
-| T-048-03 | Implement reply endpoint + mark-read endpoint | BE | @backend-engineer | 1h |
-| T-048-04 | Trigger notification on new message/reply | BE | @backend-engineer | 0.5h |
-| T-048-05 | Build thread list view with unread count badges | FE | @frontend-engineer | 2h |
-| T-048-06 | Build chat-style thread detail with bubble layout | FE | @frontend-engineer | 2.5h |
-| T-048-07 | Build new conversation dialog | FE | @frontend-engineer | 1h |
-| T-048-08 | Test: send message, receive reply, unread badge, teacher can only see own threads | QA | @qa-engineer | 2h |
+| # | Task | Agent File | Est. |
+|---|------|-----------|------|
+| T-048-01 | Create `MessageThread` + `ParentMessage` models + migration | [`@database-engineer`](.claude/agents/database-engineer.md) | 1h |
+| T-048-02 | Implement thread creation — auto-resolve class teacher from section | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 2h |
+| T-048-03 | Implement GET thread list + thread detail endpoints | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1.5h |
+| T-048-04 | Implement reply endpoint + mark-read endpoint | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1h |
+| T-048-05 | Trigger notification on new message/reply | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 0.5h |
+| T-048-06 | Build thread list view with unread count badges | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 2h |
+| T-048-07 | Build chat-style thread detail with bubble layout + `p-scrollPanel` | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 2.5h |
+| T-048-08 | Build new conversation dialog (child selector + subject + first message) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1h |
+| T-048-09 | Tests: send message, receive reply, unread badge, teacher sees only own threads | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 2h |
 
 ---
 
@@ -258,13 +272,12 @@ parent-portal/messages/
 **Acceptance Criteria:**
 - [ ] Given my child is marked absent, Then I receive a notification within 5 minutes of attendance being saved
 - [ ] Given a leave application is approved/rejected, Then I receive a notification with the remarks
-- [ ] Given a new school announcement is published, Then I receive a notification
-- [ ] Given I have unread notifications, Then the bell icon in the header shows a count badge
-- [ ] Given I click the bell, Then I see a dropdown list of recent notifications (last 20)
-- [ ] Given I click a notification, Then I'm navigated to the relevant page and the notification is marked read
+- [ ] Given I have unread notifications, Then the bell icon shows a count badge
+- [ ] Given I click the bell, Then I see a dropdown of recent notifications (last 20)
+- [ ] Given I click a notification, Then I'm navigated to the relevant page and notification marked read
 - [ ] Given I click "Mark all read", Then all notifications are cleared
 
-**Dependencies:** SMS-044, SMS-046, SMS-047, SMS-048
+**Dependencies:** SMS-027 (`Notification` model already created in Sprint 4)
 
 ---
 
@@ -272,37 +285,21 @@ parent-portal/messages/
 
 **Backend API:**
 ```
-GET /api/v1/notifications?unread=true     → unread notifications for current user
-GET /api/v1/notifications                 → all notifications (last 50)
-PUT /api/v1/notifications/:id/read        → mark one as read
-PUT /api/v1/notifications/read-all        → mark all as read
+GET /api/v1/notifications?unread=true   → unread notifications for current user
+GET /api/v1/notifications               → all notifications (last 50)
+PUT /api/v1/notifications/:id/read      → mark one as read
+PUT /api/v1/notifications/read-all      → mark all as read
 ```
 
-**Notification Triggers (server-side):**
+**Notification Triggers:**
 | Event | Triggered By | Recipient |
 |-------|-------------|-----------|
-| Child marked absent | Attendance save | Parent(s) of student |
-| Exam marks below 40% | Marks entry | Parent(s) of student |
-| Fee overdue | Daily job (cron) | Parent(s) of student |
-| Leave approved/rejected | Leave review | Parent who submitted |
-| New announcement | Announcement publish | All targeted parents |
-| New message received | Message send | Recipient user |
-
-**Frontend:**
-```typescript
-// Notification bell component
-@Component({ selector: 'app-notification-bell' })
-export class NotificationBellComponent implements OnInit {
-  unreadCount = 0;
-  notifications: Notification[] = [];
-
-  ngOnInit() {
-    // Poll every 60 seconds (or use SSE/WebSocket in future)
-    this.loadNotifications();
-    interval(60000).subscribe(() => this.loadNotifications());
-  }
-}
-```
+| Child marked absent | `AttendanceService` | Parent(s) of student |
+| Exam marks below 40% | `ExamService` | Parent(s) of student |
+| Fee overdue | Daily job | Parent(s) of student |
+| Leave approved/rejected | `LeaveService` | Parent who submitted |
+| New announcement | `AnnouncementService` | All targeted parents |
+| New message received | `MessageService` | Recipient user |
 
 **Navigation Map (notification.reference_type → route):**
 ```typescript
@@ -320,15 +317,15 @@ const routes = {
 
 #### Tasks — SMS-049
 
-| # | Task | Layer | Assignee | Est. |
-|---|------|-------|----------|------|
-| T-049-01 | Implement `GET /api/v1/notifications` + `PUT /read` + `PUT /read-all` | BE | @backend-engineer | 1.5h |
-| T-049-02 | Add `NotificationService.create()` call in AttendanceService on absent | BE | @backend-engineer | 1h |
-| T-049-03 | Add notification trigger in MarksService for below-40% | BE | @backend-engineer | 0.5h |
-| T-049-04 | Build notification bell dropdown component | FE | @frontend-engineer | 2h |
-| T-049-05 | Implement 60s polling for unread count | FE | @frontend-engineer | 0.5h |
-| T-049-06 | Implement navigation map (click → route) | FE | @frontend-engineer | 1h |
-| T-049-07 | Test: all trigger events, mark read, count badge, navigation | QA | @qa-engineer | 1.5h |
+| # | Task | Agent File | Est. |
+|---|------|-----------|------|
+| T-049-01 | Implement `GET /api/v1/notifications` + `PUT /read` + `PUT /read-all` | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1.5h |
+| T-049-02 | Add `NotificationService.create()` call in `ExamService` for below-40% | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 0.5h |
+| T-049-03 | Add fee-overdue notification trigger (daily check or on payment list) | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1h |
+| T-049-04 | Build notification bell dropdown component (unread badge + list) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 2h |
+| T-049-05 | Implement 60s polling for unread count | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 0.5h |
+| T-049-06 | Implement navigation map (click notification → route) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1h |
+| T-049-07 | Tests: all trigger events, mark read, count badge, navigation | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1.5h |
 
 ---
 
@@ -341,7 +338,7 @@ const routes = {
 > So that the school always has accurate details to reach me.
 
 **Acceptance Criteria:**
-- [ ] Given I edit my profile, Then I can update: phone, alternate phone, address, occupation, emergency contact
+- [ ] Given I edit my profile, Then I can update: phone, alternate phone, address, occupation
 - [ ] Given I upload a profile photo, Then it is displayed in the header avatar
 - [ ] Given I try to change my email, Then the field is disabled (email changes require admin)
 - [ ] Given I save successfully, Then a success toast confirms the update
@@ -360,19 +357,16 @@ POST  /api/v1/parents/me/photo    → upload profile photo
 ```
 
 **Updatable fields:** `first_name`, `last_name`, `phone_primary`, `phone_secondary`, `occupation`, `address`
-**Never updatable by self:** `email`, `role`, `relationship_type` (admin only)
-
-**Frontend:**
-- `/parent/profile` — simple form with PrimeNG inputs
-- Profile photo upload with preview using `p-fileUpload`
+**Never self-updatable:** `email`, `role`, `relationship_type` (admin only)
 
 ---
 
 #### Tasks — SMS-050
 
-| # | Task | Layer | Assignee | Est. |
-|---|------|-------|----------|------|
-| T-050-01 | Implement `GET /api/v1/parents/me` + `PATCH /api/v1/parents/me` | BE | @backend-engineer | 1h |
-| T-050-02 | Implement photo upload for parent profile | BE | @backend-engineer | 0.5h |
-| T-050-03 | Build parent profile form page | FE | @frontend-engineer | 1.5h |
-| T-050-04 | Test: update profile, photo upload, email locked, forbidden fields | QA | @qa-engineer | 0.5h |
+| # | Task | Agent File | Est. |
+|---|------|-----------|------|
+| T-050-01 | Implement `GET /api/v1/parents/me` + `PATCH /api/v1/parents/me` | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 1h |
+| T-050-02 | Implement photo upload for parent profile | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 0.5h |
+| T-050-03 | Build parent profile form page (editable fields + locked email) | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1.5h |
+| T-050-04 | Add photo upload with preview using `p-fileUpload` | [`@frontend-engineer`](.claude/agents/frontend-engineer.md) | 1h |
+| T-050-05 | Tests: update profile, photo upload, email locked, forbidden fields | [`@backend-engineer`](.claude/agents/backend-engineer.md) | 0.5h |

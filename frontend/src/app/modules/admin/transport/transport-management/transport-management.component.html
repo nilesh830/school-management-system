@@ -1,0 +1,228 @@
+<p-toast></p-toast>
+
+<div class="p-4">
+  <h2 class="text-2xl font-bold mb-4">Transport Management</h2>
+
+  <p-tabView>
+    <!-- ── Routes ────────────────────────────────────────────────────────── -->
+    <p-tabPanel header="Routes">
+      <p-toolbar styleClass="mb-3">
+        <ng-template pTemplate="left">
+          <span class="font-semibold">Transport Routes</span>
+        </ng-template>
+        <ng-template pTemplate="right">
+          <button pButton icon="pi pi-plus" label="Add Route" (click)="openRouteDialog()"></button>
+        </ng-template>
+      </p-toolbar>
+
+      <p-table [value]="routes" [loading]="loadingRoutes" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Stops</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-route>
+          <tr>
+            <td>{{ route.name }}</td>
+            <td>{{ route.description || '—' }}</td>
+            <td>{{ route.stops?.length || 0 }} stop(s)</td>
+            <td><p-tag [value]="route.is_active ? 'Active' : 'Inactive'"
+                       [severity]="route.is_active ? 'success' : 'danger'"></p-tag></td>
+            <td>
+              <button pButton icon="pi pi-pencil" class="p-button-text p-button-sm mr-1"
+                      (click)="openRouteDialog(route)"></button>
+              <button pButton icon="pi pi-trash" class="p-button-text p-button-sm p-button-danger"
+                      (click)="deleteRoute(route)"></button>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="5" class="text-center">No routes yet.</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ── Vehicles ──────────────────────────────────────────────────────── -->
+    <p-tabPanel header="Vehicles">
+      <p-toolbar styleClass="mb-3">
+        <ng-template pTemplate="left">
+          <span class="font-semibold">Vehicles</span>
+        </ng-template>
+        <ng-template pTemplate="right">
+          <button pButton icon="pi pi-plus" label="Add Vehicle" (click)="openVehicleDialog()"></button>
+        </ng-template>
+      </p-toolbar>
+
+      <p-table [value]="vehicles" [loading]="loadingVehicles" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Registration No</th>
+            <th>Capacity</th>
+            <th>Driver</th>
+            <th>Phone</th>
+            <th>Route</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-v>
+          <tr>
+            <td>{{ v.registration_no }}</td>
+            <td>{{ v.capacity }}</td>
+            <td>{{ v.driver_name || '—' }}</td>
+            <td>{{ v.driver_phone || '—' }}</td>
+            <td>{{ v.route_name || '—' }}</td>
+            <td><p-tag [value]="v.is_active ? 'Active' : 'Inactive'"
+                       [severity]="v.is_active ? 'success' : 'danger'"></p-tag></td>
+            <td>
+              <button pButton icon="pi pi-pencil" class="p-button-text p-button-sm"
+                      (click)="openVehicleDialog(v)"></button>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="7" class="text-center">No vehicles yet.</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ── Assignments ───────────────────────────────────────────────────── -->
+    <p-tabPanel header="Student Assignments">
+      <p-toolbar styleClass="mb-3">
+        <ng-template pTemplate="left">
+          <span class="mr-2 font-semibold">Filter by route:</span>
+          <p-dropdown [options]="routeOptions" [(ngModel)]="assignmentRouteFilter"
+                      placeholder="All routes" [showClear]="true"
+                      (onChange)="onAssignmentFilterChange()"
+                      optionLabel="label" optionValue="value" styleClass="w-15rem"></p-dropdown>
+        </ng-template>
+        <ng-template pTemplate="right">
+          <button pButton icon="pi pi-plus" label="Assign Student" (click)="openAssignDialog()"></button>
+        </ng-template>
+      </p-toolbar>
+
+      <p-table [value]="assignments" [loading]="loadingAssignments" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Student</th>
+            <th>Admission No</th>
+            <th>Route</th>
+            <th>Pickup</th>
+            <th>Drop</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-a>
+          <tr>
+            <td>{{ a.student_name }}</td>
+            <td>{{ a.admission_no || '—' }}</td>
+            <td>{{ a.route_name }}</td>
+            <td>{{ a.pickup_stop || '—' }}</td>
+            <td>{{ a.drop_stop || '—' }}</td>
+            <td>
+              <button pButton icon="pi pi-times" label="Unassign"
+                      class="p-button-text p-button-sm p-button-danger"
+                      (click)="unassign(a)"></button>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="6" class="text-center">No assignments.</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+  </p-tabView>
+</div>
+
+<!-- ── Route dialog ──────────────────────────────────────────────────────── -->
+<p-dialog [(visible)]="routeDialogVisible" [modal]="true" [style]="{ width: '460px' }"
+          [header]="routeEditId ? 'Edit Route' : 'Add Route'">
+  <form [formGroup]="routeForm" class="flex flex-column gap-3 pt-2">
+    <div class="flex flex-column gap-1">
+      <label>Name *</label>
+      <input pInputText formControlName="name" />
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Description</label>
+      <input pInputText formControlName="description" />
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Stops (comma-separated)</label>
+      <input pInputText formControlName="stops" placeholder="Stop 1, Stop 2, Stop 3" />
+    </div>
+  </form>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="routeDialogVisible = false"></button>
+    <button pButton label="Save" [loading]="saving" [disabled]="routeForm.invalid" (click)="saveRoute()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- ── Vehicle dialog ────────────────────────────────────────────────────── -->
+<p-dialog [(visible)]="vehicleDialogVisible" [modal]="true" [style]="{ width: '460px' }"
+          [header]="vehicleEditId ? 'Edit Vehicle' : 'Add Vehicle'">
+  <form [formGroup]="vehicleForm" class="flex flex-column gap-3 pt-2">
+    <div class="flex flex-column gap-1">
+      <label>Registration No *</label>
+      <input pInputText formControlName="registration_no" />
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Capacity *</label>
+      <p-inputNumber formControlName="capacity" [min]="1" [showButtons]="true"></p-inputNumber>
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Driver Name</label>
+      <input pInputText formControlName="driver_name" />
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Driver Phone</label>
+      <input pInputText formControlName="driver_phone" />
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Route</label>
+      <p-dropdown [options]="routeOptions" formControlName="route_id" placeholder="Unassigned"
+                  [showClear]="true" optionLabel="label" optionValue="value"></p-dropdown>
+    </div>
+  </form>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="vehicleDialogVisible = false"></button>
+    <button pButton label="Save" [loading]="saving" [disabled]="vehicleForm.invalid" (click)="saveVehicle()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- ── Assignment dialog ─────────────────────────────────────────────────── -->
+<p-dialog [(visible)]="assignDialogVisible" [modal]="true" [style]="{ width: '460px' }"
+          header="Assign Student to Transport">
+  <form [formGroup]="assignForm" class="flex flex-column gap-3 pt-2">
+    <div class="flex flex-column gap-1">
+      <label>Student *</label>
+      <p-dropdown [options]="studentOptions" formControlName="student_id" [filter]="true"
+                  placeholder="Select student" optionLabel="label" optionValue="value"></p-dropdown>
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Route *</label>
+      <p-dropdown [options]="routeOptions" formControlName="route_id"
+                  placeholder="Select route" optionLabel="label" optionValue="value"></p-dropdown>
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Academic Year *</label>
+      <p-dropdown [options]="academicYearOptions" formControlName="academic_year_id"
+                  placeholder="Select year" optionLabel="label" optionValue="value"></p-dropdown>
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Pickup Stop</label>
+      <input pInputText formControlName="pickup_stop" />
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Drop Stop</label>
+      <input pInputText formControlName="drop_stop" />
+    </div>
+  </form>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="assignDialogVisible = false"></button>
+    <button pButton label="Assign" [loading]="saving" [disabled]="assignForm.invalid" (click)="saveAssignment()"></button>
+  </ng-template>
+</p-dialog>

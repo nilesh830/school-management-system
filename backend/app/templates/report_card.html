@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Report Card</title>
+<style>
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    color: #000000;
+    margin: 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 18pt;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  h2 {
+    text-align: center;
+    font-size: 13pt;
+    font-weight: bold;
+    margin-top: 2px;
+    margin-bottom: 16px;
+  }
+  .divider {
+    border-top: 2px solid #000000;
+    margin: 8px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  th {
+    background-color: #333333;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: left;
+    padding: 6px 8px;
+    border: 1px solid #000000;
+  }
+  td {
+    padding: 5px 8px;
+    border: 1px solid #555555;
+  }
+  .info-label {
+    font-weight: bold;
+    width: 30%;
+    background-color: #eeeeee;
+  }
+  .info-value {
+    width: 20%;
+  }
+  .summary-row td {
+    font-weight: bold;
+    background-color: #dddddd;
+  }
+  .pass {
+    color: #006600;
+    font-weight: bold;
+    font-size: 14pt;
+    text-align: center;
+  }
+  .fail {
+    color: #cc0000;
+    font-weight: bold;
+    font-size: 14pt;
+    text-align: center;
+  }
+  .section-title {
+    font-size: 12pt;
+    font-weight: bold;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #000000;
+    padding-bottom: 2px;
+  }
+  .signature-table {
+    margin-top: 40px;
+  }
+  .signature-table td {
+    border: none;
+    text-align: center;
+    width: 33%;
+    padding-top: 30px;
+    border-top: 1px solid #000000;
+    font-size: 10pt;
+  }
+  .generated {
+    font-size: 9pt;
+    color: #666666;
+    text-align: right;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<h1>School Management System</h1>
+<h2>Student Report Card</h2>
+<div class="divider"></div>
+
+<!-- Student Information -->
+<div class="section-title">Student Information</div>
+<table>
+  <tr>
+    <td class="info-label">Student Name</td>
+    <td class="info-value">{{ student.first_name }} {{ student.last_name }}</td>
+    <td class="info-label">Admission No.</td>
+    <td class="info-value">{{ student.admission_no }}</td>
+  </tr>
+  <tr>
+    <td class="info-label">Section</td>
+    <td class="info-value">{{ section_name }}</td>
+    <td class="info-label">Academic Year</td>
+    <td class="info-value">{{ academic_year }}</td>
+  </tr>
+  <tr>
+    <td class="info-label">Exam Name</td>
+    <td class="info-value">{{ exam.name }}</td>
+    <td class="info-label">Exam Type</td>
+    <td class="info-value">{{ exam.exam_type | upper }}</td>
+  </tr>
+  <tr>
+    <td class="info-label">Term</td>
+    <td class="info-value">{{ exam.term }}</td>
+    <td class="info-label">Date Conducted</td>
+    <td class="info-value">{% if exam.conducted_date %}{{ exam.conducted_date }}{% else %}—{% endif %}</td>
+  </tr>
+</table>
+
+<!-- Subject-wise Marks -->
+<div class="section-title">Subject-wise Performance</div>
+<table>
+  <thead>
+    <tr>
+      <th>Subject</th>
+      <th>Max Marks</th>
+      <th>Marks Obtained</th>
+      <th>Grade</th>
+      <th>GPA</th>
+      <th>Percentage</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if results.subjects %}
+      {% for subj in results.subjects %}
+      <tr>
+        <td>{{ subj.subject_name }} ({{ subj.subject_code }})</td>
+        <td>{{ subj.max_marks }}</td>
+        <td>{% if subj.marks_obtained is not none %}{{ subj.marks_obtained }}{% else %}—{% endif %}</td>
+        <td>{% if subj.grade %}{{ subj.grade }}{% else %}—{% endif %}</td>
+        <td>{% if subj.gpa is not none %}{{ subj.gpa }}{% else %}—{% endif %}</td>
+        <td>{% if subj.percentage is not none %}{{ subj.percentage }}%{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="6" style="text-align: center; font-style: italic;">No marks entered yet.</td>
+      </tr>
+    {% endif %}
+
+    <!-- Summary / Total Row -->
+    {% if results.subjects %}
+    <tr class="summary-row">
+      <td>TOTAL</td>
+      <td>{{ results.total_max_marks }}</td>
+      <td>{% if results.total_marks_obtained is not none %}{{ results.total_marks_obtained }}{% else %}—{% endif %}</td>
+      <td>{% if results.overall_grade %}{{ results.overall_grade }}{% else %}—{% endif %}</td>
+      <td>{% if results.overall_gpa is not none %}{{ results.overall_gpa }}{% else %}—{% endif %}</td>
+      <td>{% if results.overall_percentage is not none %}{{ results.overall_percentage }}%{% else %}—{% endif %}</td>
+    </tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<!-- Pass / Fail Status -->
+<div class="section-title">Result</div>
+<table>
+  <tr>
+    <td style="width: 50%; border: none;">
+      <table style="width: 100%;">
+        <tr>
+          <td class="info-label">Overall GPA</td>
+          <td>{% if results.overall_gpa is not none %}{{ results.overall_gpa }}{% else %}—{% endif %}</td>
+        </tr>
+        <tr>
+          <td class="info-label">Overall Grade</td>
+          <td>{% if results.overall_grade %}{{ results.overall_grade }}{% else %}—{% endif %}</td>
+        </tr>
+        <tr>
+          <td class="info-label">Overall Percentage</td>
+          <td>{% if results.overall_percentage is not none %}{{ results.overall_percentage }}%{% else %}—{% endif %}</td>
+        </tr>
+      </table>
+    </td>
+    <td style="width: 50%; border: none; text-align: center; vertical-align: middle;">
+      {% if results.overall_percentage is not none %}
+        {% if results.overall_percentage >= 35 %}
+          <span class="pass">PASS</span>
+        {% else %}
+          <span class="fail">FAIL</span>
+        {% endif %}
+      {% else %}
+        <span style="color: #888888; font-size: 12pt;">N/A</span>
+      {% endif %}
+    </td>
+  </tr>
+</table>
+
+<!-- Signature Lines -->
+<table class="signature-table">
+  <tr>
+    <td>Class Teacher Signature</td>
+    <td>Principal Signature</td>
+    <td>Date: {{ generated_date }}</td>
+  </tr>
+</table>
+
+<p class="generated">Generated on: {{ generated_date }}</p>
+
+</body>
+</html>

@@ -11,15 +11,12 @@ from app.models.student_section import StudentSection
 from app.models.student_document import StudentDocument
 from app.models.parent import Parent, student_parent
 
-ALLOWED_DOC_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png'}
+ALLOWED_DOC_EXTENSIONS = {"pdf", "jpg", "jpeg", "png"}
 MAX_DOC_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 def _allowed_doc(filename):
-    return (
-        '.' in filename
-        and filename.rsplit('.', 1)[1].lower() in ALLOWED_DOC_EXTENSIONS
-    )
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_DOC_EXTENSIONS
 
 
 def _paginate(query, page: int, per_page: int) -> tuple:
@@ -36,16 +33,16 @@ class StudentService:
     # -------------------------------------------------------------------------
 
     @staticmethod
-    def get_all(page=1, per_page=20, search='', section_id=None):
+    def get_all(page=1, per_page=20, search="", section_id=None):
         # class_id filter deferred to Sprint 3 when Class model is available.
         query = get_db().query(Student).filter_by(is_active=True)
 
         if search:
             query = query.filter(
                 or_(
-                    Student.first_name.ilike(f'%{search}%'),
-                    Student.last_name.ilike(f'%{search}%'),
-                    Student.admission_no.ilike(f'%{search}%'),
+                    Student.first_name.ilike(f"%{search}%"),
+                    Student.last_name.ilike(f"%{search}%"),
+                    Student.admission_no.ilike(f"%{search}%"),
                 )
             )
 
@@ -57,17 +54,15 @@ class StudentService:
                 & (StudentSection.is_current.is_(True)),
             )
 
-        items, total = _paginate(
-            query.order_by(Student.admission_no), page, per_page
-        )
+        items, total = _paginate(query.order_by(Student.admission_no), page, per_page)
         pages = (total + per_page - 1) // per_page
         return {
-            'students': [s.to_dict() for s in items],
-            'meta': {
-                'total': total,
-                'page': page,
-                'per_page': per_page,
-                'pages': pages,
+            "students": [s.to_dict() for s in items],
+            "meta": {
+                "total": total,
+                "page": page,
+                "per_page": per_page,
+                "pages": pages,
             },
         }
 
@@ -82,10 +77,8 @@ class StudentService:
             return None
         result = student.to_dict()
         # Attach current section info
-        current_section = (
-            get_db().query(StudentSection).filter_by(student_id=student_id, is_current=True).first()
-        )
-        result['current_section'] = current_section.to_dict() if current_section else None
+        current_section = get_db().query(StudentSection).filter_by(student_id=student_id, is_current=True).first()
+        result["current_section"] = current_section.to_dict() if current_section else None
         return result
 
     # -------------------------------------------------------------------------
@@ -101,24 +94,24 @@ class StudentService:
         Expects pre-validated data (dates already parsed to date objects by Marshmallow).
         Returns (student_dict, None) on success or (None, error_dict) on failure.
         """
-        if get_db().query(Student).filter_by(admission_no=data.get('admission_no')).first():
+        if get_db().query(Student).filter_by(admission_no=data.get("admission_no")).first():
             return None, {
-                'message': 'Admission number already exists',
-                'status': 409,
+                "message": "Admission number already exists",
+                "status": 409,
             }
 
         student = Student(
-            admission_no=data['admission_no'],
-            first_name=data['first_name'],
-            last_name=data['last_name'],
-            date_of_birth=data['date_of_birth'],
-            gender=data['gender'],
-            admission_date=data['admission_date'],
-            blood_group=data.get('blood_group'),
-            address=data.get('address'),
-            phone=data.get('phone'),
-            photo_url=data.get('photo_url'),
-            user_id=data.get('user_id') or 1,
+            admission_no=data["admission_no"],
+            first_name=data["first_name"],
+            last_name=data["last_name"],
+            date_of_birth=data["date_of_birth"],
+            gender=data["gender"],
+            admission_date=data["admission_date"],
+            blood_group=data.get("blood_group"),
+            address=data.get("address"),
+            phone=data.get("phone"),
+            photo_url=data.get("photo_url"),
+            user_id=data.get("user_id") or 1,
         )
         get_db().add(student)
         get_db().commit()
@@ -129,7 +122,7 @@ class StudentService:
     # -------------------------------------------------------------------------
 
     @staticmethod
-    def update(student_id: int, data: dict, role: str = 'admin'):
+    def update(student_id: int, data: dict, role: str = "admin"):
         """
         Update student record.
 
@@ -139,16 +132,22 @@ class StudentService:
         """
         student = get_db().query(Student).filter_by(id=student_id, is_active=True).first()
         if not student:
-            return None, {'message': 'Student not found', 'status': 404}
+            return None, {"message": "Student not found", "status": 404}
 
-        if role == 'admin':
+        if role == "admin":
             allowed = [
-                'first_name', 'last_name', 'date_of_birth', 'gender',
-                'blood_group', 'address', 'phone', 'photo_url',
+                "first_name",
+                "last_name",
+                "date_of_birth",
+                "gender",
+                "blood_group",
+                "address",
+                "phone",
+                "photo_url",
             ]
         else:
             # student self-service
-            allowed = ['phone', 'address']
+            allowed = ["phone", "address"]
 
         for field in allowed:
             if field in data:
@@ -165,7 +164,7 @@ class StudentService:
     def delete(student_id: int):
         student = get_db().query(Student).filter_by(id=student_id, is_active=True).first()
         if not student:
-            return False, {'message': 'Student not found', 'status': 404}
+            return False, {"message": "Student not found", "status": 404}
         student.is_active = False
         get_db().commit()
         return True, None
@@ -178,10 +177,10 @@ class StudentService:
     def update_status(student_id: int, data: dict):
         student = get_db().query(Student).filter_by(id=student_id, is_active=True).first()
         if not student:
-            return None, {'message': 'Student not found', 'status': 404}
-        student.status = data['status']
-        if data.get('leaving_date'):
-            student.leaving_date = data['leaving_date']
+            return None, {"message": "Student not found", "status": 404}
+        student.status = data["status"]
+        if data.get("leaving_date"):
+            student.leaving_date = data["leaving_date"]
         get_db().commit()
         return student.to_dict(), None
 
@@ -193,21 +192,25 @@ class StudentService:
     def link_parent(student_id: int, parent_id: int, is_primary: bool):
         student = get_db().query(Student).filter_by(id=student_id, is_active=True).first()
         if not student:
-            return None, {'message': 'Student not found', 'status': 404}
+            return None, {"message": "Student not found", "status": 404}
 
         parent = get_db().query(Parent).filter_by(id=parent_id, is_active=True).first()
         if not parent:
-            return None, {'message': 'Parent not found', 'status': 404}
+            return None, {"message": "Parent not found", "status": 404}
 
         # Check if already linked
-        existing = get_db().execute(
-            select(student_parent).where(
-                student_parent.c.student_id == student_id,
-                student_parent.c.parent_id == parent_id,
+        existing = (
+            get_db()
+            .execute(
+                select(student_parent).where(
+                    student_parent.c.student_id == student_id,
+                    student_parent.c.parent_id == parent_id,
+                )
             )
-        ).first()
+            .first()
+        )
         if existing:
-            return None, {'message': 'Parent already linked to this student', 'status': 409}
+            return None, {"message": "Parent already linked to this student", "status": 409}
 
         get_db().execute(
             student_parent.insert().values(
@@ -223,7 +226,7 @@ class StudentService:
     def unlink_parent(student_id: int, parent_id: int):
         student = get_db().query(Student).filter_by(id=student_id, is_active=True).first()
         if not student:
-            return False, {'message': 'Student not found', 'status': 404}
+            return False, {"message": "Student not found", "status": 404}
 
         result = get_db().execute(
             student_parent.delete().where(
@@ -232,7 +235,7 @@ class StudentService:
             )
         )
         if result.rowcount == 0:
-            return False, {'message': 'Parent-student link not found', 'status': 404}
+            return False, {"message": "Parent-student link not found", "status": 404}
 
         get_db().commit()
         return True, None
@@ -241,18 +244,22 @@ class StudentService:
     def get_parents(student_id: int):
         student = get_db().query(Student).filter_by(id=student_id, is_active=True).first()
         if not student:
-            return None, {'message': 'Student not found', 'status': 404}
+            return None, {"message": "Student not found", "status": 404}
 
-        rows = get_db().execute(
-            select(Parent, student_parent.c.is_primary_contact)
-            .join(student_parent, Parent.id == student_parent.c.parent_id)
-            .where(student_parent.c.student_id == student_id)
-        ).all()
+        rows = (
+            get_db()
+            .execute(
+                select(Parent, student_parent.c.is_primary_contact)
+                .join(student_parent, Parent.id == student_parent.c.parent_id)
+                .where(student_parent.c.student_id == student_id)
+            )
+            .all()
+        )
 
         result = []
         for parent, is_primary in rows:
             d = parent.to_dict()
-            d['is_primary_contact'] = is_primary
+            d["is_primary_contact"] = is_primary
             result.append(d)
 
         return result, None
@@ -271,15 +278,13 @@ class StudentService:
         """
         student = get_db().query(Student).filter_by(id=student_id, is_active=True).first()
         if not student:
-            return None, {'message': 'Student not found', 'status': 404}
+            return None, {"message": "Student not found", "status": 404}
 
-        effective_date = data['effective_date']
-        new_section_id = data['new_section_id']
+        effective_date = data["effective_date"]
+        new_section_id = data["new_section_id"]
 
         # Close current enrollment
-        current = get_db().query(StudentSection).filter_by(
-            student_id=student_id, is_current=True
-        ).first()
+        current = get_db().query(StudentSection).filter_by(student_id=student_id, is_current=True).first()
         if current:
             current.is_current = False
             current.end_date = effective_date
@@ -287,7 +292,7 @@ class StudentService:
         # Determine academic year from effective_date
         year = effective_date.year
         month = effective_date.month
-        academic_year = f'{year}-{year + 1}' if month >= 6 else f'{year - 1}-{year}'
+        academic_year = f"{year}-{year + 1}" if month >= 6 else f"{year - 1}-{year}"
 
         new_enrollment = StudentSection(
             student_id=student_id,
@@ -313,36 +318,32 @@ class StudentService:
         """
         student = get_db().query(Student).filter_by(id=student_id, is_active=True).first()
         if not student:
-            return None, {'message': 'Student not found', 'status': 404}
+            return None, {"message": "Student not found", "status": 404}
 
         if not file or not file.filename:
-            return None, {'message': 'No file provided', 'status': 400}
+            return None, {"message": "No file provided", "status": 400}
 
         if not _allowed_doc(file.filename):
             return None, {
-                'message': 'Invalid file type. Allowed: PDF, JPG, JPEG, PNG',
-                'status': 400,
+                "message": "Invalid file type. Allowed: PDF, JPG, JPEG, PNG",
+                "status": 400,
             }
 
         # Read content once to check size (werkzeug stream)
         content = file.read()
         if len(content) > MAX_DOC_BYTES:
-            return None, {'message': 'File exceeds maximum size of 5 MB', 'status': 400}
+            return None, {"message": "File exceeds maximum size of 5 MB", "status": 400}
 
-        upload_dir = os.path.join(
-            current_app.config['UPLOAD_FOLDER'], 'students', str(student_id)
-        )
+        upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "students", str(student_id))
         os.makedirs(upload_dir, exist_ok=True)
 
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        safe_name = secure_filename(
-            f"{document_type}_{secrets.token_hex(8)}.{ext}"
-        )
+        ext = file.filename.rsplit(".", 1)[1].lower()
+        safe_name = secure_filename(f"{document_type}_{secrets.token_hex(8)}.{ext}")
         abs_path = os.path.join(upload_dir, safe_name)
-        with open(abs_path, 'wb') as fh:
+        with open(abs_path, "wb") as fh:
             fh.write(content)
 
-        rel_path = os.path.join('students', str(student_id), safe_name)
+        rel_path = os.path.join("students", str(student_id), safe_name)
 
         doc = StudentDocument(
             student_id=student_id,
@@ -360,20 +361,22 @@ class StudentService:
     def list_documents(student_id: int):
         student = get_db().query(Student).filter_by(id=student_id, is_active=True).first()
         if not student:
-            return None, {'message': 'Student not found', 'status': 404}
+            return None, {"message": "Student not found", "status": 404}
 
-        docs = get_db().query(StudentDocument).filter_by(
-            student_id=student_id, is_active=True
-        ).order_by(StudentDocument.created_at.desc()).all()
+        docs = (
+            get_db()
+            .query(StudentDocument)
+            .filter_by(student_id=student_id, is_active=True)
+            .order_by(StudentDocument.created_at.desc())
+            .all()
+        )
         return [d.to_dict() for d in docs], None
 
     @staticmethod
     def delete_document(student_id: int, doc_id: int):
-        doc = get_db().query(StudentDocument).filter_by(
-            id=doc_id, student_id=student_id, is_active=True
-        ).first()
+        doc = get_db().query(StudentDocument).filter_by(id=doc_id, student_id=student_id, is_active=True).first()
         if not doc:
-            return False, {'message': 'Document not found', 'status': 404}
+            return False, {"message": "Document not found", "status": 404}
         doc.is_active = False
         get_db().commit()
         return True, None

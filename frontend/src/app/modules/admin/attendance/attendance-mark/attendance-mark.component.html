@@ -1,0 +1,152 @@
+<p-toast position="top-right" />
+<p-confirmDialog />
+
+<p-card>
+  <p-toolbar styleClass="mb-4">
+    <ng-template pTemplate="left">
+      <h2 class="text-xl font-bold text-900 m-0">Mark Attendance</h2>
+    </ng-template>
+    <ng-template pTemplate="right">
+      @if (submitted) {
+        <p-button
+          label="Mark Another Day"
+          icon="pi pi-refresh"
+          severity="secondary"
+          (onClick)="resetForm()"
+        />
+      }
+    </ng-template>
+  </p-toolbar>
+
+  <!-- Already-marked warning (409) -->
+  @if (alreadyMarked) {
+    <p-message
+      severity="warn"
+      text="Attendance has already been marked for this section on the selected date. Choose a different date or section."
+      styleClass="mb-4 w-full"
+    />
+  }
+
+  <!-- Success banner -->
+  @if (submitted) {
+    <p-message
+      severity="success"
+      text="Attendance submitted successfully. The form is now locked for this session."
+      styleClass="mb-4 w-full"
+    />
+  }
+
+  <!-- Selection row -->
+  <div class="flex flex-wrap gap-3 align-items-end mb-4">
+    <div class="flex flex-column gap-1">
+      <label class="font-semibold text-700">Section</label>
+      <p-dropdown
+        [options]="sectionOptions"
+        [(ngModel)]="selectedSectionId"
+        placeholder="Select a section"
+        [style]="{ minWidth: '16rem' }"
+        [disabled]="submitted"
+        optionLabel="label"
+        optionValue="value"
+      />
+    </div>
+
+    <div class="flex flex-column gap-1">
+      <label class="font-semibold text-700">Date</label>
+      <p-calendar
+        [(ngModel)]="selectedDate"
+        [maxDate]="maxDate"
+        dateFormat="dd/mm/yy"
+        [showIcon]="true"
+        [disabled]="submitted"
+        [style]="{ width: '12rem' }"
+      />
+    </div>
+
+    <p-button
+      label="Load Students"
+      icon="pi pi-users"
+      (onClick)="loadStudents()"
+      [loading]="studentsLoading"
+      [disabled]="!selectedSectionId || submitted"
+    />
+  </div>
+
+  <p-divider />
+
+  <!-- Students table -->
+  @if (studentsLoading) {
+    <div class="flex justify-content-center py-6">
+      <p-progressSpinner strokeWidth="4" [style]="{ width: '3rem', height: '3rem' }" />
+    </div>
+  }
+
+  @if (studentsLoaded && !studentsLoading) {
+    @if (studentRows.length === 0) {
+      <div class="text-center text-600 py-5">
+        <i class="pi pi-users text-4xl mb-2 block"></i>
+        No students enrolled in this section.
+      </div>
+    } @else {
+      <div class="flex justify-content-between align-items-center mb-3">
+        <span class="text-700 font-medium">{{ studentRows.length }} student(s) loaded</span>
+        <p-button
+          label="Mark All Present"
+          icon="pi pi-check-circle"
+          severity="success"
+          [outlined]="true"
+          size="small"
+          (onClick)="markAllPresent()"
+          [disabled]="submitted"
+        />
+      </div>
+
+      <p-table
+        [value]="studentRows"
+        dataKey="student.id"
+        responsiveLayout="scroll"
+        styleClass="p-datatable-sm"
+        [rowHover]="true"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 3rem">#</th>
+            <th>Admission No</th>
+            <th>Student Name</th>
+            <th>Status</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-row let-i="rowIndex">
+          <tr>
+            <td class="text-500 text-sm">{{ i + 1 }}</td>
+            <td>
+              <span class="font-medium text-primary">{{ row.student.admission_no }}</span>
+            </td>
+            <td>{{ row.student.first_name }} {{ row.student.last_name }}</td>
+            <td>
+              <p-selectButton
+                [options]="statusOptions"
+                [(ngModel)]="row.status"
+                optionLabel="label"
+                optionValue="value"
+                [disabled]="submitted"
+              />
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      <div class="flex justify-content-end mt-4">
+        <p-button
+          label="Submit Attendance"
+          icon="pi pi-save"
+          severity="primary"
+          (onClick)="confirmSubmit()"
+          [loading]="submitting"
+          [disabled]="submitted || submitting"
+        />
+      </div>
+    }
+  }
+</p-card>
