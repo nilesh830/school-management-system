@@ -1,0 +1,15 @@
+# Railway sets $PORT; fall back to 80 for local runs.
+:{$PORT:80} {
+	encode gzip
+	root * /usr/share/caddy
+
+	# Forward API calls to the backend Railway service (set BACKEND_URL env var,
+	# e.g. https://sms-backend-production.up.railway.app). Keeps the browser on a
+	# single origin, so no CORS is needed.
+	@api path /api/*
+	reverse_proxy @api {$BACKEND_URL}
+
+	# SPA fallback: every other path serves index.html for Angular routing.
+	try_files {path} /index.html
+	file_server
+}
