@@ -18,12 +18,12 @@ def register_commands(app) -> None:
 @click.command("db-upgrade-all")
 @with_appcontext
 def db_upgrade_all():
-    """Run Alembic 'upgrade head' on every active school database."""
+    """Run Alembic 'upgrade head' on every active school schema."""
     from alembic.config import Config as AlembicConfig
     from alembic import command as alembic_command
     from alembic.script import ScriptDirectory
     from alembic.runtime.migration import MigrationContext
-    from sqlalchemy import create_engine
+    from app import db
     from app.models.master.school import School
 
     migrations_dir = os.path.abspath(os.path.join(current_app.root_path, "..", "migrations"))
@@ -37,32 +37,41 @@ def db_upgrade_all():
 
     schools = School.query.filter_by(is_active=True).order_by(School.slug).all()
     if not schools:
-        click.echo("No active schools found in master.db.")
+        click.echo("No active schools found.")
         return
 
+    engine = db.engine
     errors = []
 
     for school in schools:
-        click.echo(f"[{school.slug}] {school.name}")
+        schema = school.db_url  # repurposed column holds the schema name
+        click.echo(f"[{school.slug}] {school.name} (schema: {schema})")
         try:
-            # Read current revision without running migrations
-            engine = create_engine(school.db_url, connect_args={"check_same_thread": False})
             with engine.connect() as conn:
-                current_rev = MigrationContext.configure(conn).get_current_revision()
-            engine.dispose()
+                # Read the current revision straight from the school schema's
+                # version table (version_table_schema is reliable; relying on
+                # schema_translate_map for the version read is not).
+                current_rev = MigrationContext.configure(
+                    conn, opts={"version_table_schema": schema}
+                ).get_current_revision()
+                if current_rev == head_rev:
+                    click.echo(f"  -> already at head ({(head_rev or '')[:12]})")
+                    continue
 
-            if current_rev == head_rev:
-                click.echo(f"  -> already at head ({(head_rev or '')[:12]})")
-                continue
+                click.echo(f"  current : {current_rev or 'none'}")
+                click.echo(f"  target  : {(head_rev or '')[:12]}...")
 
-            click.echo(f"  current : {current_rev or 'none'}")
-            click.echo(f"  target  : {(head_rev or '')[:12]}...")
-
-            # Run upgrade via modified env.py (target_db_url override)
-            cfg = AlembicConfig(alembic_ini)
-            cfg.set_main_option("script_location", migrations_dir)
-            cfg.attributes["target_db_url"] = school.db_url
-            alembic_command.upgrade(cfg, "head")
+                # For the upgrade, route unqualified table ops to the school
+                # schema via schema_translate_map (NOT `SET search_path`, which
+                # would leak onto the pooled connection) and keep the version
+                # table pinned to the same schema.
+                routed = conn.execution_options(schema_translate_map={None: schema})
+                cfg = AlembicConfig(alembic_ini)
+                cfg.set_main_option("script_location", migrations_dir)
+                cfg.attributes["connection"] = routed
+                cfg.attributes["version_table_schema"] = schema
+                alembic_command.upgrade(cfg, "head")
+                conn.commit()
 
             click.echo("  -> UPGRADED")
 

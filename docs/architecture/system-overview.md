@@ -1,5 +1,11 @@
 # SMS — System Architecture Overview
-**Author:** @solution-architect | **Date:** 2026-06-06 | **Status:** Accepted
+**Author:** @solution-architect | **Date:** 2026-06-06 (rev. 2026-06-24) | **Status:** Accepted
+
+> **Multi-tenant ERP.** One deployment serves many schools. Data is isolated
+> per school using **PostgreSQL schema-per-school** — see
+> [ERP_MULTI_TENANCY.md](ERP_MULTI_TENANCY.md) and
+> [ADR-004](adr-004-postgresql-schema-per-school.md). Frontend portals are
+> detailed in [frontend-architecture.md](frontend-architecture.md).
 
 ---
 
@@ -13,8 +19,8 @@
 │  │              Angular 17+ SPA (PrimeNG + PrimeFlex)           │  │
 │  │                                                              │  │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐  │  │
-│  │  │  /admin  │ │ /teacher │ │ /student │ │   /parent    │  │  │
-│  │  │  module  │ │  module  │ │  module  │ │ portal module│  │  │
+│  │  │  /admin  │ │ /teacher │ │ /student │ │/parent +     │  │  │
+│  │  │  module  │ │  module  │ │  module  │ │ /superadmin  │  │  │
 │  │  └──────────┘ └──────────┘ └──────────┘ └──────────────┘  │  │
 │  │                                                              │  │
 │  │  core/ (guards, interceptors, auth.service)                 │  │
@@ -45,18 +51,25 @@
                         SQLAlchemy ORM
                               │
 ┌─────────────────────────────────────────────────────────────────────┐
-│                       DATABASE LAYER                                │
+│                  DATABASE LAYER  (PostgreSQL)                        │
 │                                                                     │
 │  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                   SQLite3  (sms.db)                          │  │
-│  │              [Production path: PostgreSQL]                   │  │
+│  │   ONE PostgreSQL database · schema-per-school multi-tenancy   │  │
 │  │                                                              │  │
-│  │  users │ students │ teachers │ parents │ classes │ sections  │  │
-│  │  attendance │ exams │ exam_results │ fee_records │ payments  │  │
-│  │  leave_applications │ notifications │ announcements │ books   │  │
+│  │  public schema (master registry)                            │  │
+│  │     schools │ super_admins │ super_admin_revoked_tokens      │  │
+│  │                                                              │  │
+│  │  school_<slug> schema  (one per school, ~34 tables)         │  │
+│  │     users │ students │ teachers │ parents │ classes │ …      │  │
+│  │     attendance │ exams │ fee_records │ announcements │ books │  │
+│  │                                                              │  │
+│  │  routing: SQLAlchemy schema_translate_map (per request)     │  │
 │  └──────────────────────────────────────────────────────────┘  │  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+> Dev/test uses in-memory SQLite via the `TESTING` bypass; all runtime tenancy
+> runs on PostgreSQL. Driver: **psycopg 3** (`postgresql+psycopg://`).
 
 ---
 
@@ -82,47 +95,46 @@ HTTP Request
 │  Model (SQLAlchemy ORM)             │  ← Data mapping only, no logic
 │  models/student.py                  │  ← to_dict(), relationships
 └─────────────────┬───────────────────┘
-                  │
+                  │   query via get_db() → tenant session
                   ▼
 ┌─────────────────────────────────────┐
-│  SQLite3 Database (sms.db)          │
+│  PostgreSQL — school_<slug> schema  │  ← routed by schema_translate_map
 └─────────────────────────────────────┘
 ```
+
+> Services and routes never use `db.session` directly for school data — they go
+> through `get_db()`, which returns the request's tenant session (the schema
+> chosen from the JWT's `school_slug`). See
+> [ERP_MULTI_TENANCY.md](ERP_MULTI_TENANCY.md) §5.
 
 ---
 
 ## Authentication & Authorization Flow
 
 ```
-                    ┌─────────┐
-                    │  Login  │
-                    └────┬────┘
-                         │ POST /api/v1/auth/login
-                         ▼
-                ┌────────────────┐
-                │  Verify email  │
-                │  + bcrypt pwd  │
-                └───────┬────────┘
-                        │ valid
-                        ▼
-              ┌──────────────────────┐
-              │  Generate JWT tokens │
-              │  access_token: 15min │
-              │  refresh_token: 7d   │
-              │  claims: {role,      │
-              │   user_id,parent_id} │
-              └──────────┬───────────┘
-                         │
-          ┌──────────────┼──────────────┐
-          ▼              ▼              ▼
-      role=admin    role=teacher   role=parent
-          │              │              │
-    /admin/*        /teacher/*    /parent/*
-    (Admin layout)  (Teacher UI)  (Parent Portal)
-          │              │              │
-    @roles_required  @roles_required  @roles_required
-    ('admin')       ('admin','teacher') ('parent')
+         School user                          Super admin
+    POST /api/v1/auth/login            POST /api/v1/superadmin/auth/login
+    { email, password, school_slug }   { email, password }
+              │                                   │
+        verify slug (public.schools)              │
+        verify email+bcrypt (school schema)  verify email+bcrypt (public.super_admins)
+              │                                   │
+              ▼                                   ▼
+   JWT claims: { role, user_id,          JWT claims: { role: super_admin,
+     school_slug, parent_id? }             super_admin_id }   (NO school_slug)
+   identity "42"                          identity "sa:1"
+   access 15min · refresh 7d             access 15min · refresh 7d
+              │                                   │
+   ┌──────────┼──────────┬─────────┐             ▼
+   ▼          ▼          ▼         ▼        /superadmin/*
+ admin     teacher    student    parent    (SA portal, public registry)
+ /admin/*  /teacher/* /student/* /parent/*  @roles_required('super_admin')
+   @roles_required(...) per route; tenant middleware opens school_<slug> schema
 ```
+
+> The `school_slug` claim is what the tenant middleware reads on every request
+> to select the school's PostgreSQL schema. Super-admin tokens have no slug and
+> operate on the `public` registry only.
 
 ---
 
@@ -209,6 +221,8 @@ Angular Component
 | Auth Security | Brute-force protected | Flask-Limiter: 5 login attempts/minute |
 | Password Storage | bcrypt (rounds=12) | Flask-Bcrypt |
 | Token Expiry | 15min access, 7d refresh | Flask-JWT-Extended config |
+| Tenant Isolation | One school never sees another's data | PostgreSQL schema-per-school; `schema_translate_map` per request |
+| Concurrency | Multi-user writes | PostgreSQL MVCC (replaced single-writer SQLite) |
 | Data Isolation | Parent sees only own children | `_verify_child_access()` in every portal service |
 | Input Validation | All endpoints validated | Marshmallow schemas |
 | CORS | Allowlist only | Flask-CORS with explicit origins |

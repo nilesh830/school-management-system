@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from app import create_app  # noqa: E402
 from app.models.master.school import School  # noqa: E402
 from app.models.academic_year import AcademicYear  # noqa: E402
-from app.utils.tenant import _get_session_factory  # noqa: E402
+from app.utils.tenant import _open_tenant_session  # noqa: E402
 
 
 def seed_academic_year(slug: str = "demo", name: str = "2025-2026"):
@@ -31,7 +31,8 @@ def seed_academic_year(slug: str = "demo", name: str = "2025-2026"):
             print(f"[ERROR] No school found with slug '{slug}'. Provision it first in the Super Admin portal.")
             return
 
-        session = _get_session_factory(school.db_url)()
+        # school.db_url holds the school's PostgreSQL schema name
+        session, connection = _open_tenant_session(school.db_url)
         try:
             existing = session.query(AcademicYear).filter_by(is_current=True).first()
             if existing:
@@ -50,6 +51,7 @@ def seed_academic_year(slug: str = "demo", name: str = "2025-2026"):
             print(f"[OK] Created academic year '{name}' (id={ay.id}) for school '{slug}'.")
         finally:
             session.close()
+            connection.close()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,4 @@
 import logging
-import os
 
 from flask import current_app
 
@@ -53,13 +52,14 @@ class SuperAdminService:
         """
         Create a new school:
         1. Validate slug is unique → 409 if not
-        2. Build db_url using SCHOOLS_DB_DIR from config
-        3. Create School record in master.db
-        4. Call _create_school_db() to stamp schema + Alembic version
-        5. Call _seed_school_admin() to create first admin user in school DB
+        2. Derive the PostgreSQL schema name (school_<slug>)
+        3. Create School record in the master tables
+        4. Call _create_school_db() to create the schema + tables + Alembic stamp
+        5. Call _seed_school_admin() to create first admin user in the school schema
         6. Return (school_dict, None) or (None, error_dict)
 
-        Atomic-ish: if DB creation fails the School record is rolled back.
+        Atomic-ish: if schema creation fails the School record is rolled back and
+        any partially created schema is dropped.
         """
         slug = data["slug"].lower().strip()
 
@@ -67,16 +67,14 @@ class SuperAdminService:
         if School.query.filter_by(slug=slug).first():
             return None, {"message": f"Slug '{slug}' is already taken.", "status": 409}
 
-        # 2. Build db_url
-        schools_dir = current_app.config["SCHOOLS_DB_DIR"]
-        db_path = os.path.join(schools_dir, f"school_{slug}.db")
-        db_url = "sqlite:///" + db_path.replace("\\", "/")
+        # 2. Derive schema name — stored in School.db_url (repurposed column)
+        schema = f"school_{slug}".replace("-", "_")
 
         # 3. Persist School record
         school = School(
             name=data["name"],
             slug=slug,
-            db_url=db_url,
+            db_url=schema,
             address=data.get("address"),
             phone=data.get("phone"),
             email=data.get("email"),
@@ -88,12 +86,12 @@ class SuperAdminService:
         try:
             db.session.flush()  # get school.id without committing yet
 
-            # 4. Create school-scoped tables + stamp Alembic head
-            SuperAdminService._create_school_db(db_url)
+            # 4. Create the school schema + school-scoped tables + stamp Alembic head
+            SuperAdminService._create_school_db(schema)
 
             # 5. Seed first admin user
             SuperAdminService._seed_school_admin(
-                db_url=db_url,
+                schema=schema,
                 admin_email=data["admin_email"],
                 admin_password=data["admin_password"],
                 first_name=data.get("admin_first_name", "School"),
@@ -101,18 +99,14 @@ class SuperAdminService:
             )
 
             db.session.commit()
-            logger.info("Provisioned school '%s' at %s", slug, db_url)
+            logger.info("Provisioned school '%s' in schema %s", slug, schema)
             return school.to_dict(), None
 
         except Exception as exc:
             db.session.rollback()
             logger.exception("Failed to provision school '%s': %s", slug, exc)
-            # Best-effort cleanup of any partially created DB file
-            if os.path.exists(db_path):
-                try:
-                    os.remove(db_path)
-                except OSError:
-                    pass
+            # Best-effort cleanup of any partially created schema
+            SuperAdminService._drop_school_schema(schema)
             return None, {"message": f"Provisioning failed: {exc}", "status": 500}
 
     # -------------------------------------------------------------------------
@@ -150,74 +144,95 @@ class SuperAdminService:
     # -------------------------------------------------------------------------
 
     @staticmethod
-    def _create_school_db(db_url: str) -> None:
+    def _create_school_db(schema: str) -> None:
         """
-        Create all school-scoped tables in a brand-new SQLite file and stamp
-        the Alembic version so future migrate --upgrade commands know the DB
-        is already at head.
+        Create the school's PostgreSQL schema, all school-scoped tables inside
+        it, and stamp the Alembic version so future ``db-upgrade-all`` commands
+        know the schema is already at head.
 
-        Only tables that do NOT carry bind_key='master' in their .info dict
-        are created here — master-bound tables live in master.db.
+        Only tables that do NOT carry bind_key='master' in their .info dict are
+        created here — master-bound tables live in the public schema.
         """
         import os
-        from sqlalchemy import create_engine, text
+        from sqlalchemy import text
         from alembic.config import Config as AlembicConfig
         from alembic.script import ScriptDirectory
         from app import db as _db
 
-        engine = create_engine(db_url)
+        engine = _db.engine
 
-        # Filter to school-scoped tables (exclude master-bound tables)
+        # 1. Create the schema (idempotent)
+        with engine.begin() as conn:
+            conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
+
+        # 2. Create school-scoped tables inside the schema (exclude master tables)
         school_tables = [t for t in _db.metadata.sorted_tables if t.info.get("bind_key") != "master"]
-        _db.metadata.create_all(engine, tables=school_tables)
+        routed = engine.connect().execution_options(schema_translate_map={None: schema})
+        try:
+            _db.metadata.create_all(bind=routed, tables=school_tables)
+            routed.commit()
+        finally:
+            routed.close()
 
-        # Stamp with current Alembic head revision
+        # 3. Stamp with current Alembic head revision (inside the schema)
         migrations_dir = os.path.abspath(os.path.join(current_app.root_path, "..", "migrations"))
         alembic_cfg = AlembicConfig()
         alembic_cfg.set_main_option("script_location", migrations_dir)
         script = ScriptDirectory.from_config(alembic_cfg)
         head_rev = script.get_current_head()
 
-        with engine.connect() as conn:
+        # Use schema-qualified identifiers (NOT `SET search_path`) so the
+        # connection returns to the pool clean — a leaked search_path would
+        # corrupt later master-table queries on the shared engine.
+        with engine.begin() as conn:
             conn.execute(
                 text(
-                    "CREATE TABLE IF NOT EXISTS alembic_version "
+                    f'CREATE TABLE IF NOT EXISTS "{schema}".alembic_version '
                     "(version_num VARCHAR(32) NOT NULL, "
                     "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
                 )
             )
             if head_rev:
                 conn.execute(
-                    text("INSERT OR IGNORE INTO alembic_version VALUES (:rev)"),
+                    text(f'INSERT INTO "{schema}".alembic_version VALUES (:rev) ON CONFLICT DO NOTHING'),
                     {"rev": head_rev},
                 )
-            conn.commit()
 
-        engine.dispose()
+    @staticmethod
+    def _drop_school_schema(schema: str) -> None:
+        """Best-effort teardown of a partially provisioned school schema."""
+        from sqlalchemy import text
+        from app import db as _db
+
+        try:
+            with _db.engine.begin() as conn:
+                conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        except Exception:
+            logger.exception("Failed to drop schema %s during cleanup", schema)
 
     @staticmethod
     def _seed_school_admin(
-        db_url: str,
+        schema: str,
         admin_email: str,
         admin_password: str,
         first_name: str = "School",
         last_name: str = "Admin",
     ) -> None:
         """
-        Create the first admin user in the new school's DB.
-        Uses a dedicated SQLAlchemy session bound to the school engine —
-        completely isolated from Flask-SQLAlchemy's default session.
+        Create the first admin user in the new school's schema.
+        Uses a dedicated session routed to the school schema via
+        schema_translate_map — isolated from Flask-SQLAlchemy's default session.
         admin_password is hashed immediately; the plain-text value is not
         persisted anywhere.
         """
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker
-        from app import bcrypt
+        from sqlalchemy.orm import Session
+        from app import bcrypt, db as _db
         from app.models.user import User
 
-        engine = create_engine(db_url)
-        SessionLocal = sessionmaker(bind=engine)
-        session = SessionLocal()
+        connection = _db.engine.connect().execution_options(
+            schema_translate_map={None: schema}
+        )
+        session = Session(bind=connection)
         try:
             if not session.query(User).filter_by(email=admin_email.lower()).first():
                 user = User(
@@ -232,4 +247,4 @@ class SuperAdminService:
                 session.commit()
         finally:
             session.close()
-            engine.dispose()
+            connection.close()

@@ -5,6 +5,27 @@
 
 ---
 
+## Multi-Tenancy & Namespaces
+
+This is a multi-tenant API (PostgreSQL schema-per-school — see
+[ERP_MULTI_TENANCY.md](../architecture/ERP_MULTI_TENANCY.md)). There are two
+auth domains:
+
+| Namespace | Who | Tenant context |
+|---|---|---|
+| `/api/v1/superadmin/*` | Platform super admins | none — operates on the master registry |
+| `/api/v1/auth/*` and all other modules | School users (admin/teacher/student/parent) | the school selected by **`school_slug`** |
+
+- **School login requires `school_slug`** in the request body. The slug is
+  embedded into the JWT and read on every subsequent request to route queries to
+  that school's schema. Omitting it → `404 School not found`.
+- **Super-admin login takes only `email`/`password`** (no slug) and yields a
+  token with `role: super_admin`.
+- Interactive docs (Swagger UI) are served at **`/docs/`**; OpenAPI JSON at
+  **`/apispec.json`**.
+
+---
+
 ## Standard Response Envelope
 
 ```json
@@ -47,20 +68,24 @@ Paginated responses include a `meta` object:
 **Public** | Rate limit: 5/minute
 
 ```json
-// Request
-{ "email": "admin@school.com", "password": "SecurePass123" }
+// Request — school_slug is REQUIRED (selects the tenant schema)
+{ "email": "admin@school.com", "password": "SecurePass123", "school_slug": "demo" }
 
 // Response 200
 {
   "data": {
-    "access_token": "eyJ...",
+    "access_token": "eyJ...",   // JWT carries role + user_id + school_slug
     "refresh_token": "eyJ...",
     "user": { "id": 1, "email": "admin@school.com", "role": "admin" }
   }
 }
 // Response 401 — invalid credentials
+// Response 404 — school_slug not found or inactive
 // Response 429 — rate limited
 ```
+
+> **Super admins log in at `POST /api/v1/superadmin/auth/login`** with just
+> `{ email, password }` (no `school_slug`). See the Super Admin section.
 
 ### POST `/auth/refresh`
 **Requires:** refresh_token in Authorization header

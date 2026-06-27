@@ -1,10 +1,72 @@
 # SMS — Complete Database Schema
-**Author:** @database-engineer | **Date:** 2026-06-06
-**Database:** SQLite3 (dev) | PostgreSQL-compatible via SQLAlchemy ORM
+**Author:** @database-engineer | **Date:** 2026-06-06 (rev. 2026-06-24)
+**Database:** PostgreSQL (runtime) · in-memory SQLite for the `TESTING` unit suite
 
 ---
 
-## Entity Relationship Diagram
+## Physical Layout — Schema-per-School Multi-Tenancy
+
+The platform runs on **one PostgreSQL database** with a **schema per school**
+(see [ERP_MULTI_TENANCY.md](ERP_MULTI_TENANCY.md) and
+[ADR-004](adr-004-postgresql-schema-per-school.md)).
+
+```
+PostgreSQL database
+├── public                 ← MASTER REGISTRY (created at app startup)
+│     ├── schools                      (id, name, slug, db_url=schema name, is_active, …)
+│     ├── super_admins                 (id, email, password_hash, …)
+│     └── super_admin_revoked_tokens   (id, jti, …)
+│
+└── school_<slug>          ← ONE PER SCHOOL (created at provision time)
+      ├── <all tables documented below>   (~34 tables: users, students, …)
+      └── alembic_version                 (this school's migration head)
+```
+
+- **Master tables** (`schools`, `super_admins`, `super_admin_revoked_tokens`)
+  carry `__bind_key__='master'` and live in `public`. They are created via
+  `db.create_all(bind_key=['master'])` at startup, **not** by Alembic.
+- **All other tables** (the ERD below) are **school-scoped**: an identical set
+  exists inside every `school_<slug>` schema, created by `metadata.create_all`
+  during provisioning and versioned per-schema by Alembic (head `b2d3f5061728`).
+- The column definitions below are **dialect-agnostic** (SQLAlchemy ORM). On
+  PostgreSQL, `INTEGER PK` is `SERIAL`, `DATETIME` is `TIMESTAMP`, and `ENUM`
+  values are enforced via the ORM / check constraints.
+
+### Master table — `schools`
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | INTEGER | PK |
+| name | VARCHAR(200) | NOT NULL |
+| slug | VARCHAR(50) | NOT NULL, UNIQUE, INDEX |
+| db_url | VARCHAR(500) | NOT NULL — **stores the schema name** (e.g. `school_demo`) |
+| address / phone / email / logo_url | — | nullable metadata |
+| is_active | BOOLEAN | NOT NULL, DEFAULT true |
+| academic_year_start_month | INTEGER | DEFAULT 6 |
+| created_at / updated_at | TIMESTAMP | NOT NULL |
+
+### Master table — `super_admins`
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | INTEGER | PK |
+| email | VARCHAR(255) | NOT NULL, UNIQUE |
+| password_hash | VARCHAR(255) | NOT NULL (bcrypt) |
+| first_name / last_name | VARCHAR | nullable |
+| is_active | BOOLEAN | DEFAULT true |
+
+### Master table — `super_admin_revoked_tokens`
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | INTEGER | PK |
+| jti | VARCHAR(36) | NOT NULL, UNIQUE, INDEX |
+| revoked_at | TIMESTAMP | NOT NULL |
+
+---
+
+## Entity Relationship Diagram (school-scoped tables)
+
+> The diagram and column tables below describe the tables inside **each**
+> `school_<slug>` schema. There are no `school_id` columns — isolation is at the
+> schema level.
 
 ```
 users ──────────────────────────────────────────────────────────────┐

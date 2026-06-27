@@ -1,7 +1,37 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
-> **Last updated:** 2026-06-23 (session 14) | **Branch:** `develop`
+> **Last updated:** 2026-06-24 (session 15) | **Branch:** `develop`
+
+---
+
+## ⚠️ ACTION REQUIRED — Install PostgreSQL on local machine (performance)
+
+**Why:** Session 15 migrated the DB from SQLite → **PostgreSQL (schema-per-school)**, currently running on a **Neon** cloud instance in `us-east-1` (US East Coast). From India this causes two pains:
+1. **Latency** — **~250 ms per query / ~1 s per new connection**. A page firing 5–10 queries waits 2–3 s purely on the network. (Flask itself is fast: `/health` = ~11 ms — it's the DB's physical distance, not the code.)
+2. **Auto-suspend 500s** — Neon free tier scales compute to zero after ~5 min idle, killing open connections. The first request after idle can throw `psycopg.errors.AdminShutdown: terminating connection due to administrator command` (HTTP 500). Mitigated in session 15 with `pool_pre_ping=True` + `pool_recycle=280` in `config.py`, but the rare "killed mid-query" race still 500s once — refresh and it recovers.
+
+**Both problems disappear with a local PostgreSQL** (queries ~0 ms, no auto-suspend). Keep Neon for staging/demo; use local only for development.
+
+### TODO — set up portable PostgreSQL (no admin, no Docker)
+1. **Download** the EDB binaries zip (verified working, ~350 MB):
+   `https://get.enterprisedb.com/postgresql/postgresql-17.2-1-windows-x64-binaries.zip`
+2. **Extract** it (contains a `pgsql/` folder). Suggested home: `%LOCALAPPDATA%\sms-postgres\pgsql`.
+3. **Init a data dir** (trust auth is fine for local dev):
+   `pgsql\bin\initdb.exe -D %LOCALAPPDATA%\sms-postgres\data -U postgres -A trust -E UTF8`
+4. **Start it on port 5433** (avoids any default 5432):
+   `pgsql\bin\pg_ctl.exe -D %LOCALAPPDATA%\sms-postgres\data -o "-p 5433" -l %LOCALAPPDATA%\sms-postgres\server.log start`
+5. **Create the DB:** `pgsql\bin\createdb.exe -p 5433 -U postgres sms`
+6. **Point the app at it** — edit gitignored `backend/.env`:
+   `DATABASE_URL=postgresql://postgres@localhost:5433/sms`
+   (config.py auto-adds the psycopg3 driver + `search_path=public`; no other change needed.)
+7. **Seed it:** `cd backend && .\venv\Scripts\python.exe database\seeds\seed_master.py`
+   → creates super admin + provisions the `demo` school schema.
+8. **Restart the backend** and you're on local Postgres. To switch back to Neon, just restore the Neon `DATABASE_URL` line in `.env`.
+
+> Alternative installs (both need an admin/UAC prompt): `winget install PostgreSQL.PostgreSQL` or `choco install postgresql`.
+
+> Migration details + hard-won gotchas (psycopg3 for Python 3.14, Neon **direct** endpoint not the `-pooler` one, `schema_translate_map` routing, pinned `search_path=public`) are in the project memory file `project_postgres_migration.md`. Demo logins: super admin `superadmin@sms.com` / `SuperAdmin@1234`; school admin `admin@demo.sms` / `Admin@1234` (slug `demo`).
 
 ---
 
