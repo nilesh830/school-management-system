@@ -21,7 +21,10 @@ def list_users():
         is_active = is_active_param.lower() == "true"
 
     result = UserService.get_all(page=page, per_page=per_page, role=role, search=search, is_active=is_active)
-    return success_response(data=result["data"], message="Users retrieved successfully")
+    return success_response(
+        data={"users": result["data"], "meta": result["meta"]},
+        message="Users retrieved successfully",
+    )
 
 
 @users_bp.route("", methods=["POST"])
@@ -40,6 +43,24 @@ def create_user():
 def get_user(user_id):
     user = UserService.get_by_id(user_id)
     return success_response(data=user.to_dict(), message="User retrieved successfully")
+
+
+@users_bp.route("/<int:user_id>", methods=["PATCH"])
+@roles_required("admin")
+def update_user(user_id):
+    data = request.get_json()
+    if not data:
+        return error_response("Request body is required", status=400)
+
+    user = UserService.update_user(user_id, data)
+    return success_response(data={"user": user.to_dict()}, message="User updated successfully")
+
+
+@users_bp.route("/<int:user_id>/activate", methods=["PATCH"])
+@roles_required("admin")
+def activate_user(user_id):
+    user = UserService.reactivate(user_id)
+    return success_response(data={"user": user.to_dict()}, message="User activated successfully")
 
 
 @users_bp.route("/<int:user_id>", methods=["DELETE"])

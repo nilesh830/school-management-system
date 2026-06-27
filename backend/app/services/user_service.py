@@ -117,6 +117,53 @@ class UserService:
         return user
 
     @staticmethod
+    def update_user(user_id, data):
+        user = get_db().get(User, user_id)
+        if not user:
+            abort(404, description="User not found")
+
+        if data.get("email"):
+            email = data["email"].lower().strip()
+            if not validate_email(email):
+                abort(422, description="Invalid email format")
+            clash = get_db().query(User).filter(User.email == email, User.id != user_id).first()
+            if clash:
+                abort(409, description="A user with this email already exists")
+            user.email = email
+
+        if data.get("first_name"):
+            user.first_name = data["first_name"].strip()
+        if data.get("last_name"):
+            user.last_name = data["last_name"].strip()
+
+        if data.get("password"):
+            pw_errors = validate_password(data["password"])
+            if pw_errors:
+                abort(422, description=" | ".join(pw_errors))
+            user.set_password(data["password"])
+
+        # Keep the linked Parent profile's name in sync with the user account
+        if user.role == "parent" and (data.get("first_name") or data.get("last_name")):
+            parent = get_db().query(Parent).filter_by(user_id=user.id).first()
+            if parent:
+                parent.first_name = user.first_name
+                parent.last_name = user.last_name
+
+        get_db().commit()
+        return user
+
+    @staticmethod
+    def reactivate(user_id):
+        user = get_db().get(User, user_id)
+        if not user:
+            abort(404, description="User not found")
+        if user.is_active:
+            abort(400, description="User is already active")
+        user.is_active = True
+        get_db().commit()
+        return user
+
+    @staticmethod
     def deactivate(user_id, requesting_user_id):
         if user_id == requesting_user_id:
             abort(400, description="Cannot deactivate your own account")

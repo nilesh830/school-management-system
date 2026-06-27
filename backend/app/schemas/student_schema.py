@@ -34,6 +34,8 @@ class StudentCreateSchema(Schema):
         allow_none=True,
     )
     user_id = fields.Int(load_default=None, allow_none=True)
+    # Optional initial section placement — creates the first enrollment.
+    section_id = fields.Int(load_default=None, allow_none=True)
 
     @validates("date_of_birth")
     def validate_dob(self, value):

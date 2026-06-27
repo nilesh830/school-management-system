@@ -224,6 +224,15 @@ def mark_all_read():
 parents_bp = Blueprint("parents_profile", __name__, url_prefix="/api/v1/parents")
 
 
+@parents_bp.route("", methods=["GET"])
+@roles_required("admin")
+def list_parents():
+    """Admin: searchable directory of parents for linking to students."""
+    search = request.args.get("q") or request.args.get("search")
+    parents = ParentProfileService.list_parents(search=search)
+    return success_response(data=parents, message="Parents retrieved")
+
+
 @parents_bp.route("/me", methods=["GET"])
 @roles_required("parent")
 def get_my_profile():

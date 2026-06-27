@@ -1,7 +1,31 @@
 # SMS Project — Work Status
 
 > Update this file at the end of every work session. It is the single source of truth for "where we left off."
-> **Last updated:** 2026-06-24 (session 15) | **Branch:** `develop`
+> **Last updated:** 2026-06-27 (session 16) | **Branch:** `develop`
+
+---
+
+## 🚀 DEPLOYED TO RAILWAY (session 16) — ✅ LIVE
+
+Full stack is live on Railway (project **celebrated-delight**, env **production**), all three services from the `nilesh830/school-management-system` repo on branch `develop`:
+
+| Component | URL / Detail |
+|-----------|--------------|
+| **Frontend (the app — share this)** | https://distinguished-comfort-production-5a39.up.railway.app |
+| **Backend API** | https://school-management-system-production-fbf4.up.railway.app |
+| **Database** | Railway Postgres — Neon data migrated in via `pg_dump -Fc` → `pg_restore` (all schemas: `public` + `school_demo` + `school_greenwood_high`, verified). |
+
+**Verified working:** `/api/v1/health` 200, super-admin login query (clean 401 on wrong pw), Caddy `/api` proxy through the frontend domain returns backend JSON.
+
+**Deploy config (committed on `develop`):** `backend/Procfile`, `backend/.python-version`, `frontend/Dockerfile`, `frontend/Caddyfile`, `frontend/.dockerignore`.
+**Build fixes applied:** (1) `RUN npm install -g npm@11` in frontend Dockerfile — `node:20-alpine` ships npm 10 which fails `npm ci` on the lockfileVersion-3 lock; (2) Caddy `handle /api/*` + `handle` blocks — a bare `try_files` runs before `reverse_proxy` and was rewriting `/api/*` to `index.html`. Full details in memory `project_railway_deploy.md`.
+
+### ⏭️ NEXT STEPS — post-deployment loose ends (do these)
+1. **Log in via browser** to confirm UI end-to-end: super admin `superadmin@sms.com` / `SuperAdmin@1234` (school admin `admin@demo.sms` / `Admin@1234`). API layer already verified.
+2. **⚠️ Rotate the exposed DB passwords** — both Neon and Railway Postgres passwords appeared in the deploy chat. Reset Neon (or delete the Neon project entirely, now that you're on Railway). If you rotate Railway's, the backend's `DATABASE_URL=${{Postgres.DATABASE_URL}}` reference auto-updates — no manual edit.
+3. **Change the default super-admin password** after first login — `SuperAdmin@1234` is a public default committed in `seed_master.py`, not a secret.
+4. **Merge `develop` → `main`** — all deploy config lives on `develop`; per CLAUDE.md workflow, prod usually tracks `main`. (Railway is currently building from `develop`.)
+5. **Local cleanup** — delete the leftover duplicate Postgres zips in `~/Downloads` and the `~/pgtools` (v17) folder. Keep `~/pgtools18\pgsql\bin` for future DB migrations.
 
 ---
 

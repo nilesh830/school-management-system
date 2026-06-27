@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 from app.utils.tenant import get_db
 from app.models.student import Student
 from app.models.student_section import StudentSection
+from app.models.section import Section
 from app.models.student_document import StudentDocument
 from app.models.parent import Parent, student_parent
 
@@ -100,6 +101,12 @@ class StudentService:
                 "status": 409,
             }
 
+        section_id = data.get("section_id")
+        if section_id:
+            section = get_db().query(Section).filter_by(id=section_id, is_active=True).first()
+            if not section:
+                return None, {"message": "Section not found", "status": 404}
+
         student = Student(
             admission_no=data["admission_no"],
             first_name=data["first_name"],
@@ -111,9 +118,27 @@ class StudentService:
             address=data.get("address"),
             phone=data.get("phone"),
             photo_url=data.get("photo_url"),
-            user_id=data.get("user_id") or 1,
+            user_id=data.get("user_id"),
         )
         get_db().add(student)
+        get_db().flush()  # assign student.id before creating the enrollment
+
+        # Optional initial section placement → first (current) enrollment.
+        if section_id:
+            adm = data["admission_date"]
+            academic_year = (
+                f"{adm.year}-{adm.year + 1}" if adm.month >= 6 else f"{adm.year - 1}-{adm.year}"
+            )
+            get_db().add(
+                StudentSection(
+                    student_id=student.id,
+                    section_id=section_id,
+                    academic_year=academic_year,
+                    start_date=adm,
+                    is_current=True,
+                )
+            )
+
         get_db().commit()
         return student.to_dict(), None
 

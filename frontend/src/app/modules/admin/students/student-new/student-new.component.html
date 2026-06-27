@@ -81,6 +81,10 @@
                   [maxDate]="maxDate"
                   dateFormat="yy-mm-dd"
                   [showIcon]="true"
+                  appendTo="body"
+                  [monthNavigator]="true"
+                  [yearNavigator]="true"
+                  yearRange="1950:2026"
                   [class.ng-invalid]="isInvalid(f1.date_of_birth)"
                   [class.ng-dirty]="isInvalid(f1.date_of_birth)"
                   styleClass="w-full"
@@ -185,6 +189,10 @@
                   [maxDate]="maxDate"
                   dateFormat="yy-mm-dd"
                   [showIcon]="true"
+                  appendTo="body"
+                  [monthNavigator]="true"
+                  [yearNavigator]="true"
+                  yearRange="2000:2026"
                   [class.ng-invalid]="isInvalid(f2.admission_date)"
                   [class.ng-dirty]="isInvalid(f2.admission_date)"
                   styleClass="w-full"
@@ -193,6 +201,31 @@
                 <small class="p-error block mt-1" *ngIf="isInvalid(f2.admission_date)">
                   <ng-container *ngIf="f2.admission_date.errors?.['required']">Admission date is required.</ng-container>
                   <ng-container *ngIf="f2.admission_date.errors?.['futureDate']">Admission date cannot be in the future.</ng-container>
+                </small>
+              </div>
+
+              <!-- Class / Section (optional initial placement) -->
+              <div class="field col-12 md:col-6">
+                <label class="font-semibold text-sm mb-1 block" for="section_id">
+                  Class / Section <span class="text-500 text-xs">(optional)</span>
+                </label>
+                <p-dropdown
+                  inputId="section_id"
+                  [options]="sectionOptions"
+                  [formControl]="f2.section_id"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Assign to a section"
+                  [filter]="true"
+                  filterBy="label"
+                  [showClear]="true"
+                  [loading]="loadingSections"
+                  appendTo="body"
+                  emptyMessage="No sections found — create classes & sections first"
+                  styleClass="w-full"
+                />
+                <small class="text-500 block mt-1">
+                  <i class="pi pi-info-circle mr-1"></i>Leave empty to place the student later via Transfer.
                 </small>
               </div>
 

@@ -2,10 +2,10 @@
 
 <div style="max-width: 680px">
   <div class="flex align-items-center gap-3 mb-4">
-    <p-button icon="pi pi-arrow-left" severity="secondary" [text]="true" routerLink="/admin/dashboard" />
+    <p-button icon="pi pi-arrow-left" severity="secondary" [text]="true" routerLink="/admin/users" />
     <div>
-      <h2 class="text-2xl font-bold text-900 m-0">Create User</h2>
-      <p class="text-600 text-sm m-0">Add a new user account to the system</p>
+      <h2 class="text-2xl font-bold text-900 m-0">{{ isEdit ? 'Edit User' : 'Create User' }}</h2>
+      <p class="text-600 text-sm m-0">{{ isEdit ? 'Update an existing user account' : 'Add a new user account to the system' }}</p>
     </div>
   </div>
 
@@ -61,22 +61,86 @@
           @if (f.role.touched && f.role.errors?.['required']) {
             <small class="text-red-500">Role is required</small>
           }
-          @if (f.role.value === 'parent') {
+          @if (f.role.value === 'parent' && !isEdit) {
             <small class="text-blue-600">
               <i class="pi pi-info-circle mr-1"></i>A Parent profile will be automatically created and linked.
             </small>
           }
-          @if (f.role.value === 'student') {
-            <small class="text-blue-600">
-              <i class="pi pi-info-circle mr-1"></i>A Student shell record will be created for enrollment.
+          @if (!isEdit) {
+            <small class="text-500">
+              <i class="pi pi-info-circle mr-1"></i>To add a <strong>student</strong> use
+              <a routerLink="/admin/students/new" class="text-primary">Enroll New Student</a>;
+              for a <strong>teacher</strong> use
+              <a routerLink="/admin/teachers/new" class="text-primary">Add Teacher</a>.
             </small>
           }
+          @if (isEdit) {
+            <small class="text-500"><i class="pi pi-lock mr-1"></i>Role cannot be changed after creation.</small>
+          }
         </div>
+
+        <!-- Parent details (only when creating a parent) -->
+        @if (f.role.value === 'parent' && !isEdit) {
+          <div class="flex flex-column gap-4 surface-50 border-round p-3">
+            <div class="grid">
+              <div class="col-12 md:col-6">
+                <div class="flex flex-column gap-2">
+                  <label class="font-semibold text-900">Relationship <span class="text-red-500">*</span></label>
+                  <p-dropdown
+                    formControlName="relationship_type"
+                    [options]="relationshipTypes"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select relationship"
+                    styleClass="w-full"
+                  />
+                  @if (f.relationship_type.touched && f.relationship_type.errors?.['required']) {
+                    <small class="text-red-500">Relationship is required</small>
+                  }
+                </div>
+              </div>
+              <div class="col-12 md:col-6">
+                <div class="flex flex-column gap-2">
+                  <label class="font-semibold text-900">Primary Phone <span class="text-red-500">*</span></label>
+                  <input pInputText formControlName="phone_primary" placeholder="e.g. 9876543210" class="w-full" />
+                  @if (f.phone_primary.touched && f.phone_primary.errors?.['required']) {
+                    <small class="text-red-500">Primary phone is required</small>
+                  }
+                  @if (f.phone_primary.touched && f.phone_primary.errors?.['pattern']) {
+                    <small class="text-red-500">Enter a valid phone number</small>
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="grid">
+              <div class="col-12 md:col-6">
+                <div class="flex flex-column gap-2">
+                  <label class="font-semibold text-900">Secondary Phone</label>
+                  <input pInputText formControlName="phone_secondary" placeholder="Optional" class="w-full" />
+                </div>
+              </div>
+              <div class="col-12 md:col-6">
+                <div class="flex flex-column gap-2">
+                  <label class="font-semibold text-900">Occupation</label>
+                  <input pInputText formControlName="occupation" placeholder="Optional" class="w-full" />
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-column gap-2">
+              <label class="font-semibold text-900">Address</label>
+              <input pInputText formControlName="address" placeholder="Optional" class="w-full" />
+            </div>
+          </div>
+        }
 
         <!-- Password -->
         <div class="flex flex-column gap-2">
           <div class="flex justify-content-between align-items-center">
-            <label class="font-semibold text-900">Password <span class="text-red-500">*</span></label>
+            <label class="font-semibold text-900">
+              {{ isEdit ? 'Reset Password' : 'Password' }}
+              @if (!isEdit) { <span class="text-red-500">*</span> }
+              @else { <span class="text-500 text-xs">(optional)</span> }
+            </label>
             <p-button
               label="Auto-generate"
               icon="pi pi-refresh"
@@ -93,7 +157,7 @@
             [toggleMask]="true"
             styleClass="w-full"
             inputStyleClass="w-full"
-            placeholder="Min 8 characters"
+            [placeholder]="isEdit ? 'Leave blank to keep current password' : 'Min 8 characters'"
             autocomplete="new-password"
           />
           @if (f.password.touched && f.password.errors?.['required']) {
@@ -112,8 +176,8 @@
 
         <!-- Actions -->
         <div class="flex gap-3 justify-content-end pt-2 border-top-1 surface-border">
-          <p-button label="Cancel" severity="secondary" [outlined]="true" type="button" routerLink="/admin/dashboard" />
-          <p-button label="Create User" icon="pi pi-check" type="button" [loading]="loading" (onClick)="onSubmit()" />
+          <p-button label="Cancel" severity="secondary" [outlined]="true" type="button" routerLink="/admin/users" />
+          <p-button [label]="isEdit ? 'Save Changes' : 'Create User'" icon="pi pi-check" type="button" [loading]="loading" (onClick)="onSubmit()" />
         </div>
       </div>
     </form>

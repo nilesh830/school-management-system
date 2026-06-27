@@ -440,19 +440,32 @@
 
             <div class="flex flex-column gap-1">
               <label class="font-semibold text-sm text-600" for="lf_parent_id">
-                Parent ID <span class="text-red-500">*</span>
+                Parent / Guardian <span class="text-red-500">*</span>
               </label>
-              <p-inputNumber
+              <p-dropdown
                 inputId="lf_parent_id"
                 formControlName="parent_id"
-                [useGrouping]="false"
-                [min]="1"
-                placeholder="e.g. 7"
-                styleClass="w-10rem"
+                [options]="parentDirectory"
+                optionLabel="full_name"
+                optionValue="id"
+                [filter]="true"
+                filterBy="full_name,first_name,last_name,phone_primary,email"
+                [loading]="loadingDirectory"
+                appendTo="body"
+                placeholder="Search and select a parent"
+                emptyMessage="No parents found — create one via Create User"
+                styleClass="w-20rem"
                 [class.ng-invalid]="isInvalid(lf.parent_id)"
                 [class.ng-dirty]="isInvalid(lf.parent_id)"
-              />
-              <small class="p-error" *ngIf="isInvalid(lf.parent_id)">Valid parent ID required.</small>
+              >
+                <ng-template let-p pTemplate="item">
+                  <div class="flex flex-column">
+                    <span>{{ p.full_name }} <span class="text-500 text-sm">({{ p.relationship_type }})</span></span>
+                    <span class="text-500 text-xs">{{ p.phone_primary }}<span *ngIf="p.email"> · {{ p.email }}</span></span>
+                  </div>
+                </ng-template>
+              </p-dropdown>
+              <small class="p-error" *ngIf="isInvalid(lf.parent_id)">Please select a parent.</small>
             </div>
 
             <div class="flex align-items-center gap-2 mt-2 md:mt-0" style="padding-bottom: 0.25rem">

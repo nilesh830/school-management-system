@@ -678,6 +678,33 @@ class ParentProfileService:
         return parent.to_dict() if parent else None
 
     @staticmethod
+    def list_parents(search: str | None = None, limit: int = 50) -> list[dict]:
+        """Admin directory of active parents (id + name + contact) used to link
+        parents to students. Joins User so the email is available for search and
+        display."""
+        query = (
+            get_db()
+            .query(Parent, User.email)
+            .join(User, Parent.user_id == User.id)
+            .filter(Parent.is_active.is_(True))
+        )
+        if search and search.strip():
+            term = f"%{search.strip()}%"
+            query = query.filter(
+                Parent.first_name.ilike(term)
+                | Parent.last_name.ilike(term)
+                | Parent.phone_primary.ilike(term)
+                | User.email.ilike(term)
+            )
+        rows = query.order_by(Parent.first_name, Parent.last_name).limit(limit).all()
+        result = []
+        for parent, email in rows:
+            data = parent.to_dict()
+            data["email"] = email
+            result.append(data)
+        return result
+
+    @staticmethod
     def update_me(user_id: int, data: dict) -> tuple:
         parent = get_db().query(Parent).filter_by(user_id=user_id, is_active=True).first()
         if not parent:

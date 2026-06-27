@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormBuilder,
@@ -22,6 +22,7 @@ import { ToastModule } from 'primeng/toast';
 import { DividerModule } from 'primeng/divider';
 
 import { StudentService, StudentPayload } from '../../../../core/services/student.service';
+import { ClassesService } from '../../../../core/services/classes.service';
 
 /** Rejects dates in the future */
 function noFutureDate(control: AbstractControl): ValidationErrors | null {
@@ -61,15 +62,19 @@ function toIsoDate(date: Date): string {
   providers: [MessageService],
   templateUrl: './student-new.component.html'
 })
-export class StudentNewComponent {
+export class StudentNewComponent implements OnInit {
   private fb = inject(FormBuilder);
   private studentService = inject(StudentService);
+  private classesService = inject(ClassesService);
   private router = inject(Router);
   private toast = inject(MessageService);
 
   activeStep = 0;
   loading = false;
   maxDate = new Date();
+
+  sectionOptions: { label: string; value: number }[] = [];
+  loadingSections = false;
 
   genderOptions = [
     { label: 'Male', value: 'Male' },
@@ -100,7 +105,8 @@ export class StudentNewComponent {
   // ── Step 2: Admission Info ───────────────────────────────────────────────
   step2 = this.fb.group({
     admission_no: ['', [Validators.required, Validators.maxLength(20)]],
-    admission_date: [null as Date | null, [Validators.required, noFutureDate]]
+    admission_date: [null as Date | null, [Validators.required, noFutureDate]],
+    section_id: [null as number | null]  // optional initial placement
   });
 
   // ── Step 3: Contact Details ──────────────────────────────────────────────
@@ -114,6 +120,22 @@ export class StudentNewComponent {
   get f1() { return this.step1.controls; }
   get f2() { return this.step2.controls; }
   get f3() { return this.step3.controls; }
+
+  ngOnInit(): void {
+    this.loadingSections = true;
+    this.classesService.getSections(undefined, 1, 100).subscribe({
+      next: (res) => {
+        this.sectionOptions = (res.data.sections ?? []).map((s) => ({
+          label: s.class_name ? `${s.class_name} — ${s.name}` : s.name,
+          value: s.id
+        }));
+        this.loadingSections = false;
+      },
+      error: () => {
+        this.loadingSections = false;
+      }
+    });
+  }
 
   // ── Navigation ───────────────────────────────────────────────────────────
   nextStep(nextCallback: () => void): void {
@@ -150,6 +172,7 @@ export class StudentNewComponent {
       blood_group: s1.blood_group ?? null,
       admission_no: s2.admission_no!,
       admission_date: toIsoDate(s2.admission_date!),
+      section_id: s2.section_id ?? null,
       address: s3.address ?? null,
       phone: s3.phone ?? null,
       user_id: s3.user_id ?? null
