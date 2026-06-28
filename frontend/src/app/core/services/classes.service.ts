@@ -20,6 +20,7 @@ export interface ClassRecord {
   academic_year_id?: number | null;
   academic_year_name?: string | null;
   is_active: boolean;
+  section_count?: number;
   sections?: Section[];
 }
 

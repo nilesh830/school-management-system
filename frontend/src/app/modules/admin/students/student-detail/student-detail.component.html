@@ -329,7 +329,12 @@
 
           <div class="field col-12 md:col-6" *ngIf="student.current_section">
             <label class="font-semibold text-sm text-600 block mb-1">Current Section</label>
-            <span class="text-900">{{ student.current_section }}</span>
+            <span class="text-900">
+              {{ student.current_section.label || student.current_section.section_name || '—' }}
+              <span class="text-600 text-sm" *ngIf="student.current_section.academic_year">
+                ({{ student.current_section.academic_year }})
+              </span>
+            </span>
           </div>
 
         </div>
@@ -647,19 +652,26 @@
 
     <div class="flex flex-column gap-1">
       <label class="font-semibold text-sm" for="tf_section_id">
-        New Section ID <span class="text-red-500">*</span>
+        New Section <span class="text-red-500">*</span>
       </label>
-      <p-inputNumber
+      <p-dropdown
         inputId="tf_section_id"
         formControlName="new_section_id"
-        [useGrouping]="false"
-        [min]="1"
-        placeholder="e.g. 3"
+        [options]="sectionOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select a section"
+        [filter]="true"
+        filterBy="label"
+        [showClear]="true"
+        [loading]="loadingSections"
+        appendTo="body"
+        emptyMessage="No other sections found — create classes & sections first"
         styleClass="w-full"
         [class.ng-invalid]="isInvalid(tf.new_section_id)"
         [class.ng-dirty]="isInvalid(tf.new_section_id)"
       />
-      <small class="p-error" *ngIf="isInvalid(tf.new_section_id)">Section ID is required.</small>
+      <small class="p-error" *ngIf="isInvalid(tf.new_section_id)">Please select a section.</small>
     </div>
 
     <div class="flex flex-column gap-1">

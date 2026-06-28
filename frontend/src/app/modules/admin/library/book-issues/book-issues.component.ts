@@ -1,5 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { TableModule } from 'primeng/table';
@@ -9,14 +10,18 @@ import { ToolbarModule } from 'primeng/toolbar';
 import { ToastModule } from 'primeng/toast';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
+import { SelectButtonModule } from 'primeng/selectbutton';
 
 import { LibraryService, BookIssue } from '../../../../core/services/library.service';
+
+type IssueFilter = 'outstanding' | 'overdue' | 'returned' | 'all';
 
 @Component({
   selector: 'app-book-issues',
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     TableModule,
     ButtonModule,
     TagModule,
@@ -24,6 +29,7 @@ import { LibraryService, BookIssue } from '../../../../core/services/library.ser
     ToastModule,
     ProgressSpinnerModule,
     TooltipModule,
+    SelectButtonModule,
   ],
   providers: [MessageService],
   templateUrl: './book-issues.component.html',
@@ -33,26 +39,44 @@ export class BookIssuesComponent implements OnInit {
   private toast = inject(MessageService);
   private router = inject(Router);
 
-  overdue: BookIssue[] = [];
+  issues: BookIssue[] = [];
   loading = false;
   returningId: number | null = null;
 
+  filter: IssueFilter = 'outstanding';
+  filterOptions = [
+    { label: 'Outstanding', value: 'outstanding' },
+    { label: 'Overdue', value: 'overdue' },
+    { label: 'Returned', value: 'returned' },
+    { label: 'All', value: 'all' },
+  ];
+
   ngOnInit(): void {
-    this.loadOverdue();
+    this.loadIssues();
   }
 
-  loadOverdue(): void {
+  loadIssues(): void {
     this.loading = true;
-    this.libraryService.getOverdue().subscribe({
+    // 'outstanding' = default (all not-yet-returned); others map to a status filter
+    const status = this.filter === 'outstanding' ? undefined : this.filter;
+    this.libraryService.getIssues(status).subscribe({
       next: (res) => {
-        this.overdue = res.data?.overdue ?? [];
+        let rows = res.data?.issues ?? [];
+        if (this.filter === 'overdue') {
+          rows = rows.filter((i) => i.status === 'overdue');
+        }
+        this.issues = rows;
         this.loading = false;
       },
       error: () => {
-        this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load overdue issues' });
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load book issues' });
         this.loading = false;
       },
     });
+  }
+
+  onFilterChange(): void {
+    this.loadIssues();
   }
 
   returnIssue(issue: BookIssue): void {
@@ -70,7 +94,7 @@ export class BookIssuesComponent implements OnInit {
           detail,
           life: 5000,
         });
-        this.loadOverdue();
+        this.loadIssues();
       },
       error: (err: any) => {
         this.returningId = null;

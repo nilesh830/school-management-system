@@ -1,3 +1,4 @@
+import calendar
 from io import BytesIO
 from datetime import date, datetime
 
@@ -13,19 +14,75 @@ from app.models.section import Section
 
 class FeeService:
 
+    # ------------------------------------------------------------------ helpers
+    _FREQ_STEP_MONTHS = {"monthly": 1, "quarterly": 3, "annual": 12}
+
+    @staticmethod
+    def _last_day_of_month(year: int, month: int) -> date:
+        return date(year, month, calendar.monthrange(year, month)[1])
+
+    @staticmethod
+    def _add_months(year: int, month: int, n: int) -> tuple:
+        """Return (year, month) n months after the given year/month."""
+        idx = (year * 12 + (month - 1)) + n
+        return idx // 12, idx % 12 + 1
+
     @classmethod
-    def generate_records_for_class(cls, fee_structure_id: int):
+    def _compute_periods(cls, fs, student, as_of):
         """
-        Generate FeeRecord rows for every active student currently enrolled
-        in the class linked to the given FeeStructure.
+        Return a list of (period_label, due_date, amount) installments that
+        should exist for this student + fee structure up to ``as_of``.
+
+        - One-time / non-recurring  -> a single ("ONCE", fs.due_date) charge.
+        - Recurring                 -> one installment per period from the
+                                       student's admission month up to the
+                                       current month, each due on the last day
+                                       of its period's month.
+        """
+        amount = fs.amount
+        freq = (fs.frequency or "one_time").lower()
+
+        # Recurrence is driven by frequency: anything other than "one_time" bills
+        # per period. (The is_recurring flag is kept for display/filtering.)
+        if freq == "one_time":
+            return [("ONCE", fs.due_date, amount)]
+
+        step = cls._FREQ_STEP_MONTHS.get(freq, 1)
+        start = student.admission_date or as_of
+        cur_y, cur_m = start.year, start.month
+        end_y, end_m = as_of.year, as_of.month
+
+        periods = []
+        # iterate while (cur_y, cur_m) <= (end_y, end_m)
+        while (cur_y, cur_m) <= (end_y, end_m):
+            if freq == "annual":
+                label = f"{cur_y}"
+            else:
+                label = f"{cur_y}-{cur_m:02d}"
+            due = cls._last_day_of_month(cur_y, cur_m)
+            periods.append((label, due, amount))
+            cur_y, cur_m = cls._add_months(cur_y, cur_m, step)
+        return periods
+
+    # --------------------------------------------------------------- generation
+    @classmethod
+    def generate_records_for_class(cls, fee_structure_id: int, as_of=None):
+        """
+        Generate FeeRecord rows for every active student currently enrolled in
+        the class linked to the given FeeStructure. For recurring structures,
+        one record is created per billing period (e.g. each month from the
+        student's admission month up to the current month).
+
+        Idempotent: re-running only creates records for periods that don't
+        already exist (keyed on student + structure + period).
 
         Returns:
-            (result_dict, None)   on success — result_dict has keys:
-                                  generated, skipped, total_students
-            (None, error_dict)    on failure — error_dict has keys:
-                                  message, status
+            (result_dict, None)   on success — keys: generated, skipped,
+                                  total_students
+            (None, error_dict)    on failure — keys: message, status
         """
         db = get_db()
+        as_of = as_of or date.today()
 
         # 1. Load the fee structure
         fs = db.query(FeeStructure).filter_by(id=fee_structure_id).first()
@@ -36,7 +93,6 @@ class FeeService:
             }
 
         # 2. Find all active students currently enrolled in the class.
-        #    Join: StudentSection → Section (class_id match) → Student (is_active)
         active_students = (
             db.query(Student)
             .join(StudentSection, StudentSection.student_id == Student.id)
@@ -49,41 +105,70 @@ class FeeService:
             .all()
         )
 
-        # 3. Fetch the set of student_ids that already have a record for this
-        #    fee structure so we can skip them without a per-student query.
-        existing_student_ids = {
-            row.student_id for row in db.query(FeeRecord.student_id).filter_by(fee_structure_id=fee_structure_id).all()
+        # 3. (student_id, period) pairs that already exist for this structure,
+        #    so we skip them without a per-student query.
+        existing = {
+            (row.student_id, row.period)
+            for row in db.query(FeeRecord.student_id, FeeRecord.period)
+            .filter_by(fee_structure_id=fee_structure_id)
+            .all()
         }
 
         generated = 0
         skipped = 0
 
         for student in active_students:
-            if student.id in existing_student_ids:
-                skipped += 1
-                continue
+            for label, due, amount in cls._compute_periods(fs, student, as_of):
+                if (student.id, label) in existing:
+                    skipped += 1
+                    continue
+                db.add(
+                    FeeRecord(
+                        student_id=student.id,
+                        fee_structure_id=fee_structure_id,
+                        amount=amount,
+                        discount=0,
+                        net_amount=amount,
+                        due_date=due,
+                        period=label,
+                        status="pending",
+                    )
+                )
+                existing.add((student.id, label))
+                generated += 1
 
-            record = FeeRecord(
-                student_id=student.id,
-                fee_structure_id=fee_structure_id,
-                amount=fs.amount,
-                discount=0,
-                net_amount=fs.amount,
-                due_date=fs.due_date,
-                status="pending",
-            )
-            db.add(record)
-            generated += 1
-
-        # 4. Single commit for all new rows
         if generated > 0:
             db.commit()
 
         return {
             "generated": generated,
             "skipped": skipped,
-            "total_students": generated + skipped,
+            "total_students": len(active_students),
         }, None
+
+    @classmethod
+    def run_recurring_catchup(cls, as_of=None):
+        """
+        Bring every *recurring* fee structure in the current school up to date:
+        ensure each enrolled student has a record for every billing period
+        through the current month. Idempotent and safe to call on every read —
+        this is what makes monthly dues appear automatically without a
+        scheduler. Returns the number of records created.
+        """
+        db = get_db()
+        as_of = as_of or date.today()
+        structures = (
+            db.query(FeeStructure)
+            .filter(FeeStructure.is_active == True)  # noqa: E712
+            .filter(FeeStructure.frequency != "one_time")
+            .all()
+        )
+        total = 0
+        for fs in structures:
+            result, _ = cls.generate_records_for_class(fs.id, as_of=as_of)
+            if result:
+                total += result["generated"]
+        return total
 
     @classmethod
     def record_payment(cls, data: dict) -> tuple:
@@ -166,11 +251,19 @@ class FeeService:
         Return all FeeRecord rows for a student with embedded payments.
         """
         db = get_db()
-        records = db.query(FeeRecord).filter_by(student_id=student_id).all()
+        records = (
+            db.query(FeeRecord)
+            .filter_by(student_id=student_id)
+            .order_by(FeeRecord.fee_structure_id, FeeRecord.period)
+            .all()
+        )
         return [
             {
                 **record.to_dict(),
+                "fee_type": record.fee_structure.fee_type if record.fee_structure else None,
+                "frequency": record.fee_structure.frequency if record.fee_structure else None,
                 "payments": [p.to_dict() for p in record.payments],
+                "discounts": [d.to_dict() for d in record.discounts] if record.discounts else [],
             }
             for record in records
         ]

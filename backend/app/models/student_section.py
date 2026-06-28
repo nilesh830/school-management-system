@@ -29,7 +29,7 @@ class StudentSection(db.Model):
     section = db.relationship("Section", backref=db.backref("student_sections", lazy="dynamic"))
 
     def to_dict(self):
-        return {
+        data = {
             "id": self.id,
             "student_id": self.student_id,
             "section_id": self.section_id,
@@ -40,6 +40,22 @@ class StudentSection(db.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
+        # Readable section / class details for display
+        if self.section:
+            data["section_name"] = self.section.name
+            data["class_name"] = self.section.class_.name if self.section.class_ else None
+            data["grade_level"] = self.section.class_.grade_level if self.section.class_ else None
+            data["label"] = (
+                f"{data['class_name']} — {self.section.name}"
+                if data["class_name"]
+                else self.section.name
+            )
+        else:
+            data["section_name"] = None
+            data["class_name"] = None
+            data["grade_level"] = None
+            data["label"] = None
+        return data
 
     def __repr__(self):
         return (

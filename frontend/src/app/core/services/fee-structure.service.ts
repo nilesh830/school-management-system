@@ -46,6 +46,9 @@ export interface FeeRecord {
   discount: number;
   net_amount: number;
   due_date: string | null;
+  period?: string;
+  fee_type?: string | null;
+  frequency?: string | null;
   status: 'pending' | 'partial' | 'paid' | 'waived';
   payments: FeePayment[];
   discounts: FeeDiscount[];
@@ -74,6 +77,11 @@ export class FeeStructureService {
 
   deleteFeeStructure(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${id}`);
+  }
+
+  /** POST /api/v1/fee-structures/:id/generate — create FeeRecords for every student in the class */
+  generateFeeRecords(id: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${id}/generate`, {});
   }
 
   getFeeRecords(studentId: number): Observable<any> {
