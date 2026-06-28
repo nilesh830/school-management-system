@@ -12,6 +12,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
+import { TooltipModule } from 'primeng/tooltip';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 
 import { ClassesService, ClassRecord, AcademicYear } from '../../../../core/services/classes.service';
@@ -22,7 +23,7 @@ import { ClassesService, ClassRecord, AcademicYear } from '../../../../core/serv
   imports: [
     CommonModule, RouterLink, FormsModule, ReactiveFormsModule,
     TableModule, ButtonModule, CardModule, ToolbarModule,
-    ToastModule, InputTextModule, ConfirmDialogModule, DialogModule, DropdownModule
+    ToastModule, InputTextModule, ConfirmDialogModule, DialogModule, DropdownModule, TooltipModule
   ],
   providers: [MessageService, ConfirmationService],
   template: `
@@ -70,11 +71,16 @@ import { ClassesService, ClassRecord, AcademicYear } from '../../../../core/serv
             </td>
             <td>Grade {{ c.grade_level }}</td>
             <td>{{ c.academic_year_name || '—' }}</td>
-            <td>{{ (c.sections?.length) ?? '—' }}</td>
+            <td>
+              <a class="text-primary cursor-pointer" [routerLink]="['/admin/classes', c.id]"
+                 pTooltip="Manage sections">{{ c.section_count ?? 0 }}</a>
+            </td>
             <td>
               <div class="flex gap-1">
+                <p-button icon="pi pi-sitemap" [text]="true" [rounded]="true" severity="success" size="small"
+                  pTooltip="Add Section" (onClick)="openSectionForm(c)" />
                 <p-button icon="pi pi-eye" [text]="true" [rounded]="true" severity="info" size="small"
-                  pTooltip="View" [routerLink]="['/admin/classes', c.id]" />
+                  pTooltip="View / Manage Sections" [routerLink]="['/admin/classes', c.id]" />
                 <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" severity="secondary" size="small"
                   pTooltip="Edit" (onClick)="openForm(c)" />
                 <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" size="small"
@@ -133,6 +139,31 @@ import { ClassesService, ClassRecord, AcademicYear } from '../../../../core/serv
         />
       </ng-template>
     </p-dialog>
+
+    <!-- Quick Add Section Dialog -->
+    <p-dialog
+      [header]="'Add Section to ' + (sectionClass?.name || '')"
+      [(visible)]="showSectionDialog"
+      [modal]="true"
+      [style]="{width:'380px'}"
+    >
+      <form [formGroup]="sectionForm" class="mt-2">
+        <div class="field">
+          <label>Section Name <span class="text-red-500">*</span></label>
+          <input pInputText formControlName="name" class="w-full" placeholder="A, B, C…" />
+        </div>
+        <div class="field">
+          <label>Capacity</label>
+          <input pInputText type="number" formControlName="capacity" class="w-full" placeholder="40" />
+        </div>
+        <small class="text-600">Need a class teacher or more options? Open the class to manage sections.</small>
+      </form>
+      <ng-template pTemplate="footer">
+        <p-button label="Cancel" severity="secondary" (onClick)="showSectionDialog = false" />
+        <p-button label="Create" icon="pi pi-check" (onClick)="saveSection()"
+          [loading]="savingSection" [disabled]="sectionForm.invalid" />
+      </ng-template>
+    </p-dialog>
   `
 })
 export class ClassesListComponent implements OnInit {
@@ -154,6 +185,16 @@ export class ClassesListComponent implements OnInit {
     grade_level: [null as number | null, Validators.required],
     academic_year_id: [null as number | null],
     description: [''],
+  });
+
+  // Quick "Add Section" from the class list
+  showSectionDialog = false;
+  savingSection = false;
+  sectionClass: ClassRecord | null = null;
+
+  sectionForm = this.fb.group({
+    name: ['', Validators.required],
+    capacity: [40, Validators.min(1)],
   });
 
   ngOnInit(): void {
@@ -194,6 +235,34 @@ export class ClassesListComponent implements OnInit {
       error: (err) => {
         this.toast.add({ severity: 'error', summary: 'Error', detail: err.error?.message || 'Failed to save' });
         this.saving = false;
+      }
+    });
+  }
+
+  openSectionForm(c: ClassRecord): void {
+    this.sectionClass = c;
+    this.sectionForm.reset({ name: '', capacity: 40 });
+    this.showSectionDialog = true;
+  }
+
+  saveSection(): void {
+    if (this.sectionForm.invalid || !this.sectionClass) return;
+    this.savingSection = true;
+    const payload = {
+      name: this.sectionForm.value.name,
+      capacity: this.sectionForm.value.capacity,
+      class_id: this.sectionClass.id,
+    };
+    this.svc.createSection(payload).subscribe({
+      next: () => {
+        this.toast.add({ severity: 'success', summary: 'Created', detail: `Section added to ${this.sectionClass?.name}` });
+        this.showSectionDialog = false;
+        this.savingSection = false;
+        this.load();
+      },
+      error: (err) => {
+        this.toast.add({ severity: 'error', summary: 'Error', detail: err.error?.message || 'Failed to add section' });
+        this.savingSection = false;
       }
     });
   }

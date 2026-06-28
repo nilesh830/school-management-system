@@ -19,6 +19,17 @@ def _validate(schema, payload):
     return schema.load(payload), None
 
 
+def _auto_catchup_recurring():
+    """Best-effort recurring-fee catch-up before a read. Never raises — a
+    generation hiccup must not break viewing the data."""
+    try:
+        FeeService.run_recurring_catchup()
+    except Exception:  # pragma: no cover - defensive
+        from app.utils.tenant import get_db
+
+        get_db().rollback()
+
+
 # ---------------------------------------------------------------------------
 # POST /api/v1/fees/payments — record a fee payment (admin only)
 # ---------------------------------------------------------------------------
@@ -49,6 +60,8 @@ def get_fee_records():
     if not student_id:
         return error_response("student_id query parameter is required", status=400)
 
+    # Auto: make sure recurring monthly dues are up to date before showing them.
+    _auto_catchup_recurring()
     records = FeeService.get_fee_records(student_id)
     return success_response(data={"fee_records": records}, message="Fee records retrieved")
 
@@ -62,10 +75,27 @@ def get_fee_records():
 @roles_required("admin")
 def get_defaulters():
     class_id = request.args.get("class_id", type=int)
+    # Auto: catch up recurring dues so newly-overdue months show as defaulters.
+    _auto_catchup_recurring()
     result = FeeService.get_defaulters(class_id=class_id)
     return success_response(
         data={"defaulters": result, "count": len(result)},
         message="Defaulter report retrieved",
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/fees/run-recurring — manually/cron-trigger recurring generation
+# ---------------------------------------------------------------------------
+
+
+@fees_bp.route("/run-recurring", methods=["POST"], strict_slashes=False)
+@roles_required("admin")
+def run_recurring():
+    generated = FeeService.run_recurring_catchup()
+    return success_response(
+        data={"generated": generated},
+        message=f"Recurring fee catch-up complete — {generated} new record(s)",
     )
 
 

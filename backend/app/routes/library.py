@@ -104,6 +104,15 @@ def issue_book():
     return success_response(data=result, message="Book issued", status=201)
 
 
+@library_bp.route("/issues", methods=["GET"], strict_slashes=False)
+@roles_required("admin", "teacher")
+def list_issues():
+    status = request.args.get("status")
+    student_id = request.args.get("student_id", type=int)
+    issues = LibraryService.get_issues(status=status, student_id=student_id)
+    return success_response(data={"issues": issues}, message="Issues retrieved")
+
+
 @library_bp.route("/issue/<int:issue_id>/return", methods=["PUT"], strict_slashes=False)
 @roles_required("admin", "teacher")
 def return_book(issue_id):

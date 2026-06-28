@@ -35,6 +35,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageModule } from 'primeng/message';
 
 import { ExamService } from '../../../../core/services/exam.service';
+import { ClassesService } from '../../../../core/services/classes.service';
 
 import {
   StudentService,
@@ -101,6 +102,7 @@ export class StudentDetailComponent implements OnInit {
   private fb = inject(FormBuilder);
   private studentService = inject(StudentService);
   private examService = inject(ExamService);
+  private classesService = inject(ClassesService);
   private toast = inject(MessageService);
   private confirm = inject(ConfirmationService);
 
@@ -140,6 +142,8 @@ export class StudentDetailComponent implements OnInit {
   // ── Dialogs ───────────────────────────────────────────────────────────────
   showTransferDialog = false;
   transferring = false;
+  sectionOptions: { label: string; value: number }[] = [];
+  loadingSections = false;
 
   showStatusDialog = false;
   updatingStatus = false;
@@ -389,6 +393,24 @@ export class StudentDetailComponent implements OnInit {
   openTransferDialog(): void {
     this.transferForm.reset();
     this.showTransferDialog = true;
+    this.loadSectionOptions();
+  }
+
+  private loadSectionOptions(): void {
+    this.loadingSections = true;
+    const currentSectionId = this.student?.current_section?.section_id ?? null;
+    this.classesService.getSections(undefined, 1, 100).subscribe({
+      next: (res) => {
+        this.sectionOptions = (res.data.sections ?? [])
+          .filter((s) => s.id !== currentSectionId) // can't transfer to the same section
+          .map((s) => ({
+            label: s.class_name ? `${s.class_name} — ${s.name}` : s.name,
+            value: s.id
+          }));
+        this.loadingSections = false;
+      },
+      error: () => { this.loadingSections = false; }
+    });
   }
 
   confirmTransfer(): void {

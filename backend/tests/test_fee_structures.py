@@ -92,6 +92,7 @@ class TestCreateFeeStructureInvalidClass:
             'academic_year_id': ay.id,
             'fee_type': 'Exam Fee',
             'amount': 1000.00,
+            'due_date': '2026-07-31',
         }, headers={'Authorization': f'Bearer {admin_token}'})
 
         assert resp.status_code == 404

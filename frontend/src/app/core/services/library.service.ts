@@ -45,6 +45,10 @@ export interface OverdueListData {
   overdue: BookIssue[];
 }
 
+export interface IssueListData {
+  issues: BookIssue[];
+}
+
 export interface BookPayload {
   isbn?: string | null;
   title: string;
@@ -110,5 +114,17 @@ export class LibraryService {
   /** GET /api/v1/library/overdue */
   getOverdue(): Observable<ApiResponse<OverdueListData>> {
     return this.http.get<ApiResponse<OverdueListData>>(`${this.apiUrl}/overdue`);
+  }
+
+  /**
+   * GET /api/v1/library/issues
+   * Defaults to all outstanding (not-yet-returned) issues.
+   * Pass status 'returned' or 'all' to widen, or studentId to filter.
+   */
+  getIssues(status?: string, studentId?: number): Observable<ApiResponse<IssueListData>> {
+    let params = new HttpParams();
+    if (status) params = params.set('status', status);
+    if (studentId) params = params.set('student_id', studentId.toString());
+    return this.http.get<ApiResponse<IssueListData>>(`${this.apiUrl}/issues`, { params });
   }
 }

@@ -13,12 +13,18 @@ class FeeRecord(db.Model):
     discount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     net_amount = db.Column(db.Numeric(10, 2), nullable=False)
     due_date = db.Column(db.Date, nullable=True)
+    # Billing period this record covers. "ONCE" for one-time fees; "YYYY-MM"
+    # for a recurring (monthly/quarterly) installment; "YYYY" for annual.
+    period = db.Column(db.String(10), nullable=False, default="ONCE")
     status = db.Column(db.String(20), nullable=False, default="pending")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("student_id", "fee_structure_id", name="uq_fee_records_student_fee_structure"),
+        UniqueConstraint(
+            "student_id", "fee_structure_id", "period",
+            name="uq_fee_records_student_structure_period",
+        ),
         CheckConstraint("status IN ('pending','paid','partial','waived')", name="ck_fee_records_status"),
     )
 
@@ -36,6 +42,7 @@ class FeeRecord(db.Model):
             "discount": float(self.discount) if self.discount is not None else None,
             "net_amount": float(self.net_amount) if self.net_amount is not None else None,
             "due_date": self.due_date.isoformat() if self.due_date else None,
+            "period": self.period,
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

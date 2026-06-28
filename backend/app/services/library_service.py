@@ -218,6 +218,43 @@ class LibraryService:
             result.append(d)
         return result
 
+    @classmethod
+    def get_issues(cls, status=None, student_id=None, as_of=None):
+        """Return book issues with up-to-date running fines.
+
+        By default returns all *outstanding* (not-yet-returned) issues, both
+        'issued' and 'overdue'. Pass status='returned' (or 'all') to widen the
+        scope, or student_id to filter to one student.
+        """
+        db = get_db()
+        as_of = as_of or date.today()
+        cls.mark_overdue(as_of)
+
+        query = db.query(BookIssue)
+        if status == "all":
+            pass
+        elif status:
+            query = query.filter(BookIssue.status == status)
+        else:
+            # Default: everything still out (issued + overdue)
+            query = query.filter(BookIssue.returned_date.is_(None))
+
+        if student_id:
+            query = query.filter(BookIssue.student_id == student_id)
+
+        rows = query.order_by(BookIssue.issued_date.desc()).all()
+
+        result = []
+        for issue in rows:
+            d = issue.to_dict()
+            if issue.returned_date is None and issue.due_date and issue.due_date < as_of:
+                d["fine_amount"] = float(cls._calculate_fine(issue.due_date, as_of))
+                d["days_overdue"] = (as_of - issue.due_date).days
+            else:
+                d["days_overdue"] = 0
+            result.append(d)
+        return result
+
     # ----------------------------------------------------- internal helpers
 
     @staticmethod

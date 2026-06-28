@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, validate
+from marshmallow import Schema, fields, validate, validates_schema, ValidationError
 
 VALID_FREQUENCIES = ("monthly", "quarterly", "annual", "one_time")
 
@@ -19,6 +19,16 @@ class FeeStructureCreateSchema(Schema):
         load_default="one_time",
         validate=validate.OneOf(VALID_FREQUENCIES),
     )
+
+    @validates_schema
+    def _due_date_required_for_one_time(self, data, **kwargs):
+        # One-time fees need an explicit due date (it becomes the record's due
+        # date). Recurring fees derive a due date per period (end of month), so
+        # the structure-level due_date is optional there.
+        if data.get("frequency", "one_time") == "one_time" and not data.get("due_date"):
+            raise ValidationError(
+                "Due date is required for one-time fees.", field_name="due_date"
+            )
 
 
 class FeeStructureUpdateSchema(Schema):

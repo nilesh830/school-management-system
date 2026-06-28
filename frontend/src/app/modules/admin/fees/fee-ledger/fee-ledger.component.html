@@ -132,6 +132,7 @@
         <tr>
           <th style="width: 3rem"></th>
           <th>Fee Type</th>
+          <th>Period</th>
           <th class="text-right">Net Amount</th>
           <th class="text-right">Total Paid</th>
           <th class="text-right">Balance Due</th>
@@ -155,9 +156,16 @@
             />
           </td>
           <td>
-            <span class="font-semibold">Fee #{{ record.fee_structure_id }}</span>
+            <span class="font-semibold">{{ record.fee_type || 'Fee #' + record.fee_structure_id }}</span>
             @if (record.payments.length > 0) {
               <span class="text-sm text-color-secondary ml-2">({{ record.payments.length }} payment{{ record.payments.length > 1 ? 's' : '' }})</span>
+            }
+          </td>
+          <td>
+            @if (record.period && record.period !== 'ONCE') {
+              <span class="font-mono text-sm">{{ record.period }}</span>
+            } @else {
+              <span class="text-color-secondary">One-time</span>
             }
           </td>
           <td class="text-right font-semibold">{{ record.net_amount | number:'1.2-2' }}</td>

@@ -26,6 +26,7 @@ class Class(db.Model):
             "academic_year_id": self.academic_year_id,
             "academic_year_name": self.academic_year.name if self.academic_year else None,
             "is_active": self.is_active,
+            "section_count": self.sections.filter_by(is_active=True).count(),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

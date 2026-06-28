@@ -4,10 +4,18 @@
   <!-- Toolbar -->
   <p-toolbar styleClass="mb-3">
     <ng-template pTemplate="left">
-      <h2 class="m-0">Overdue Book Issues</h2>
+      <h2 class="m-0">Issued Books</h2>
     </ng-template>
     <ng-template pTemplate="right">
-      <div class="flex gap-2">
+      <div class="flex gap-2 align-items-center">
+        <p-selectButton
+          [options]="filterOptions"
+          [(ngModel)]="filter"
+          optionLabel="label"
+          optionValue="value"
+          [allowEmpty]="false"
+          (onChange)="onFilterChange()"
+        />
         <p-button
           label="Back to Catalog"
           icon="pi pi-bookmark"
@@ -20,7 +28,7 @@
           icon="pi pi-refresh"
           severity="secondary"
           [text]="true"
-          (onClick)="loadOverdue()"
+          (onClick)="loadIssues()"
         />
       </div>
     </ng-template>
@@ -36,7 +44,7 @@
   <!-- Overdue table -->
   @if (!loading) {
     <p-table
-      [value]="overdue"
+      [value]="issues"
       [rows]="20"
       [paginator]="true"
       [rowsPerPageOptions]="[10, 20, 50]"
@@ -93,8 +101,8 @@
       <ng-template pTemplate="emptymessage">
         <tr>
           <td colspan="8" class="text-center py-5 text-color-secondary">
-            <i class="pi pi-check-circle text-3xl block mb-2 text-green-500"></i>
-            No overdue books. All issues are on track.
+            <i class="pi pi-inbox text-3xl block mb-2"></i>
+            No book issues found for this filter.
           </td>
         </tr>
       </ng-template>

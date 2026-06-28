@@ -271,6 +271,13 @@ class ReportService:
 
         db = get_db()
 
+        # Auto: catch up recurring monthly dues so the report reflects the
+        # current month before aggregating. Best-effort — never break the report.
+        try:
+            FeeService.run_recurring_catchup()
+        except Exception:
+            db.rollback()
+
         # FeeStructures in scope
         fs_query = db.query(FeeStructure)
         if class_id is not None:

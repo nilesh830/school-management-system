@@ -3,7 +3,9 @@ SMS-036 — Generate Student Fee Records
 Tests: bulk generation, idempotency, partial skips, not-found, authorization
 """
 import pytest
+from types import SimpleNamespace
 from datetime import date
+from app.services.fee_service import FeeService
 from app.models.user import User
 from app.models.student import Student
 from app.models.class_ import Class
@@ -38,14 +40,16 @@ def make_academic_year(db, name='2024-2025'):
     return ay
 
 
-def make_fee_structure(db, class_id, academic_year_id, fee_type='Tuition Fee', amount=5000.00):
+def make_fee_structure(db, class_id, academic_year_id, fee_type='Tuition Fee', amount=5000.00,
+                       frequency='one_time', is_recurring=False, due_date=None):
     fs = FeeStructure(
         class_id=class_id,
         academic_year_id=academic_year_id,
         fee_type=fee_type,
         amount=amount,
-        is_recurring=True,
-        frequency='monthly',
+        is_recurring=is_recurring,
+        frequency=frequency,
+        due_date=due_date,
     )
     db.session.add(fs)
     db.session.commit()
@@ -208,6 +212,44 @@ class TestPartialGeneration:
         assert body['data']['generated'] == 1
         assert body['data']['skipped'] == 1
         assert body['data']['total_students'] == 2
+
+
+# ---------------------------------------------------------------------------
+# 3b. Recurring period computation (pure logic, date-deterministic)
+#     Monthly fees bill one installment per month from the student's admission
+#     month up to the current month, each due on the last day of its month.
+# ---------------------------------------------------------------------------
+
+class TestComputeRecurringPeriods:
+
+    def test_monthly_from_admission(self):
+        fs = SimpleNamespace(amount=4000, frequency='monthly', is_recurring=True, due_date=None)
+        student = SimpleNamespace(admission_date=date(2026, 4, 15))
+        periods = FeeService._compute_periods(fs, student, date(2026, 6, 28))
+        assert [p[0] for p in periods] == ['2026-04', '2026-05', '2026-06']
+        # each due on the last day of its month
+        assert periods[0][1] == date(2026, 4, 30)
+        assert periods[1][1] == date(2026, 5, 31)
+        assert periods[2][1] == date(2026, 6, 30)
+
+    def test_one_time_single_period(self):
+        fs = SimpleNamespace(amount=20000, frequency='one_time', is_recurring=False,
+                             due_date=date(2026, 7, 31))
+        student = SimpleNamespace(admission_date=date(2026, 1, 1))
+        periods = FeeService._compute_periods(fs, student, date(2026, 6, 28))
+        assert periods == [('ONCE', date(2026, 7, 31), 20000)]
+
+    def test_new_admission_this_month_single_record(self):
+        fs = SimpleNamespace(amount=4000, frequency='monthly', is_recurring=True, due_date=None)
+        student = SimpleNamespace(admission_date=date(2026, 6, 5))
+        periods = FeeService._compute_periods(fs, student, date(2026, 6, 28))
+        assert [p[0] for p in periods] == ['2026-06']
+
+    def test_quarterly_steps_three_months(self):
+        fs = SimpleNamespace(amount=15000, frequency='quarterly', is_recurring=True, due_date=None)
+        student = SimpleNamespace(admission_date=date(2026, 1, 10))
+        periods = FeeService._compute_periods(fs, student, date(2026, 6, 28))
+        assert [p[0] for p in periods] == ['2026-01', '2026-04']
 
 
 # ---------------------------------------------------------------------------

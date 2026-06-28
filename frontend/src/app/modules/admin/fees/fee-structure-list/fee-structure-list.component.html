@@ -59,8 +59,8 @@
       <ng-template pTemplate="header">
         <tr>
           <th pSortableColumn="fee_type">Fee Type <p-sortIcon field="fee_type" /></th>
-          <th pSortableColumn="class_id">Class ID <p-sortIcon field="class_id" /></th>
-          <th pSortableColumn="academic_year_id">Academic Year ID <p-sortIcon field="academic_year_id" /></th>
+          <th pSortableColumn="class_id">Class <p-sortIcon field="class_id" /></th>
+          <th pSortableColumn="academic_year_id">Academic Year <p-sortIcon field="academic_year_id" /></th>
           <th pSortableColumn="amount">Amount <p-sortIcon field="amount" /></th>
           <th pSortableColumn="frequency">Frequency <p-sortIcon field="frequency" /></th>
           <th>Recurring</th>
@@ -72,8 +72,8 @@
       <ng-template pTemplate="body" let-fs>
         <tr>
           <td>{{ fs.fee_type }}</td>
-          <td>{{ fs.class_id }}</td>
-          <td>{{ fs.academic_year_id }}</td>
+          <td>{{ getClassName(fs.class_id) }}</td>
+          <td>{{ getYearName(fs.academic_year_id) }}</td>
           <td>{{ fs.amount | number:'1.2-2' }}</td>
           <td>{{ getFrequencyLabel(fs.frequency) }}</td>
           <td>
@@ -89,6 +89,17 @@
             />
           </td>
           <td class="flex gap-2 align-items-center">
+            <p-button
+              icon="pi pi-users"
+              label="Generate Fees"
+              size="small"
+              severity="success"
+              [outlined]="true"
+              [loading]="generatingId === fs.id"
+              [disabled]="generatingId === fs.id"
+              (onClick)="generateFees(fs)"
+              pTooltip="Create fee records for all students in this class"
+            />
             <p-button
               icon="pi pi-pencil"
               [rounded]="true"
@@ -146,37 +157,49 @@
       }
     </div>
 
-    <!-- Class ID -->
+    <!-- Class -->
     <div class="flex flex-column gap-1">
-      <label for="classId" class="font-semibold">Class ID <span class="text-red-500">*</span></label>
-      <p-inputNumber
+      <label for="classId" class="font-semibold">Class <span class="text-red-500">*</span></label>
+      <p-dropdown
         inputId="classId"
         formControlName="class_id"
-        [min]="1"
-        [useGrouping]="false"
-        placeholder="e.g. 3"
+        [options]="classOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select a class"
+        [filter]="true"
+        filterBy="label"
+        [showClear]="true"
+        [loading]="loadingClasses"
+        appendTo="body"
+        emptyMessage="No classes found — create classes first"
         styleClass="w-full"
-        inputStyleClass="w-full"
       />
       @if (form.get('class_id')?.invalid && form.get('class_id')?.touched) {
-        <small class="text-red-500">Class ID is required.</small>
+        <small class="text-red-500">Class is required.</small>
       }
     </div>
 
-    <!-- Academic Year ID -->
+    <!-- Academic Year -->
     <div class="flex flex-column gap-1">
-      <label for="academicYearId" class="font-semibold">Academic Year ID <span class="text-red-500">*</span></label>
-      <p-inputNumber
+      <label for="academicYearId" class="font-semibold">Academic Year <span class="text-red-500">*</span></label>
+      <p-dropdown
         inputId="academicYearId"
         formControlName="academic_year_id"
-        [min]="1"
-        [useGrouping]="false"
-        placeholder="e.g. 1"
+        [options]="academicYearOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select an academic year"
+        [filter]="true"
+        filterBy="label"
+        [showClear]="true"
+        [loading]="loadingYears"
+        appendTo="body"
+        emptyMessage="No academic years found — create one first"
         styleClass="w-full"
-        inputStyleClass="w-full"
       />
       @if (form.get('academic_year_id')?.invalid && form.get('academic_year_id')?.touched) {
-        <small class="text-red-500">Academic Year ID is required.</small>
+        <small class="text-red-500">Academic year is required.</small>
       }
     </div>
 
@@ -215,18 +238,29 @@
       }
     </div>
 
-    <!-- Due Date (optional) -->
+    <!-- Due Date -->
     <div class="flex flex-column gap-1">
-      <label for="dueDate" class="font-semibold">Due Date</label>
+      <label for="dueDate" class="font-semibold">
+        Due Date @if (!isRecurringFreq) { <span class="text-red-500">*</span> }
+      </label>
       <p-calendar
         inputId="dueDate"
         formControlName="due_date"
         dateFormat="yy-mm-dd"
         [showIcon]="true"
-        placeholder="Optional"
+        [disabled]="isRecurringFreq"
+        placeholder="Select due date"
         styleClass="w-full"
         inputStyleClass="w-full"
       />
+      @if (isRecurringFreq) {
+        <small class="text-color-secondary">
+          Recurring fee: each month's due date is set automatically (end of month),
+          generated from the student's admission month.
+        </small>
+      } @else if (form.get('due_date')?.invalid && form.get('due_date')?.touched) {
+        <small class="text-red-500">Due date is required for one-time fees.</small>
+      }
     </div>
 
     <!-- Is Recurring -->
