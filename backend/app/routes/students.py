@@ -45,7 +45,16 @@ def get_students():
     search = request.args.get("search", "")
     section_id = request.args.get("section_id", type=int)
     # class_id deferred to Sprint 3
-    result = StudentService.get_all(page=page, per_page=per_page, search=search, section_id=section_id)
+    # Teachers only see students in their own sections; admins see everyone.
+    claims = get_jwt()
+    teacher_user_id = claims.get("user_id") if claims.get("role") == "teacher" else None
+    result = StudentService.get_all(
+        page=page,
+        per_page=per_page,
+        search=search,
+        section_id=section_id,
+        teacher_user_id=teacher_user_id,
+    )
     return success_response(data=result, message="Students retrieved")
 
 

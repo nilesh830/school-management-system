@@ -49,6 +49,10 @@ export class ResetPasswordComponent {
     return this.route.snapshot.queryParamMap.get('token');
   }
 
+  private get schoolSlug(): string | null {
+    return this.route.snapshot.queryParamMap.get('school_slug');
+  }
+
   get pwdCtrl() { return this.form.controls.new_password; }
   get confirmCtrl() { return this.form.controls.confirm_password; }
 
@@ -57,7 +61,7 @@ export class ResetPasswordComponent {
       this.form.markAllAsTouched();
       return;
     }
-    if (!this.token) {
+    if (!this.token || !this.schoolSlug) {
       this.errorMessage = 'Invalid reset link. Please request a new one.';
       return;
     }
@@ -66,7 +70,8 @@ export class ResetPasswordComponent {
 
     this.http.post('/api/v1/auth/reset-password', {
       token: this.token,
-      new_password: this.form.value.new_password
+      school_slug: this.schoolSlug,
+      password: this.form.value.new_password
     }).subscribe({
       next: () => {
         this.loading = false;

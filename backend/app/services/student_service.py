@@ -34,7 +34,30 @@ class StudentService:
     # -------------------------------------------------------------------------
 
     @staticmethod
-    def get_all(page=1, per_page=20, search="", section_id=None):
+    def _teacher_section_ids(teacher_user_id: int) -> set:
+        """Section ids a teacher is responsible for.
+
+        Union of sections where the teacher is the class (homeroom) teacher and
+        sections where the teacher teaches at least one period in the timetable.
+        Returns an empty set if the user has no teacher record / no sections.
+        """
+        from app.models.teacher import Teacher
+        from app.models.timetable import Timetable
+
+        db = get_db()
+        teacher = db.query(Teacher).filter_by(user_id=teacher_user_id, is_active=True).first()
+        if not teacher:
+            return set()
+
+        section_ids = set()
+        for (sid,) in db.query(Section.id).filter_by(class_teacher_id=teacher.id).all():
+            section_ids.add(sid)
+        for (sid,) in db.query(Timetable.section_id).filter_by(teacher_id=teacher.id).distinct().all():
+            section_ids.add(sid)
+        return section_ids
+
+    @staticmethod
+    def get_all(page=1, per_page=20, search="", section_id=None, teacher_user_id=None):
         # class_id filter deferred to Sprint 3 when Class model is available.
         query = get_db().query(Student).filter_by(is_active=True)
 
@@ -52,6 +75,22 @@ class StudentService:
                 StudentSection,
                 (StudentSection.student_id == Student.id)
                 & (StudentSection.section_id == section_id)
+                & (StudentSection.is_current.is_(True)),
+            )
+        elif teacher_user_id is not None:
+            # "My Students" — restrict the roster to the teacher's own sections.
+            # Only applied to the unfiltered listing; an explicit section_id
+            # (e.g. marks entry) keeps the existing section-scoped behaviour.
+            allowed_sections = StudentService._teacher_section_ids(teacher_user_id)
+            if not allowed_sections:
+                return {
+                    "students": [],
+                    "meta": {"total": 0, "page": page, "per_page": per_page, "pages": 0},
+                }
+            query = query.join(
+                StudentSection,
+                (StudentSection.student_id == Student.id)
+                & (StudentSection.section_id.in_(allowed_sections))
                 & (StudentSection.is_current.is_(True)),
             )
 

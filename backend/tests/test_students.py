@@ -20,6 +20,9 @@ from app.models.student import Student
 from app.models.student_section import StudentSection
 from app.models.parent import Parent, student_parent
 from app.models.user import User
+from app.models.teacher import Teacher
+from app.models.class_ import Class
+from app.models.section import Section
 
 
 # ---------------------------------------------------------------------------
@@ -499,3 +502,80 @@ class TestDocumentUpload:
                                headers=auth(admin_token))
         ids = [d['id'] for d in list_resp.get_json()['data']]
         assert doc_id not in ids
+
+
+# ---------------------------------------------------------------------------
+# "My Students" — teacher roster scoping
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def scoped_roster(db, teacher_user, admin_user):
+    """Build a teacher with one section and students in/out of it.
+
+    Returns (teacher, my_student, other_student) where my_student is enrolled
+    in the teacher's class-teacher section and other_student is in a section
+    the teacher is not associated with.
+    """
+    teacher = Teacher(
+        user_id=teacher_user.id,
+        employee_id='EMP-001',
+        first_name='Priya',
+        last_name='Sharma',
+        joining_date=date(2020, 6, 1),
+    )
+    db.session.add(teacher)
+    db.session.flush()
+
+    klass = Class(name='Grade 5', grade_level=5)
+    db.session.add(klass)
+    db.session.flush()
+
+    my_section = Section(name='A', class_id=klass.id, class_teacher_id=teacher.id)
+    other_section = Section(name='B', class_id=klass.id)
+    db.session.add_all([my_section, other_section])
+    db.session.flush()
+
+    my_student = Student(
+        admission_no='ADM-MINE-001', first_name='Mine', last_name='Student',
+        date_of_birth=date(2014, 1, 1), gender='Male', admission_date=date(2024, 6, 1),
+    )
+    other_student = Student(
+        admission_no='ADM-OTHER-001', first_name='Other', last_name='Student',
+        date_of_birth=date(2014, 1, 1), gender='Female', admission_date=date(2024, 6, 1),
+    )
+    db.session.add_all([my_student, other_student])
+    db.session.flush()
+
+    db.session.add_all([
+        StudentSection(student_id=my_student.id, section_id=my_section.id,
+                       academic_year='2024-2025', start_date=date(2024, 6, 1), is_current=True),
+        StudentSection(student_id=other_student.id, section_id=other_section.id,
+                       academic_year='2024-2025', start_date=date(2024, 6, 1), is_current=True),
+    ])
+    db.session.commit()
+    return teacher, my_student, other_student
+
+
+class TestTeacherStudentScoping:
+
+    def test_teacher_sees_only_own_section_students(self, client, teacher_token, scoped_roster):
+        _, my_student, other_student = scoped_roster
+        resp = client.get('/api/v1/students', headers=auth(teacher_token))
+        assert resp.status_code == 200
+        ids = [s['id'] for s in resp.get_json()['data']['students']]
+        assert my_student.id in ids
+        assert other_student.id not in ids
+
+    def test_admin_sees_all_students(self, client, admin_token, scoped_roster):
+        _, my_student, other_student = scoped_roster
+        resp = client.get('/api/v1/students', headers=auth(admin_token))
+        assert resp.status_code == 200
+        ids = [s['id'] for s in resp.get_json()['data']['students']]
+        assert my_student.id in ids
+        assert other_student.id in ids
+
+    def test_teacher_without_sections_sees_no_students(self, client, teacher_token, enrolled_student):
+        # teacher_user has no Teacher record / sections here → empty roster.
+        resp = client.get('/api/v1/students', headers=auth(teacher_token))
+        assert resp.status_code == 200
+        assert resp.get_json()['data']['students'] == []
