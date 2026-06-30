@@ -19,6 +19,17 @@ class FeePaymentCreateSchema(Schema):
             raise ValidationError("amount_paid must be positive")
 
 
+class AmountOverrideSchema(Schema):
+    # Required key, but may be null to clear the override. Decimal >= 0 otherwise.
+    amount_override = fields.Decimal(
+        required=True,
+        allow_none=True,
+        places=2,
+        as_string=False,
+        validate=validate.Range(min=0),
+    )
+
+
 class DiscountSchema(Schema):
     discount_type = fields.String(
         required=True,

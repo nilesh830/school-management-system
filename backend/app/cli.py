@@ -61,17 +61,25 @@ def db_upgrade_all():
                 click.echo(f"  current : {current_rev or 'none'}")
                 click.echo(f"  target  : {(head_rev or '')[:12]}...")
 
-                # For the upgrade, route unqualified table ops to the school
-                # schema via schema_translate_map (NOT `SET search_path`, which
-                # would leak onto the pooled connection) and keep the version
-                # table pinned to the same schema.
-                routed = conn.execution_options(schema_translate_map={None: schema})
+                # Route unqualified table ops to the school schema by setting the
+                # session search_path. schema_translate_map is NOT reliably honored
+                # by op.batch_alter_table — it renders a bare "ALTER TABLE <name>"
+                # that resolves against the default search_path and fails with
+                # "relation does not exist". version_table_schema keeps the
+                # alembic_version table pinned to this schema regardless. The
+                # search_path is reset below (and the pool disposed at the end) so
+                # it never leaks onto a connection reused by app requests.
+                conn.exec_driver_sql(f'SET search_path TO "{schema}"')
                 cfg = AlembicConfig(alembic_ini)
                 cfg.set_main_option("script_location", migrations_dir)
-                cfg.attributes["connection"] = routed
+                cfg.attributes["connection"] = conn
                 cfg.attributes["version_table_schema"] = schema
-                alembic_command.upgrade(cfg, "head")
-                conn.commit()
+                try:
+                    alembic_command.upgrade(cfg, "head")
+                    conn.commit()
+                finally:
+                    conn.exec_driver_sql('SET search_path TO "$user", public')
+                    conn.commit()
 
             click.echo("  -> UPGRADED")
 
@@ -79,6 +87,9 @@ def db_upgrade_all():
             msg = f"  -> ERROR: {exc}"
             click.echo(msg)
             errors.append(f"{school.slug}: {exc}")
+
+    # Drop pooled connections so no session-level search_path survives this command.
+    engine.dispose()
 
     click.echo("")
     if errors:

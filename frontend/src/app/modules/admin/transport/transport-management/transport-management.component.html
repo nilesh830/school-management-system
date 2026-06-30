@@ -21,6 +21,7 @@
             <th>Name</th>
             <th>Description</th>
             <th>Stops</th>
+            <th>Fare</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -30,6 +31,13 @@
             <td>{{ route.name }}</td>
             <td>{{ route.description || '—' }}</td>
             <td>{{ route.stops?.length || 0 }} stop(s)</td>
+            <td>
+              @if (route.fare != null) {
+                {{ route.fare | number:'1.2-2' }} / {{ fareFrequencyLabel(route.fare_frequency) }}
+              } @else {
+                <span class="text-color-secondary">No fare</span>
+              }
+            </td>
             <td><p-tag [value]="route.is_active ? 'Active' : 'Inactive'"
                        [severity]="route.is_active ? 'success' : 'danger'"></p-tag></td>
             <td>
@@ -41,7 +49,7 @@
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
-          <tr><td colspan="5" class="text-center">No routes yet.</td></tr>
+          <tr><td colspan="6" class="text-center">No routes yet.</td></tr>
         </ng-template>
       </p-table>
     </p-tabPanel>
@@ -153,6 +161,21 @@
     <div class="flex flex-column gap-1">
       <label>Stops (comma-separated)</label>
       <input pInputText formControlName="stops" placeholder="Stop 1, Stop 2, Stop 3" />
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Fare</label>
+      <p-inputNumber formControlName="fare" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="2"
+                     placeholder="Leave empty if no fare yet"
+                     styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+      <small class="text-color-secondary">
+        Per-student amount billed when a fee structure is linked to this route. A route with no fare can't bill transport fees.
+      </small>
+    </div>
+    <div class="flex flex-column gap-1">
+      <label>Fare Frequency</label>
+      <p-dropdown [options]="fareFrequencyOptions" formControlName="fare_frequency"
+                  optionLabel="label" optionValue="value" appendTo="body"
+                  placeholder="Select frequency" styleClass="w-full"></p-dropdown>
     </div>
   </form>
   <ng-template pTemplate="footer">

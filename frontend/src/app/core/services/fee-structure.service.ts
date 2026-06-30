@@ -2,6 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+export type FeeApplicability = 'mandatory' | 'optional';
+export type FeeSourceKind = 'flat' | 'transport';
+
 export interface FeeStructure {
   id: number;
   class_id: number;
@@ -12,6 +15,10 @@ export interface FeeStructure {
   is_recurring: boolean;
   frequency: string;
   is_active: boolean;
+  // SMS-066 — Fee applicability (optional/opt-in fees)
+  applicability: FeeApplicability;
+  source_kind: FeeSourceKind;
+  transport_route_id: number | null;
 }
 
 export interface FeePayment {

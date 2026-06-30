@@ -10,6 +10,8 @@ from app.models.discount import Discount
 from app.models.student import Student
 from app.models.student_section import StudentSection
 from app.models.section import Section
+from app.models.student_transport import StudentTransport
+from app.models.transport_route import TransportRoute
 
 
 class FeeService:
@@ -30,8 +32,24 @@ class FeeService:
     @classmethod
     def _compute_periods(cls, fs, student, as_of):
         """
+        Thin wrapper preserving the original signature: resolve amount and
+        frequency from ``fs`` and delegate to :meth:`_compute_periods_with`.
+
+        Kept so existing callers/tests that pass an ``fs``-like object with
+        ``.amount`` / ``.frequency`` / ``.due_date`` continue to work unchanged.
+        """
+        return cls._compute_periods_with(fs.frequency, fs.amount, student, as_of, fs)
+
+    @classmethod
+    def _compute_periods_with(cls, freq, unit_amount, student, as_of, fs):
+        """
         Return a list of (period_label, due_date, amount) installments that
-        should exist for this student + fee structure up to ``as_of``.
+        should exist for this student up to ``as_of``, using the supplied
+        ``freq`` (frequency) and ``unit_amount`` rather than reading them off
+        ``fs``. This lets transport-sourced fees pass the route's
+        ``fare_frequency`` / ``fare`` while flat fees pass
+        ``(fs.frequency, fs.amount)`` — producing byte-for-byte identical
+        output to the original implementation for the flat case.
 
         - One-time / non-recurring  -> a single ("ONCE", fs.due_date) charge.
         - Recurring                 -> one installment per period from the
@@ -39,8 +57,8 @@ class FeeService:
                                        current month, each due on the last day
                                        of its period's month.
         """
-        amount = fs.amount
-        freq = (fs.frequency or "one_time").lower()
+        amount = unit_amount
+        freq = (freq or "one_time").lower()
 
         # Recurrence is driven by frequency: anything other than "one_time" bills
         # per period. (The is_recurring flag is kept for display/filtering.)
@@ -66,19 +84,97 @@ class FeeService:
 
     # --------------------------------------------------------------- generation
     @classmethod
+    def _resolve_billed_population(cls, db, fs):
+        """
+        Resolve the (student, unit_amount, freq) triples to bill for a fee
+        structure, branching on ``source_kind`` / ``applicability``.
+
+        Returns ``(billed, skipped_no_optin)`` where ``billed`` is a list of
+        ``(student, unit_amount, freq)`` and ``skipped_no_optin`` counts
+        students that would be billed but cannot be (no opt-in source in v1).
+
+        - source_kind == 'transport': bill students with an active
+          StudentTransport for the structure's academic_year_id (optionally
+          filtered to fs.transport_route_id), at their route's fare /
+          fare_frequency. A route with fare IS NULL still appears here with
+          unit_amount=None — the caller increments skipped_no_fare and creates
+          no record.
+        - applicability == 'optional' & source_kind == 'flat': no opt-in source
+          in v1 -> bill nobody (safe-by-default), counted as skipped_no_optin.
+        - else (mandatory/flat): today's behaviour — active students enrolled
+          in fs.class_, at fs.amount / fs.frequency.
+        """
+        if fs.source_kind == "transport":
+            query = (
+                db.query(StudentTransport, Student, TransportRoute)
+                .join(Student, Student.id == StudentTransport.student_id)
+                .join(TransportRoute, TransportRoute.id == StudentTransport.route_id)
+                .filter(
+                    StudentTransport.is_active == True,  # noqa: E712
+                    StudentTransport.academic_year_id == fs.academic_year_id,
+                    Student.is_active == True,  # noqa: E712
+                )
+            )
+            if fs.transport_route_id is not None:
+                query = query.filter(StudentTransport.route_id == fs.transport_route_id)
+
+            billed = [
+                (student, route.fare, route.fare_frequency)
+                for (_st, student, route) in query.all()
+            ]
+            return billed, 0
+
+        if fs.applicability == "optional":
+            # Optional flat fee with no opt-in source in v1 — bills nobody.
+            active_students = cls._enrolled_active_students(db, fs)
+            return [], len(active_students)
+
+        # Mandatory flat — today's behaviour, unchanged.
+        active_students = cls._enrolled_active_students(db, fs)
+        billed = [(s, fs.amount, fs.frequency) for s in active_students]
+        return billed, 0
+
+    @staticmethod
+    def _enrolled_active_students(db, fs):
+        """Active students currently enrolled in the structure's class."""
+        return (
+            db.query(Student)
+            .join(StudentSection, StudentSection.student_id == Student.id)
+            .join(Section, Section.id == StudentSection.section_id)
+            .filter(
+                StudentSection.is_current == True,  # noqa: E712
+                Section.class_id == fs.class_id,
+                Student.is_active == True,  # noqa: E712
+            )
+            .all()
+        )
+
+    @classmethod
     def generate_records_for_class(cls, fee_structure_id: int, as_of=None):
         """
-        Generate FeeRecord rows for every active student currently enrolled in
-        the class linked to the given FeeStructure. For recurring structures,
-        one record is created per billing period (e.g. each month from the
-        student's admission month up to the current month).
+        Generate FeeRecord rows for the billed population of the given
+        FeeStructure. For recurring structures, one record is created per
+        billing period (e.g. each month from the student's admission month up
+        to the current month).
+
+        The billed population depends on the structure:
+          - mandatory/flat  -> every active student enrolled in fs.class_, at
+                               fs.amount (today's behaviour, unchanged).
+          - source_kind='transport' (implicitly optional) -> students with an
+                               active StudentTransport for fs.academic_year_id
+                               (optionally filtered to fs.transport_route_id),
+                               each at their route's fare / fare_frequency.
+          - optional/flat   -> nobody in v1 (no generic opt-in table yet);
+                               reported as skipped_no_optin.
 
         Idempotent: re-running only creates records for periods that don't
-        already exist (keyed on student + structure + period).
+        already exist (keyed on student + structure + period). Existing records
+        are never overwritten (so amount_overrides survive re-generation).
 
         Returns:
             (result_dict, None)   on success — keys: generated, skipped,
-                                  total_students
+                                  skipped_no_fare, skipped_no_optin,
+                                  total_students (billed-population size)
             (None, error_dict)    on failure — keys: message, status
         """
         db = get_db()
@@ -92,18 +188,8 @@ class FeeService:
                 "status": 404,
             }
 
-        # 2. Find all active students currently enrolled in the class.
-        active_students = (
-            db.query(Student)
-            .join(StudentSection, StudentSection.student_id == Student.id)
-            .join(Section, Section.id == StudentSection.section_id)
-            .filter(
-                StudentSection.is_current == True,  # noqa: E712
-                Section.class_id == fs.class_id,
-                Student.is_active == True,  # noqa: E712
-            )
-            .all()
-        )
+        # 2. Resolve who gets billed and at what amount/frequency.
+        billed, skipped_no_optin = cls._resolve_billed_population(db, fs)
 
         # 3. (student_id, period) pairs that already exist for this structure,
         #    so we skip them without a per-student query.
@@ -116,9 +202,16 @@ class FeeService:
 
         generated = 0
         skipped = 0
+        skipped_no_fare = 0
 
-        for student in active_students:
-            for label, due, amount in cls._compute_periods(fs, student, as_of):
+        for student, unit_amount, freq in billed:
+            # Transport route with no fare configured — never bill 0.
+            if fs.source_kind == "transport" and unit_amount is None:
+                skipped_no_fare += 1
+                continue
+            for label, due, amount in cls._compute_periods_with(
+                freq, unit_amount, student, as_of, fs
+            ):
                 if (student.id, label) in existing:
                     skipped += 1
                     continue
@@ -143,7 +236,9 @@ class FeeService:
         return {
             "generated": generated,
             "skipped": skipped,
-            "total_students": len(active_students),
+            "skipped_no_fare": skipped_no_fare,
+            "skipped_no_optin": skipped_no_optin,
+            "total_students": len(billed),
         }, None
 
     @classmethod
@@ -157,10 +252,21 @@ class FeeService:
         """
         db = get_db()
         as_of = as_of or date.today()
+        # Recurring flat structures bill per period when frequency != one_time.
+        # Transport structures derive their recurrence from route.fare_frequency
+        # (not fs.frequency), so they must be included regardless of fs.frequency
+        # for monthly transport fees to auto-appear.
+        from sqlalchemy import or_
+
         structures = (
             db.query(FeeStructure)
             .filter(FeeStructure.is_active == True)  # noqa: E712
-            .filter(FeeStructure.frequency != "one_time")
+            .filter(
+                or_(
+                    FeeStructure.frequency != "one_time",
+                    FeeStructure.source_kind == "transport",
+                )
+            )
             .all()
         )
         total = 0
@@ -382,6 +488,81 @@ class FeeService:
 
         db.commit()
         return discount.to_dict(), None
+
+    @classmethod
+    def _computed_amount_for(cls, db, fee_record):
+        """
+        The amount this record would carry without any override — flat fees use
+        the structure amount; transport fees use the student's active route fare
+        for the structure's academic year. Used when an override is cleared.
+        Returns None for a transport record whose route fare is unset.
+        """
+        fs = fee_record.fee_structure or db.query(FeeStructure).filter_by(
+            id=fee_record.fee_structure_id
+        ).first()
+        if fs is None:
+            return None
+        if fs.source_kind != "transport":
+            return fs.amount
+
+        st = (
+            db.query(StudentTransport)
+            .filter_by(
+                student_id=fee_record.student_id,
+                academic_year_id=fs.academic_year_id,
+                is_active=True,
+            )
+            .first()
+        )
+        if st is None or st.route is None:
+            return None
+        return st.route.fare
+
+    @classmethod
+    def set_amount_override(cls, fee_record_id: int, amount_override) -> tuple:
+        """
+        Set or clear the per-student base amount for a single fee record.
+
+        - amount_override is a Decimal/number -> record.amount becomes the
+          override; record.amount_override stores it.
+        - amount_override is None -> clear the override; record.amount reverts to
+          the originally computed amount (flat structure amount or transport
+          route fare).
+
+        net_amount is recomputed as amount - Σ discounts (never below 0). Returns
+        (fee_record_dict, None) on success or (None, error_dict) on failure.
+        """
+        db = get_db()
+
+        fee_record = db.query(FeeRecord).filter_by(id=fee_record_id).first()
+        if not fee_record:
+            return None, {
+                "message": f"FeeRecord {fee_record_id} not found",
+                "status": 404,
+            }
+
+        if amount_override is None:
+            base = cls._computed_amount_for(db, fee_record)
+            if base is None:
+                return None, {
+                    "message": "Cannot clear override: no computed amount is available for this record",
+                    "status": 422,
+                }
+            fee_record.amount_override = None
+            fee_record.amount = base
+        else:
+            fee_record.amount_override = amount_override
+            fee_record.amount = amount_override
+
+        total_discounts = sum(
+            float(d.amount)
+            for d in db.query(Discount).filter_by(fee_record_id=fee_record_id).all()
+        )
+        new_net = max(0.0, float(fee_record.amount) - total_discounts)
+        fee_record.net_amount = new_net
+
+        db.commit()
+        return fee_record.to_dict(), None
 
     @classmethod
     def get_fee_record(cls, fee_record_id: int) -> tuple:

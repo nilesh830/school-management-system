@@ -16,6 +16,10 @@ class FeeRecord(db.Model):
     # Billing period this record covers. "ONCE" for one-time fees; "YYYY-MM"
     # for a recurring (monthly/quarterly) installment; "YYYY" for annual.
     period = db.Column(db.String(10), nullable=False, default="ONCE")
+    # Admin-set base amount for this single record (concession fare, partial month).
+    # When set, generation/repair uses it as the record's `amount` instead of the
+    # computed amount; distinct from Discount (which reduces with an audit trail).
+    amount_override = db.Column(db.Numeric(10, 2), nullable=True)
     status = db.Column(db.String(20), nullable=False, default="pending")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -26,6 +30,7 @@ class FeeRecord(db.Model):
             name="uq_fee_records_student_structure_period",
         ),
         CheckConstraint("status IN ('pending','paid','partial','waived')", name="ck_fee_records_status"),
+        CheckConstraint("amount_override IS NULL OR amount_override >= 0", name="ck_fee_records_amount_override_nonneg"),
     )
 
     # Relationships
@@ -41,6 +46,7 @@ class FeeRecord(db.Model):
             "amount": float(self.amount) if self.amount is not None else None,
             "discount": float(self.discount) if self.discount is not None else None,
             "net_amount": float(self.net_amount) if self.net_amount is not None else None,
+            "amount_override": float(self.amount_override) if self.amount_override is not None else None,
             "due_date": self.due_date.isoformat() if self.due_date else None,
             "period": self.period,
             "status": self.status,

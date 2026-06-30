@@ -2,6 +2,7 @@ from app.utils.tenant import get_db
 from app.models.fee_structure import FeeStructure
 from app.models.class_ import Class
 from app.models.academic_year import AcademicYear
+from app.models.transport_route import TransportRoute
 
 
 class FeeStructureService:
@@ -27,14 +28,36 @@ class FeeStructureService:
                 "status": 404,
             }
 
+        source_kind = data.get("source_kind", "flat")
+        applicability = data.get("applicability", "mandatory")
+        transport_route_id = data.get("transport_route_id")
+
+        # Enforce: transport ⇒ optional (the schema also forces this, but the
+        # service is the source of truth).
+        if source_kind == "transport":
+            applicability = "optional"
+            if transport_route_id is not None:
+                route = db.query(TransportRoute).filter_by(id=transport_route_id).first()
+                if not route:
+                    return None, {
+                        "message": f"TransportRoute {transport_route_id} not found",
+                        "status": 404,
+                    }
+        else:
+            # Flat structures must not carry a transport route.
+            transport_route_id = None
+
         fs = FeeStructure(
             class_id=data["class_id"],
             academic_year_id=data["academic_year_id"],
             fee_type=data["fee_type"],
-            amount=data["amount"],
+            amount=data.get("amount") or 0,
             due_date=data.get("due_date"),
             is_recurring=data.get("is_recurring", False),
             frequency=data.get("frequency", "one_time"),
+            applicability=applicability,
+            source_kind=source_kind,
+            transport_route_id=transport_route_id,
         )
         db.add(fs)
         db.commit()
@@ -97,8 +120,28 @@ class FeeStructureService:
             fs.is_recurring = data["is_recurring"]
         if data.get("frequency") is not None:
             fs.frequency = data["frequency"]
+        if data.get("source_kind") is not None:
+            fs.source_kind = data["source_kind"]
+        if data.get("applicability") is not None:
+            fs.applicability = data["applicability"]
+        if "transport_route_id" in data and data["transport_route_id"] is not None:
+            route = db.query(TransportRoute).filter_by(id=data["transport_route_id"]).first()
+            if not route:
+                return None, {
+                    "message": f"TransportRoute {data['transport_route_id']} not found",
+                    "status": 404,
+                }
+            fs.transport_route_id = data["transport_route_id"]
+        elif "transport_route_id" in data:
+            fs.transport_route_id = data["transport_route_id"]
         if data.get("is_active") is not None:
             fs.is_active = data["is_active"]
+
+        # Enforce invariants after applying updates.
+        if fs.source_kind == "transport":
+            fs.applicability = "optional"
+        else:
+            fs.transport_route_id = None
 
         db.commit()
         return fs.to_dict(), None

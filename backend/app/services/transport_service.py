@@ -17,6 +17,8 @@ class TransportService:
             name=data["name"],
             description=data.get("description"),
             stops_json=data.get("stops") or [],
+            fare=data.get("fare"),
+            fare_frequency=data.get("fare_frequency") or "monthly",
         )
         db.add(route)
         db.commit()
@@ -52,6 +54,11 @@ class TransportService:
             route.description = data["description"]
         if data.get("stops") is not None:
             route.stops_json = data["stops"]
+        # fare may legitimately be cleared to None, so check key presence.
+        if "fare" in data:
+            route.fare = data["fare"]
+        if data.get("fare_frequency") is not None:
+            route.fare_frequency = data["fare_frequency"]
         if data.get("is_active") is not None:
             route.is_active = data["is_active"]
 

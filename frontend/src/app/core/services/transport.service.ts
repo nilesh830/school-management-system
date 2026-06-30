@@ -3,12 +3,17 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiResponse } from '../models/user.model';
 
+export type FareFrequency = 'monthly' | 'quarterly' | 'annual' | 'one_time';
+
 export interface TransportRoute {
   id: number;
   name: string;
   description: string | null;
   stops: string[];
   is_active: boolean;
+  // SMS-066 — per-route fare used to bill transport fee structures
+  fare: number | null;
+  fare_frequency: FareFrequency;
 }
 
 export interface TransportVehicle {
