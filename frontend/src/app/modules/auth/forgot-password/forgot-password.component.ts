@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -17,18 +17,27 @@ import { HttpClient } from '@angular/common/http';
   ],
   templateUrl: './forgot-password.component.html'
 })
-export class ForgotPasswordComponent {
+export class ForgotPasswordComponent implements OnInit {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
 
   form = this.fb.group({
+    school_slug: ['', [Validators.required, Validators.pattern(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$|^[a-z0-9]{2,50}$/)]],
     email: ['', [Validators.required, Validators.email]]
   });
 
   loading = false;
   submitted = false;
 
+  get slugCtrl() { return this.form.controls.school_slug; }
   get emailCtrl() { return this.form.controls.email; }
+
+  ngOnInit(): void {
+    const savedSlug = localStorage.getItem('sms_school_slug');
+    if (savedSlug) {
+      this.form.patchValue({ school_slug: savedSlug });
+    }
+  }
 
   onSubmit(): void {
     if (this.form.invalid) {
@@ -37,7 +46,8 @@ export class ForgotPasswordComponent {
     }
     this.loading = true;
 
-    this.http.post('/api/v1/auth/forgot-password', { email: this.form.value.email }).subscribe({
+    const { email, school_slug } = this.form.value;
+    this.http.post('/api/v1/auth/forgot-password', { email, school_slug }).subscribe({
       next: () => {
         this.loading = false;
         this.submitted = true;

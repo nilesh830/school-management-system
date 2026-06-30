@@ -63,8 +63,8 @@ def _extract_school_slug() -> str | None:
         except Exception:
             pass
 
-    # Login endpoint: get slug from request body
-    if request.path == "/api/v1/auth/login" and request.method == "POST":
+    # Login, forgot password, and reset password endpoints: get slug from request body
+    if request.path in ["/api/v1/auth/login", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password"] and request.method == "POST":
         data = request.get_json(silent=True) or {}
         slug = data.get("school_slug", "").strip().lower()
         return slug or None

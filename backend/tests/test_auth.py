@@ -253,6 +253,14 @@ class TestPasswordReset:
         resp = client.post('/api/v1/auth/forgot-password', json={'email': 'admin@test.sms'})
         assert resp.status_code == 200
 
+    def test_forgot_password_with_school_slug(self, client, admin_user):
+        # Known email with school_slug
+        resp = client.post('/api/v1/auth/forgot-password', json={
+            'email': 'admin@test.sms',
+            'school_slug': 'test'
+        })
+        assert resp.status_code == 200
+
     def test_forgot_password_unknown_email_still_200(self, client):
         resp = client.post('/api/v1/auth/forgot-password', json={'email': 'nobody@nowhere.com'})
         assert resp.status_code == 200
@@ -275,6 +283,28 @@ class TestPasswordReset:
         resp = client.post('/api/v1/auth/reset-password', json={
             'token': raw,
             'password': 'NewAdmin@5678',
+        })
+        assert resp.status_code == 200
+
+    def test_reset_password_with_school_slug_and_new_password_key(self, client, db, admin_user):
+        import hashlib, secrets
+        from datetime import datetime, timedelta
+        from app.models.password_reset_token import PasswordResetToken
+
+        raw = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw.encode()).hexdigest()
+        rt = PasswordResetToken(
+            user_id=admin_user.id,
+            token_hash=token_hash,
+            expires_at=datetime.utcnow() + timedelta(hours=1),
+        )
+        db.session.add(rt)
+        db.session.commit()
+
+        resp = client.post('/api/v1/auth/reset-password', json={
+            'token': raw,
+            'school_slug': 'test',
+            'new_password': 'NewAdmin@5678',
         })
         assert resp.status_code == 200
 
