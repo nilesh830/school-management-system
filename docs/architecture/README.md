@@ -44,6 +44,7 @@ Angular SPA ──HTTPS + JWT (Bearer, carries school_slug)──▶ Flask /api/
 | [adr-002-parent-portal.md](adr-002-parent-portal.md) | Parent Portal design & data-isolation decision |
 | [adr-003-jwt-rbac.md](adr-003-jwt-rbac.md) | JWT structure, roles, and RBAC enforcement |
 | [adr-004-postgresql-schema-per-school.md](adr-004-postgresql-schema-per-school.md) | **The SQLite → PostgreSQL schema-per-school migration** (rationale + gotchas) |
+| [adr-005-fee-applicability.md](adr-005-fee-applicability.md) | Fee applicability — optional/opt-in fees, transport per-student fares (SMS-066, _Proposed_) |
 | [../api/api-reference.md](../api/api-reference.md) | Full REST endpoint reference (request/response envelopes) |
 | [../api/postman-collection-guide.md](../api/postman-collection-guide.md) | Postman usage |
 

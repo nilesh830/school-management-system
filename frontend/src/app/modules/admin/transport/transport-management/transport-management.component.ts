@@ -74,7 +74,16 @@ export class TransportManagementComponent implements OnInit {
     name: ['', Validators.required],
     description: [''],
     stops: [''], // comma-separated
+    fare: [null, [Validators.min(0)]],
+    fare_frequency: ['monthly', Validators.required],
   });
+
+  fareFrequencyOptions: { label: string; value: string }[] = [
+    { label: 'Monthly', value: 'monthly' },
+    { label: 'Quarterly', value: 'quarterly' },
+    { label: 'Annual', value: 'annual' },
+    { label: 'One Time', value: 'one_time' },
+  ];
 
   // ── Vehicle dialog ──
   vehicleDialogVisible = false;
@@ -163,6 +172,8 @@ export class TransportManagementComponent implements OnInit {
       name: route?.name ?? '',
       description: route?.description ?? '',
       stops: route?.stops?.join(', ') ?? '',
+      fare: route?.fare ?? null,
+      fare_frequency: route?.fare_frequency ?? 'monthly',
     });
     this.routeDialogVisible = true;
   }
@@ -175,6 +186,8 @@ export class TransportManagementComponent implements OnInit {
       name: raw.name,
       description: raw.description || null,
       stops: this.parseStops(raw.stops),
+      fare: raw.fare ?? null,
+      fare_frequency: raw.fare_frequency ?? 'monthly',
     };
     const req$ = this.routeEditId !== null
       ? this.transport.updateRoute(this.routeEditId, payload)
@@ -282,6 +295,11 @@ export class TransportManagementComponent implements OnInit {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+  fareFrequencyLabel(value: string | null | undefined): string {
+    const opt = this.fareFrequencyOptions.find(o => o.value === value);
+    return opt ? opt.label : (value ?? '');
+  }
+
   private parseStops(value: string): string[] {
     if (!value) return [];
     return value.split(',').map(s => s.trim()).filter(s => s.length > 0);

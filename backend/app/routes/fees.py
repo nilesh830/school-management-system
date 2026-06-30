@@ -4,12 +4,17 @@ from flask_jwt_extended import get_jwt_identity
 from app.services.fee_service import FeeService
 from app.utils.response import success_response, error_response
 from app.utils.decorators import roles_required
-from app.schemas.fee_payment_schema import FeePaymentCreateSchema, DiscountSchema
+from app.schemas.fee_payment_schema import (
+    FeePaymentCreateSchema,
+    DiscountSchema,
+    AmountOverrideSchema,
+)
 
 fees_bp = Blueprint("fees", __name__, url_prefix="/api/v1/fees")
 
 _payment_create_schema = FeePaymentCreateSchema()
 _discount_schema = DiscountSchema()
+_amount_override_schema = AmountOverrideSchema()
 
 
 def _validate(schema, payload):
@@ -155,3 +160,22 @@ def apply_discount(record_id):
     if svc_err:
         return error_response(svc_err["message"], status=svc_err.get("status", 400))
     return success_response(data=discount, message="Discount applied successfully", status=201)
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/v1/fees/records/<record_id>/amount — set/clear per-student
+# base amount override (admin only). (ADR-005 SMS-066)
+# ---------------------------------------------------------------------------
+
+
+@fees_bp.route("/records/<int:record_id>/amount", methods=["PATCH"], strict_slashes=False)
+@roles_required("admin")
+def set_amount_override(record_id):
+    data, err = _validate(_amount_override_schema, request.get_json())
+    if err:
+        return err
+
+    result, svc_err = FeeService.set_amount_override(record_id, data["amount_override"])
+    if svc_err:
+        return error_response(svc_err["message"], status=svc_err.get("status", 400))
+    return success_response(data=result, message="Fee record amount updated successfully")

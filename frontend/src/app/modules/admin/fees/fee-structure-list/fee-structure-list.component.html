@@ -71,10 +71,23 @@
 
       <ng-template pTemplate="body" let-fs>
         <tr>
-          <td>{{ fs.fee_type }}</td>
+          <td>
+            {{ fs.fee_type }}
+            @if (fs.source_kind === 'transport') {
+              <p-tag value="Transport" severity="info" styleClass="ml-2" />
+            } @else if (fs.applicability === 'optional') {
+              <p-tag value="Optional" severity="warning" styleClass="ml-2" />
+            }
+          </td>
           <td>{{ getClassName(fs.class_id) }}</td>
           <td>{{ getYearName(fs.academic_year_id) }}</td>
-          <td>{{ fs.amount | number:'1.2-2' }}</td>
+          <td>
+            @if (fs.source_kind === 'transport') {
+              <span class="text-color-secondary">Per route ({{ getRouteName(fs.transport_route_id) }})</span>
+            } @else {
+              {{ fs.amount | number:'1.2-2' }}
+            }
+          </td>
           <td>{{ getFrequencyLabel(fs.frequency) }}</td>
           <td>
             <p-tag
@@ -203,23 +216,88 @@
       }
     </div>
 
-    <!-- Amount -->
+    <!-- Source Kind: flat amount vs transport-driven -->
     <div class="flex flex-column gap-1">
-      <label for="amount" class="font-semibold">Amount <span class="text-red-500">*</span></label>
-      <p-inputNumber
-        inputId="amount"
-        formControlName="amount"
-        [min]="0"
-        [minFractionDigits]="2"
-        [maxFractionDigits]="2"
-        placeholder="e.g. 5000.00"
-        styleClass="w-full"
-        inputStyleClass="w-full"
+      <label class="font-semibold">Fee Source</label>
+      <p-selectButton
+        formControlName="source_kind"
+        [options]="sourceKindOptions"
+        optionLabel="label"
+        optionValue="value"
+        [allowEmpty]="false"
       />
-      @if (form.get('amount')?.invalid && form.get('amount')?.touched) {
-        <small class="text-red-500">A valid amount is required.</small>
+      <small class="text-color-secondary">
+        Flat amount bills a fixed amount. Transport bills each opted-in student their route's fare.
+      </small>
+    </div>
+
+    <!-- Applicability: mandatory vs optional (forced Optional for transport) -->
+    <div class="flex flex-column gap-1">
+      <label class="font-semibold">Applicability</label>
+      <p-selectButton
+        formControlName="applicability"
+        [options]="applicabilityOptions"
+        optionLabel="label"
+        optionValue="value"
+        [allowEmpty]="false"
+      />
+      @if (isTransport) {
+        <small class="text-color-secondary">
+          Transport fees are always Optional — only students assigned to the route are billed.
+        </small>
+      } @else if (isOptionalFlat) {
+        <small class="text-orange-500">
+          Note: an Optional + Flat fee has no opt-in list in v1, so "Generate Fees" will bill nobody.
+          Use a Transport source to bill opted-in students.
+        </small>
       }
     </div>
+
+    <!-- Amount (flat only) -->
+    @if (!isTransport) {
+      <div class="flex flex-column gap-1">
+        <label for="amount" class="font-semibold">Amount <span class="text-red-500">*</span></label>
+        <p-inputNumber
+          inputId="amount"
+          formControlName="amount"
+          [min]="0"
+          [minFractionDigits]="2"
+          [maxFractionDigits]="2"
+          placeholder="e.g. 5000.00"
+          styleClass="w-full"
+          inputStyleClass="w-full"
+        />
+        @if (form.get('amount')?.invalid && form.get('amount')?.touched) {
+          <small class="text-red-500">A valid amount is required.</small>
+        }
+      </div>
+    }
+
+    <!-- Transport route (transport only) -->
+    @if (isTransport) {
+      <div class="flex flex-column gap-1">
+        <label for="transportRouteId" class="font-semibold">Transport Route</label>
+        <p-dropdown
+          inputId="transportRouteId"
+          formControlName="transport_route_id"
+          [options]="routeOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Any route the student is on"
+          [filter]="true"
+          filterBy="label"
+          [showClear]="true"
+          [loading]="loadingRoutes"
+          appendTo="body"
+          emptyMessage="No transport routes found — create routes first"
+          styleClass="w-full"
+        />
+        <small class="text-color-secondary">
+          Leave empty to bill every student with an active transport assignment; pick a route to bill only that route.
+          Each student is billed their route's fare (routes with no fare set are skipped).
+        </small>
+      </div>
+    }
 
     <!-- Frequency -->
     <div class="flex flex-column gap-1">
