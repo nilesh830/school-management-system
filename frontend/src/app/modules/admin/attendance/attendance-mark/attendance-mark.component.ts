@@ -152,7 +152,7 @@ export class AttendanceMarkComponent implements OnInit {
         this.toast.add({
           severity: 'success',
           summary: 'Attendance Marked',
-          detail: `Successfully marked attendance for ${res.data.records_created} students`
+          detail: `Successfully marked attendance for ${res.data.records_saved} students`
         });
       },
       error: (err) => {

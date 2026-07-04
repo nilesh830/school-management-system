@@ -16,6 +16,7 @@ from app.models.fee_structure import FeeStructure
 from app.models.fee_record import FeeRecord
 from app.models.transport_route import TransportRoute
 from app.models.student_transport import StudentTransport
+from app.models.student_fee_optin import StudentFeeOptin
 
 
 # ---------------------------------------------------------------------------
@@ -267,12 +268,24 @@ class TestSkippedNoFare:
 
 
 # ---------------------------------------------------------------------------
-# 4. Optional + flat with no opt-in source bills nobody (skipped_no_optin)
+# 4. Optional + flat billing is driven by the opt-in list (v2)
 # ---------------------------------------------------------------------------
 
-class TestOptionalFlatBillsNobody:
+def opt_in(db, fee_structure_id, student_id, amount_override=None, is_active=True):
+    o = StudentFeeOptin(
+        fee_structure_id=fee_structure_id,
+        student_id=student_id,
+        amount_override=amount_override,
+        is_active=is_active,
+    )
+    db.session.add(o)
+    db.session.commit()
+    return o
 
-    def test_optional_flat_no_optin(self, app, db):
+
+class TestOptionalFlatOptIn:
+
+    def test_no_optins_bills_nobody(self, app, db):
         with app.app_context():
             cls = make_class(db)
             ay = make_academic_year(db)
@@ -291,10 +304,80 @@ class TestOptionalFlatBillsNobody:
 
             assert err is None
             assert result['generated'] == 0
-            assert result['skipped_no_optin'] == 2
             assert result['total_students'] == 0
+            assert db.session.query(FeeRecord).filter_by(fee_structure_id=fs.id).all() == []
+
+    def test_bills_only_opted_in_at_fs_amount(self, app, db):
+        with app.app_context():
+            cls = make_class(db)
+            ay = make_academic_year(db)
+            section = make_section(db, cls.id)
+            opted = make_student_user(db, 'ADM-FA-042')
+            skipped = make_student_user(db, 'ADM-FA-043')
+            enroll(db, opted.id, section.id)
+            enroll(db, skipped.id, section.id)
+
+            fs = make_fee_structure(db, cls.id, ay.id, fee_type='Hostel',
+                                    amount=3000.00, source_kind='flat',
+                                    applicability='optional', frequency='one_time',
+                                    due_date=date(2024, 7, 31))
+            opt_in(db, fs.id, opted.id)
+
+            result, err = FeeService.generate_records_for_class(fs.id, as_of=AS_OF)
+
+            assert err is None
+            assert result['generated'] == 1
+            assert result['total_students'] == 1
             recs = db.session.query(FeeRecord).filter_by(fee_structure_id=fs.id).all()
-            assert recs == []
+            assert len(recs) == 1
+            assert recs[0].student_id == opted.id
+            assert float(recs[0].amount) == 3000.00
+
+    def test_amount_override_used_when_set(self, app, db):
+        with app.app_context():
+            cls = make_class(db)
+            ay = make_academic_year(db)
+            section = make_section(db, cls.id)
+            single = make_student_user(db, 'ADM-FA-044')
+            double = make_student_user(db, 'ADM-FA-045')
+            enroll(db, single.id, section.id)
+            enroll(db, double.id, section.id)
+
+            fs = make_fee_structure(db, cls.id, ay.id, fee_type='Hostel',
+                                    amount=3500.00, source_kind='flat',
+                                    applicability='optional', frequency='one_time',
+                                    due_date=date(2024, 7, 31))
+            opt_in(db, fs.id, single.id, amount_override=5000.00)  # single room
+            opt_in(db, fs.id, double.id)                          # default double
+
+            result, err = FeeService.generate_records_for_class(fs.id, as_of=AS_OF)
+
+            assert err is None
+            assert result['generated'] == 2
+            recs = {r.student_id: float(r.amount)
+                    for r in db.session.query(FeeRecord).filter_by(fee_structure_id=fs.id).all()}
+            assert recs[single.id] == 5000.00
+            assert recs[double.id] == 3500.00
+
+    def test_inactive_optin_not_billed(self, app, db):
+        with app.app_context():
+            cls = make_class(db)
+            ay = make_academic_year(db)
+            section = make_section(db, cls.id)
+            student = make_student_user(db, 'ADM-FA-046')
+            enroll(db, student.id, section.id)
+
+            fs = make_fee_structure(db, cls.id, ay.id, fee_type='Hostel',
+                                    amount=3000.00, source_kind='flat',
+                                    applicability='optional', frequency='one_time',
+                                    due_date=date(2024, 7, 31))
+            opt_in(db, fs.id, student.id, is_active=False)  # opted out
+
+            result, err = FeeService.generate_records_for_class(fs.id, as_of=AS_OF)
+
+            assert err is None
+            assert result['generated'] == 0
+            assert result['total_students'] == 0
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { TableModule } from 'primeng/table';
@@ -16,10 +16,13 @@ import { ToolbarModule } from 'primeng/toolbar';
 import { ToastModule } from 'primeng/toast';
 import { CalendarModule } from 'primeng/calendar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { AutoCompleteModule } from 'primeng/autocomplete';
+import { TooltipModule } from 'primeng/tooltip';
 
-import { FeeStructureService, FeeStructure } from '../../../../core/services/fee-structure.service';
+import { FeeStructureService, FeeStructure, FeeOptin } from '../../../../core/services/fee-structure.service';
 import { ClassesService } from '../../../../core/services/classes.service';
 import { TransportService, TransportRoute } from '../../../../core/services/transport.service';
+import { StudentService, Student } from '../../../../core/services/student.service';
 
 @Component({
   selector: 'app-fee-structure-list',
@@ -27,6 +30,7 @@ import { TransportService, TransportRoute } from '../../../../core/services/tran
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    FormsModule,
     TableModule,
     DialogModule,
     ButtonModule,
@@ -40,6 +44,8 @@ import { TransportService, TransportRoute } from '../../../../core/services/tran
     ToastModule,
     CalendarModule,
     ProgressSpinnerModule,
+    AutoCompleteModule,
+    TooltipModule,
   ],
   providers: [MessageService],
   templateUrl: './fee-structure-list.component.html',
@@ -48,6 +54,7 @@ export class FeeStructureListComponent implements OnInit {
   private feeStructureService = inject(FeeStructureService);
   private classesService = inject(ClassesService);
   private transportService = inject(TransportService);
+  private studentService = inject(StudentService);
   private fb = inject(FormBuilder);
   private toast = inject(MessageService);
   private router = inject(Router);
@@ -59,6 +66,17 @@ export class FeeStructureListComponent implements OnInit {
   isEdit = false;
   editingId: number | null = null;
   generatingId: number | null = null;
+
+  // ── Opt-in management (optional flat fees) ──────────────────────────────
+  optinDialogVisible = false;
+  optinFs: FeeStructure | null = null;
+  optins: FeeOptin[] = [];
+  loadingOptins = false;
+  savingOptin = false;
+  removingOptinId: number | null = null;
+  studentSuggestions: Student[] = [];
+  selectedStudents: Student[] = [];
+  optinAmountOverride: number | null = null;
 
   frequencyOptions = [
     { label: 'Monthly', value: 'monthly' },
@@ -359,14 +377,14 @@ export class FeeStructureListComponent implements OnInit {
         const skippedNoOptin = d.skipped_no_optin ?? 0;
         const total = d.total_students ?? (generated + skipped);
 
-        // Optional + flat (v1) has no opt-in source → bills nobody. Surface that
-        // explicitly rather than a generic "0 generated".
-        if (fs.source_kind === 'flat' && fs.applicability === 'optional' && generated === 0) {
+        // Optional + flat bills only opted-in students. If nobody is opted in,
+        // point the admin at the opt-in manager rather than showing "0 generated".
+        if (this.isOptionalFlatFs(fs) && generated === 0 && total === 0) {
           this.toast.add({
             severity: 'warn',
             summary: 'No One Billed',
-            detail: 'This is an Optional + Flat fee — in v1 it has no opt-in list, so generate bills nobody. '
-              + 'Link it to a transport route to bill opted-in students.',
+            detail: 'This is an Optional + Flat fee. No students are opted in yet, so nobody was billed. '
+              + 'Use "Manage Opt-in" to add students first.',
             life: 8000,
           });
           return;
@@ -415,6 +433,115 @@ export class FeeStructureListComponent implements OnInit {
       },
       error: () => {
         this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete fee structure' });
+      },
+    });
+  }
+
+  // ── Opt-in management ────────────────────────────────────────────────────
+
+  /** True for an optional flat fee structure, which bills only opted-in students. */
+  isOptionalFlatFs(fs: FeeStructure): boolean {
+    return fs.source_kind === 'flat' && fs.applicability === 'optional';
+  }
+
+  openOptinDialog(fs: FeeStructure): void {
+    this.optinFs = fs;
+    this.selectedStudents = [];
+    this.optinAmountOverride = null;
+    this.studentSuggestions = [];
+    this.optinDialogVisible = true;
+    this.loadOptins();
+  }
+
+  closeOptinDialog(): void {
+    this.optinDialogVisible = false;
+    this.optinFs = null;
+    this.optins = [];
+    this.selectedStudents = [];
+    this.optinAmountOverride = null;
+  }
+
+  private loadOptins(): void {
+    if (!this.optinFs) return;
+    this.loadingOptins = true;
+    this.feeStructureService.getFeeOptins(this.optinFs.id).subscribe({
+      next: (res) => {
+        this.optins = res.data?.optins ?? [];
+        this.loadingOptins = false;
+      },
+      error: () => {
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load opt-in list' });
+        this.loadingOptins = false;
+      },
+    });
+  }
+
+  searchStudentsForOptin(event: { query: string }): void {
+    const query = (event.query ?? '').trim();
+    if (query.length < 2) {
+      this.studentSuggestions = [];
+      return;
+    }
+    this.studentService.searchStudents(query, 20).subscribe({
+      next: (res) => {
+        const alreadyOptedIn = new Set(this.optins.map((o) => o.student_id));
+        const selectedIds = new Set(this.selectedStudents.map((s) => s.id));
+        this.studentSuggestions = (res.data?.students ?? []).filter(
+          (s) => !alreadyOptedIn.has(s.id) && !selectedIds.has(s.id),
+        );
+      },
+      error: () => { this.studentSuggestions = []; },
+    });
+  }
+
+  studentLabel(s: Student): string {
+    return `${s.first_name} ${s.last_name} (${s.admission_no})`;
+  }
+
+  addSelectedOptins(): void {
+    if (!this.optinFs || this.selectedStudents.length === 0) return;
+    this.savingOptin = true;
+    const ids = this.selectedStudents.map((s) => s.id);
+    this.feeStructureService.addFeeOptins(this.optinFs.id, ids, this.optinAmountOverride).subscribe({
+      next: (res) => {
+        this.savingOptin = false;
+        const d = res?.data ?? {};
+        const added = (d.added?.length ?? 0) + (d.reactivated?.length ?? 0);
+        const notFound = d.not_found?.length ?? 0;
+        this.toast.add({
+          severity: added > 0 ? 'success' : 'warn',
+          summary: 'Opt-in Updated',
+          detail: `${added} student(s) opted in`
+            + (notFound > 0 ? `, ${notFound} not found` : '') + '.',
+        });
+        this.selectedStudents = [];
+        this.optinAmountOverride = null;
+        this.loadOptins();
+      },
+      error: (err) => {
+        this.savingOptin = false;
+        this.toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: err?.error?.message ?? 'Failed to opt students in',
+        });
+      },
+    });
+  }
+
+  removeOptin(optin: FeeOptin): void {
+    if (!this.optinFs) return;
+    if (!window.confirm(`Remove ${optin.student_name ?? 'this student'} from "${this.optinFs.fee_type}"?`)) return;
+    this.removingOptinId = optin.id;
+    this.feeStructureService.removeFeeOptins(this.optinFs.id, [optin.student_id]).subscribe({
+      next: () => {
+        this.removingOptinId = null;
+        this.toast.add({ severity: 'success', summary: 'Removed', detail: 'Student removed from opt-in' });
+        this.loadOptins();
+      },
+      error: () => {
+        this.removingOptinId = null;
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to remove student' });
       },
     });
   }

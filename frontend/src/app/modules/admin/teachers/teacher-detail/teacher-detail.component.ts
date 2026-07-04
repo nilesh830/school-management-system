@@ -14,7 +14,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { FormsModule } from '@angular/forms';
 
 import { TeacherService, Teacher, TeacherSubjectAssignment, TimetableEntry } from '../../../../core/services/teacher.service';
-import { ClassesService, Subject } from '../../../../core/services/classes.service';
+import { ClassesService, Subject, ClassRecord } from '../../../../core/services/classes.service';
 
 const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -153,7 +153,36 @@ const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Sat
           optionValue="id"
           placeholder="Select subject"
           styleClass="w-full"
+          appendTo="body"
+          [filter]="true"
+          filterBy="name,code"
+          [loading]="loadingAllSubjects"
+          emptyMessage="No subjects found — create subjects first"
+        >
+          <ng-template let-subject pTemplate="item">
+            <span class="font-mono text-sm mr-2">{{ subject.code }}</span>{{ subject.name }}
+          </ng-template>
+        </p-dropdown>
+      </div>
+      <div class="field mt-2">
+        <label>Class <span class="text-500 text-xs">(optional)</span></label>
+        <p-dropdown
+          [(ngModel)]="selectedClassId"
+          [options]="allClasses"
+          optionLabel="name"
+          optionValue="id"
+          placeholder="All classes"
+          styleClass="w-full"
+          appendTo="body"
+          [filter]="true"
+          filterBy="name"
+          [showClear]="true"
+          [loading]="loadingAllClasses"
+          emptyMessage="No classes found — create classes first"
         />
+        <small class="text-500 block mt-1">
+          <i class="pi pi-info-circle mr-1"></i>Leave empty to assign the subject across all classes.
+        </small>
       </div>
       <ng-template pTemplate="footer">
         <p-button label="Cancel" severity="secondary" (onClick)="showAssignDialog = false" />
@@ -176,7 +205,11 @@ export class TeacherDetailComponent implements OnInit {
 
   showAssignDialog = false;
   allSubjects: Subject[] = [];
+  loadingAllSubjects = false;
   selectedSubjectId: number | null = null;
+  allClasses: ClassRecord[] = [];
+  loadingAllClasses = false;
+  selectedClassId: number | null = null;
   assigningSubject = false;
 
   readonly dayLabels = DAY_LABELS;
@@ -190,6 +223,7 @@ export class TeacherDetailComponent implements OnInit {
         this.loadSubjects(id);
         this.loadSchedule(id);
         this.loadAllSubjects();
+        this.loadAllClasses();
       },
       error: () => { this.notFound = true; }
     });
@@ -211,9 +245,18 @@ export class TeacherDetailComponent implements OnInit {
   }
 
   private loadAllSubjects(): void {
+    this.loadingAllSubjects = true;
     this.classesService.getSubjects(1, 100).subscribe({
-      next: (res) => { this.allSubjects = res.data.subjects; },
-      error: () => {}
+      next: (res) => { this.allSubjects = res.data.subjects ?? []; this.loadingAllSubjects = false; },
+      error: () => { this.loadingAllSubjects = false; }
+    });
+  }
+
+  private loadAllClasses(): void {
+    this.loadingAllClasses = true;
+    this.classesService.getClasses(1, 100).subscribe({
+      next: (res) => { this.allClasses = res.data.classes ?? []; this.loadingAllClasses = false; },
+      error: () => { this.loadingAllClasses = false; }
     });
   }
 
@@ -224,11 +267,15 @@ export class TeacherDetailComponent implements OnInit {
   assignSubject(): void {
     if (!this.selectedSubjectId) return;
     this.assigningSubject = true;
-    this.teacherService.assignSubject(this.teacher!.id, { subject_id: this.selectedSubjectId }).subscribe({
+    this.teacherService.assignSubject(this.teacher!.id, {
+      subject_id: this.selectedSubjectId,
+      class_id: this.selectedClassId ?? null,
+    }).subscribe({
       next: () => {
         this.toast.add({ severity: 'success', summary: 'Assigned', detail: 'Subject assigned' });
         this.showAssignDialog = false;
         this.selectedSubjectId = null;
+        this.selectedClassId = null;
         this.loadSubjects(this.teacher!.id);
         this.assigningSubject = false;
       },

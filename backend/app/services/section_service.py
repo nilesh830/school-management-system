@@ -4,6 +4,21 @@ from app.utils.tenant import get_db
 from app.models.section import Section
 from app.models.student_section import StudentSection
 from app.models.student import Student
+from app.models.teacher import Teacher
+
+
+def _validate_class_teacher(teacher_id):
+    """Class teacher (homeroom) must reference an existing, active teacher.
+
+    Returns an error_dict if invalid, else None. A null teacher_id is allowed
+    (clears the homeroom teacher).
+    """
+    if teacher_id is None:
+        return None
+    teacher = get_db().query(Teacher).filter_by(id=teacher_id, is_active=True).first()
+    if not teacher:
+        return {"message": "Class teacher not found or inactive", "status": 404}
+    return None
 
 
 def _paginate(query, page: int, per_page: int) -> tuple:
@@ -66,6 +81,10 @@ class SectionService:
                 "status": 409,
             }
 
+        err = _validate_class_teacher(data.get("class_teacher_id"))
+        if err:
+            return None, err
+
         section = Section(
             name=name,
             class_id=class_id,
@@ -102,6 +121,9 @@ class SectionService:
             section.capacity = data["capacity"]
 
         if "class_teacher_id" in data:
+            err = _validate_class_teacher(data["class_teacher_id"])
+            if err:
+                return None, err
             section.class_teacher_id = data["class_teacher_id"]
 
         if "is_active" in data:

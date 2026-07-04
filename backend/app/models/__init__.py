@@ -15,6 +15,7 @@ from app.models.exam_result import ExamResult
 from app.models.fee_structure import FeeStructure
 from app.models.fee_record import FeeRecord
 from app.models.fee_payment import FeePayment
+from app.models.student_fee_optin import StudentFeeOptin
 from app.models.discount import Discount
 from app.models.master.school import School
 from app.models.master.super_admin import SuperAdmin

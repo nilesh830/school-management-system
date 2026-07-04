@@ -43,6 +43,18 @@ export interface FeeDiscount {
   created_at: string;
 }
 
+export interface FeeOptin {
+  id: number;
+  fee_structure_id: number;
+  student_id: number;
+  student_name: string | null;
+  admission_no: string | null;
+  amount_override: number | null;
+  opted_in_by: number | null;
+  opted_in_at: string | null;
+  is_active: boolean;
+}
+
 export interface FeeRecord {
   id: number;
   student_id: number;
@@ -89,6 +101,31 @@ export class FeeStructureService {
   /** POST /api/v1/fee-structures/:id/generate — create FeeRecords for every student in the class */
   generateFeeRecords(id: number): Observable<any> {
     return this.http.post(`${this.apiUrl}/${id}/generate`, {});
+  }
+
+  /** GET /api/v1/fee-structures/:id/opt-in — list students opted into an optional flat fee */
+  getFeeOptins(feeStructureId: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/${feeStructureId}/opt-in`);
+  }
+
+  /** POST /api/v1/fee-structures/:id/opt-in — bulk add students, with optional per-student amount */
+  addFeeOptins(
+    feeStructureId: number,
+    studentIds: number[],
+    amountOverride?: number | null,
+  ): Observable<any> {
+    const payload: any = { student_ids: studentIds };
+    if (amountOverride !== undefined && amountOverride !== null) {
+      payload.amount_override = amountOverride;
+    }
+    return this.http.post(`${this.apiUrl}/${feeStructureId}/opt-in`, payload);
+  }
+
+  /** DELETE /api/v1/fee-structures/:id/opt-in — bulk remove (soft-delete) students */
+  removeFeeOptins(feeStructureId: number, studentIds: number[]): Observable<any> {
+    return this.http.request('delete', `${this.apiUrl}/${feeStructureId}/opt-in`, {
+      body: { student_ids: studentIds },
+    });
   }
 
   getFeeRecords(studentId: number): Observable<any> {

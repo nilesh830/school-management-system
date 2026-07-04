@@ -13,6 +13,7 @@ Schema changes for Sprint 2 — Student Management:
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -76,6 +77,15 @@ def upgrade():
         )
 
     # ── T-007-01 + T-013-01: alter students ──────────────────────────────────
+    # PostgreSQL requires the ENUM type to exist before it can be used in a
+    # column definition. Create it explicitly here; checkfirst=True makes the
+    # operation idempotent (safe to re-run if the type already exists).
+    student_status_enum = postgresql.ENUM(
+        'active', 'alumni', 'transferred', 'expelled',
+        name='student_status',
+    )
+    student_status_enum.create(op.get_bind(), checkfirst=True)
+
     with op.batch_alter_table('students', schema=None) as batch_op:
         batch_op.add_column(sa.Column('photo_url', sa.String(length=500), nullable=True))
         batch_op.add_column(

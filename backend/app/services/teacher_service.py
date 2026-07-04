@@ -124,8 +124,27 @@ class TeacherService:
         if gender and gender not in ("Male", "Female", "Other"):
             return None, {"message": "gender must be Male, Female, or Other", "status": 400}
 
+        # Login account. Teacher.user_id is NOT NULL, so every teacher needs one.
+        # Accept a pre-existing user_id, otherwise provision from email/password.
+        user_id = data.get("user_id")
+        if not user_id:
+            from app.services.user_service import UserService
+
+            user, err = UserService.build_login(
+                get_db(),
+                email=data.get("email"),
+                password=data.get("password"),
+                role="teacher",
+                first_name=first_name,
+                last_name=last_name,
+            )
+            if err:
+                get_db().rollback()
+                return None, err
+            user_id = user.id
+
         teacher = Teacher(
-            user_id=data.get("user_id") or 1,
+            user_id=user_id,
             employee_id=employee_id,
             first_name=first_name,
             last_name=last_name,

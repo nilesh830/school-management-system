@@ -188,7 +188,7 @@
       <ng-template pTemplate="header">
         <tr>
           <th pSortableColumn="student_name">Student <p-sortIcon field="student_name" /></th>
-          <th pSortableColumn="roll_number">Roll No <p-sortIcon field="roll_number" /></th>
+          <th pSortableColumn="admission_no">Admission No <p-sortIcon field="admission_no" /></th>
           <th pSortableColumn="class_name">Class <p-sortIcon field="class_name" /></th>
           <th class="text-right" pSortableColumn="balance_due">Balance Due <p-sortIcon field="balance_due" /></th>
         </tr>
@@ -196,7 +196,7 @@
       <ng-template pTemplate="body" let-row>
         <tr>
           <td class="font-semibold">{{ row.student_name }}</td>
-          <td>{{ row.roll_number || '—' }}</td>
+          <td>{{ row.admission_no || '—' }}</td>
           <td>{{ row.class_name || '—' }}</td>
           <td class="text-right font-semibold text-red-500">₹{{ row.balance_due | number:'1.0-0' }}</td>
         </tr>

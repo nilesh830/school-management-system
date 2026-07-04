@@ -5,11 +5,12 @@ from app.services.attendance_service import AttendanceService
 from app.utils.response import success_response, error_response
 from app.utils.decorators import roles_required
 from app.utils.tenant import get_db
-from app.schemas.attendance_schema import AttendanceMarkSchema
+from app.schemas.attendance_schema import AttendanceMarkSchema, AttendanceStudentRangeSchema
 
 attendance_bp = Blueprint("attendance", __name__, url_prefix="/api/v1/attendance")
 
 _mark_schema = AttendanceMarkSchema()
+_range_schema = AttendanceStudentRangeSchema()
 
 
 def _validate(schema, payload):
@@ -62,6 +63,51 @@ def mark_attendance():
     if svc_err:
         return error_response(svc_err["message"], status=svc_err.get("status", 400))
     return success_response(data=result, message="Attendance marked successfully", status=201)
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/attendance/mark-range — bulk/weekly mark for one student (admin)
+# ---------------------------------------------------------------------------
+
+
+@attendance_bp.route("/mark-range", methods=["POST"], strict_slashes=False)
+@roles_required("admin")
+def mark_student_range():
+    user_id = int(get_jwt_identity())
+
+    data, err = _validate(_range_schema, request.get_json())
+    if err:
+        return err
+
+    entries = [{"date": str(e["date"]), "status": e["status"]} for e in data["entries"]]
+
+    result, svc_err = AttendanceService.mark_student_range(
+        student_id=data["student_id"],
+        entries=entries,
+        marked_by_user_id=user_id,
+    )
+    if svc_err:
+        return error_response(svc_err["message"], status=svc_err.get("status", 400))
+    return success_response(data=result, message="Attendance saved successfully", status=201)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/attendance/student-range — a student's rows for a date range (admin)
+# ---------------------------------------------------------------------------
+
+
+@attendance_bp.route("/student-range", methods=["GET"], strict_slashes=False)
+@roles_required("admin")
+def get_student_range():
+    student_id = request.args.get("student_id", type=int)
+    from_date = request.args.get("from_date")
+    to_date = request.args.get("to_date")
+
+    if not student_id or not from_date or not to_date:
+        return error_response("student_id, from_date and to_date are required", status=400)
+
+    rows = AttendanceService.get_student_range(student_id, from_date, to_date)
+    return success_response(data={"attendance": rows}, message="Attendance retrieved")
 
 
 # ---------------------------------------------------------------------------

@@ -34,6 +34,8 @@ class Student(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
+            "user_id": self.user_id,
+            "email": self.user.email if self.user else None,
             "admission_no": self.admission_no,
             "first_name": self.first_name,
             "last_name": self.last_name,

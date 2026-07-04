@@ -128,6 +128,7 @@ def create_app(config_name="default"):
     from app.models.transport_route import TransportRoute  # noqa: F401
     from app.models.transport_vehicle import TransportVehicle  # noqa: F401
     from app.models.student_transport import StudentTransport  # noqa: F401
+    from app.models.student_fee_optin import StudentFeeOptin  # noqa: F401
 
     # Ensure master models are imported so SQLAlchemy includes them in metadata,
     # then create their tables (no Flask-Migrate for the simple master schema).

@@ -59,6 +59,35 @@ class TestTeacherCreate:
         assert data['data']['employee_id'] == 'EMP001'
         assert data['data']['full_name'] == 'Priya Sharma'
 
+    def test_admin_creates_teacher_with_login(self, client, admin_token, db):
+        """No user_id supplied → a User(role=teacher) is provisioned from email/password."""
+        from app.models.user import User
+
+        resp = client.post('/api/v1/teachers', json={
+            'employee_id': 'EMP-LOGIN-001',
+            'first_name': 'Anita',
+            'last_name': 'Desai',
+            'joining_date': '2022-06-01',
+            'email': 'anita.teacher@test.sms',
+            'password': 'Anita@1234',
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+        assert resp.status_code == 201
+
+        user = db.session.query(User).filter_by(email='anita.teacher@test.sms').first()
+        assert user is not None
+        assert user.role == 'teacher'
+        assert user.check_password('Anita@1234')
+
+    def test_create_teacher_without_login_or_user_id_returns_400(self, client, admin_token):
+        """Neither user_id nor email/password → cannot satisfy the NOT NULL user_id."""
+        resp = client.post('/api/v1/teachers', json={
+            'employee_id': 'EMP-NOUSER-001',
+            'first_name': 'X',
+            'last_name': 'Y',
+            'joining_date': '2022-06-01',
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+        assert resp.status_code == 400
+
     def test_duplicate_employee_id_returns_409(self, client, admin_token, teacher_user):
         client.post('/api/v1/teachers', json={
             'employee_id': 'EMP001',

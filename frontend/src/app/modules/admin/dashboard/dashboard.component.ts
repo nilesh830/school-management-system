@@ -72,7 +72,13 @@ import { DashboardService, AdminKpis } from '../../../core/services/dashboard.se
                     {{ kpis.attendance_today.percentage | number:'1.0-1' }}%
                   </div>
                   <div class="text-500 text-xs mt-1">
+                    Marked {{ kpis.attendance_today.marked }} of {{ kpis.attendance_today.total }} students
+                  </div>
+                  <div class="text-500 text-xs">
                     Present: {{ kpis.attendance_today.present }} | Absent: {{ kpis.attendance_today.absent }}
+                    @if (kpis.attendance_today.unmarked > 0) {
+                      <span class="text-orange-500"> | Unmarked: {{ kpis.attendance_today.unmarked }}</span>
+                    }
                   </div>
                 </div>
               </div>

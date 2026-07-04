@@ -59,6 +59,40 @@ class UserService:
         return user
 
     @staticmethod
+    def build_login(db, *, email, password, role, first_name, last_name):
+        """Validate + create a login User row and flush it (no commit).
+
+        Shared by profile-creation flows (student enrollment, teacher creation)
+        that need to provision a login account inside their own transaction.
+        The caller owns the commit/rollback. Returns (user, None) on success or
+        (None, error_dict) matching the service tuple convention.
+        """
+        email = (email or "").lower().strip()
+        if not email or not password:
+            return None, {
+                "message": "Email and password are required to create a login account",
+                "status": 400,
+            }
+        if not validate_email(email):
+            return None, {"message": "Invalid email format", "status": 422}
+        if db.query(User).filter_by(email=email).first():
+            return None, {"message": "A user with this email already exists", "status": 409}
+        pw_errors = validate_password(password)
+        if pw_errors:
+            return None, {"message": " | ".join(pw_errors), "status": 422}
+
+        user = User(
+            email=email,
+            role=role,
+            first_name=(first_name or "").strip(),
+            last_name=(last_name or "").strip(),
+        )
+        user.set_password(password)
+        db.add(user)
+        db.flush()  # assign user.id for the caller to link
+        return user, None
+
+    @staticmethod
     def create_user(data):
         required = {"email", "password", "role", "first_name", "last_name"}
         missing = required - set(data.keys())

@@ -57,6 +57,96 @@ class AttendanceService:
         }, None
 
     @staticmethod
+    def mark_student_range(student_id: int, entries: list, marked_by_user_id: int):
+        """
+        Bulk/weekly attendance for a SINGLE student across multiple dates (admin only).
+
+        entries: [{"date": "YYYY-MM-DD", "status": str}, ...]
+        Upserts per (student_id, section_id, date) — updates the row if it already
+        exists, inserts otherwise. Returns (result_dict, None) or (None, error_dict).
+        Section is resolved from the student's current enrollment.
+        """
+        section_row = (
+            get_db().query(StudentSection).filter_by(student_id=student_id, is_current=True).first()
+        )
+        if not section_row:
+            return None, {
+                "message": f"Student {student_id} has no current section enrollment",
+                "status": 400,
+            }
+        section_id = section_row.section_id
+
+        newly_absent = []  # dates that became 'absent' as a result of this call
+        created = 0
+        updated = 0
+
+        for entry in entries:
+            target_date = _parse_date(str(entry["date"]))
+            status = entry["status"]
+
+            existing = (
+                get_db()
+                .query(Attendance)
+                .filter_by(student_id=student_id, section_id=section_id, date=target_date)
+                .first()
+            )
+            if existing:
+                if existing.status != status:
+                    was_absent = existing.status == "absent"
+                    existing.status = status
+                    existing.marked_by = marked_by_user_id
+                    updated += 1
+                    if status == "absent" and not was_absent:
+                        newly_absent.append(target_date)
+            else:
+                row = Attendance(
+                    student_id=student_id,
+                    section_id=section_id,
+                    date=target_date,
+                    status=status,
+                    marked_by=marked_by_user_id,
+                )
+                get_db().add(row)
+                created += 1
+                if status == "absent":
+                    newly_absent.append(target_date)
+
+        get_db().commit()
+
+        # Fire absence notifications after commit for rows that became absent
+        from app.services.notification_service import NotificationService
+
+        for absent_date in newly_absent:
+            NotificationService.notify_absence(student_id, absent_date)
+
+        return {
+            "student_id": student_id,
+            "section_id": section_id,
+            "records_saved": created + updated,
+            "records_created": created,
+            "records_updated": updated,
+        }, None
+
+    @staticmethod
+    def get_student_range(student_id: int, from_date_str: str, to_date_str: str):
+        """Return a student's attendance rows for an inclusive date range (for preload/edit)."""
+        from_date = _parse_date(from_date_str)
+        to_date = _parse_date(to_date_str)
+
+        rows = (
+            get_db()
+            .query(Attendance)
+            .filter(
+                Attendance.student_id == student_id,
+                Attendance.date >= from_date,
+                Attendance.date <= to_date,
+            )
+            .order_by(Attendance.date)
+            .all()
+        )
+        return [r.to_dict() for r in rows]
+
+    @staticmethod
     def get_for_student(student_id: int, month: int, year: int):
         """Return all attendance rows for a student in the given month/year."""
         import calendar

@@ -2,7 +2,6 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import { MessageService } from 'primeng/api';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
@@ -128,7 +127,6 @@ import { TeacherService } from '../../../../core/services/teacher.service';
 })
 export class TeacherFormComponent implements OnInit {
   private fb = inject(FormBuilder);
-  private http = inject(HttpClient);
   private teacherService = inject(TeacherService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -240,42 +238,29 @@ export class TeacherFormComponent implements OnInit {
         }
       });
     } else {
-      // Create user first, then create teacher
-      this.http.post<any>('/api/v1/users', {
+      // Single atomic call — the /teachers endpoint provisions the login account
+      // (User role=teacher) and the profile together, rolling back on any failure.
+      const payload = {
         email: this.form.value.email,
         password: this.form.value.password,
+        employee_id: this.form.value.employee_id,
         first_name: this.form.value.first_name,
         last_name: this.form.value.last_name,
-        role: 'teacher',
-      }).subscribe({
-        next: (userRes) => {
-          const userId = userRes.data?.id;
-          const payload = {
-            user_id: userId,
-            employee_id: this.form.value.employee_id,
-            first_name: this.form.value.first_name,
-            last_name: this.form.value.last_name,
-            joining_date: this.toIsoDate(this.form.value.joining_date ?? null),
-            date_of_birth: this.toIsoDate(this.form.value.date_of_birth ?? null),
-            gender: this.form.value.gender || null,
-            qualification: this.form.value.qualification || null,
-            specialization: this.form.value.specialization || null,
-            phone: this.form.value.phone || null,
-            address: this.form.value.address || null,
-          };
-          this.teacherService.createTeacher(payload).subscribe({
-            next: (res) => {
-              this.toast.add({ severity: 'success', summary: 'Created', detail: 'Teacher added successfully' });
-              this.router.navigate(['/admin/teachers', res.data.id]);
-            },
-            error: (err) => {
-              this.toast.add({ severity: 'error', summary: 'Error', detail: err.error?.message || 'Failed to create teacher' });
-              this.loading = false;
-            }
-          });
+        joining_date: this.toIsoDate(this.form.value.joining_date ?? null),
+        date_of_birth: this.toIsoDate(this.form.value.date_of_birth ?? null),
+        gender: this.form.value.gender || null,
+        qualification: this.form.value.qualification || null,
+        specialization: this.form.value.specialization || null,
+        phone: this.form.value.phone || null,
+        address: this.form.value.address || null,
+      };
+      this.teacherService.createTeacher(payload).subscribe({
+        next: (res) => {
+          this.toast.add({ severity: 'success', summary: 'Created', detail: 'Teacher added successfully' });
+          this.router.navigate(['/admin/teachers', res.data.id]);
         },
         error: (err) => {
-          this.toast.add({ severity: 'error', summary: 'Error', detail: err.error?.message || 'Failed to create user account' });
+          this.toast.add({ severity: 'error', summary: 'Error', detail: err.error?.message || 'Failed to create teacher' });
           this.loading = false;
         }
       });

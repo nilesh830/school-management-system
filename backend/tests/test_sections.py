@@ -8,6 +8,7 @@ from app.models.academic_year import AcademicYear
 from app.models.class_ import Class
 from app.models.section import Section
 from app.models.student import Student
+from app.models.teacher import Teacher
 from app.models.user import User
 
 
@@ -52,11 +53,55 @@ def make_student(db, admission_no='ADM001'):
     return s
 
 
+def make_teacher(db, employee_id='EMP_SEC', email='sec_teacher@test.sms', is_active=True):
+    u = User(email=email, role='teacher', first_name='Homeroom', last_name='Teacher')
+    u.set_password('x')
+    db.session.add(u)
+    db.session.flush()
+    t = Teacher(user_id=u.id, employee_id=employee_id, first_name='Homeroom',
+                last_name='Teacher', joining_date=date(2022, 1, 1), is_active=is_active)
+    db.session.add(t)
+    db.session.commit()
+    return t
+
+
 # ---------------------------------------------------------------------------
 # SMS-020 — Section CRUD
 # ---------------------------------------------------------------------------
 
 class TestSectionCreate:
+
+    def test_create_section_with_valid_class_teacher(self, client, db, admin_token):
+        c = make_class(db)
+        t = make_teacher(db)
+        resp = client.post('/api/v1/sections', json={
+            'name': 'A', 'class_id': c.id, 'class_teacher_id': t.id,
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+        assert resp.status_code == 201
+        assert resp.get_json()['data']['class_teacher_id'] == t.id
+
+    def test_create_section_with_invalid_class_teacher_returns_404(self, client, db, admin_token):
+        c = make_class(db)
+        resp = client.post('/api/v1/sections', json={
+            'name': 'A', 'class_id': c.id, 'class_teacher_id': 99999,
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+        assert resp.status_code == 404
+
+    def test_create_section_with_inactive_class_teacher_returns_404(self, client, db, admin_token):
+        c = make_class(db)
+        t = make_teacher(db, is_active=False)
+        resp = client.post('/api/v1/sections', json={
+            'name': 'A', 'class_id': c.id, 'class_teacher_id': t.id,
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+        assert resp.status_code == 404
+
+    def test_update_section_with_invalid_class_teacher_returns_404(self, client, db, admin_token):
+        c = make_class(db)
+        sec = make_section(db, c.id)
+        resp = client.put(f'/api/v1/sections/{sec.id}', json={
+            'class_teacher_id': 99999,
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+        assert resp.status_code == 404
 
     def test_admin_creates_section(self, client, db, admin_token):
         c = make_class(db)

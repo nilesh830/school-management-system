@@ -33,7 +33,25 @@ export interface AttendanceMarkPayload {
 export interface AttendanceMarkResponse {
   section_id: number;
   date: string;
+  records_saved: number;
+}
+
+export interface AttendanceRangeEntry {
+  date: string;   // 'YYYY-MM-DD'
+  status: AttendanceStatus;
+}
+
+export interface AttendanceRangePayload {
+  student_id: number;
+  entries: AttendanceRangeEntry[];
+}
+
+export interface AttendanceRangeResponse {
+  student_id: number;
+  section_id: number;
+  records_saved: number;
   records_created: number;
+  records_updated: number;
 }
 
 export interface StudentAttendanceData {
@@ -80,6 +98,18 @@ export class AttendanceService {
 
   markAttendance(payload: AttendanceMarkPayload): Observable<ApiResponse<AttendanceMarkResponse>> {
     return this.http.post<ApiResponse<AttendanceMarkResponse>>(`${this.apiUrl}/mark`, payload);
+  }
+
+  markStudentRange(payload: AttendanceRangePayload): Observable<ApiResponse<AttendanceRangeResponse>> {
+    return this.http.post<ApiResponse<AttendanceRangeResponse>>(`${this.apiUrl}/mark-range`, payload);
+  }
+
+  getStudentRange(studentId: number, fromDate: string, toDate: string): Observable<ApiResponse<StudentAttendanceData>> {
+    const params = new HttpParams()
+      .set('student_id', studentId.toString())
+      .set('from_date', fromDate)
+      .set('to_date', toDate);
+    return this.http.get<ApiResponse<StudentAttendanceData>>(`${this.apiUrl}/student-range`, { params });
   }
 
   getAttendance(studentId: number, month: number, year: number): Observable<ApiResponse<StudentAttendanceData>> {

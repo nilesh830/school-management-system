@@ -49,6 +49,35 @@ export class DefaulterReportComponent implements OnInit {
     this.defaulters().reduce((sum, row) => sum + (row.balance_due ?? 0), 0)
   );
 
+  /**
+   * Flat defaulter records grouped by student. Each group carries the
+   * student's total balance due, number of overdue records, and the
+   * highest days-overdue (oldest unpaid dues).
+   */
+  groupedDefaulters = computed(() => {
+    const groups = new Map<number, any>();
+    for (const row of this.defaulters()) {
+      let group = groups.get(row.student_id);
+      if (!group) {
+        group = {
+          student_id: row.student_id,
+          student_name: row.student_name,
+          admission_no: row.admission_no,
+          records: [],
+          total_balance_due: 0,
+          overdue_count: 0,
+          max_days_overdue: 0,
+        };
+        groups.set(row.student_id, group);
+      }
+      group.records.push(row);
+      group.total_balance_due += row.balance_due ?? 0;
+      group.overdue_count += 1;
+      group.max_days_overdue = Math.max(group.max_days_overdue, row.days_overdue ?? 0);
+    }
+    return Array.from(groups.values());
+  });
+
   ngOnInit(): void {
     this.loadClasses();
     this.loadDefaulters();
@@ -102,7 +131,7 @@ export class DefaulterReportComponent implements OnInit {
 
     const headers = [
       'Student Name',
-      'Roll Number',
+      'Admission No',
       'Fee Type',
       'Due Date',
       'Net Amount',
@@ -116,7 +145,7 @@ export class DefaulterReportComponent implements OnInit {
       ...rows.map((row) =>
         [
           this.escapeCsvField(row.student_name),
-          this.escapeCsvField(row.roll_number),
+          this.escapeCsvField(row.admission_no),
           this.escapeCsvField(row.fee_type),
           this.escapeCsvField(row.due_date),
           row.net_amount ?? 0,

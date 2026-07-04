@@ -113,6 +113,17 @@
               (onClick)="generateFees(fs)"
               pTooltip="Create fee records for all students in this class"
             />
+            @if (isOptionalFlatFs(fs)) {
+              <p-button
+                icon="pi pi-user-plus"
+                label="Manage Opt-in"
+                size="small"
+                severity="warning"
+                [outlined]="true"
+                (onClick)="openOptinDialog(fs)"
+                pTooltip="Choose which students are billed this optional fee"
+              />
+            }
             <p-button
               icon="pi pi-pencil"
               [rounded]="true"
@@ -246,9 +257,10 @@
           Transport fees are always Optional — only students assigned to the route are billed.
         </small>
       } @else if (isOptionalFlat) {
-        <small class="text-orange-500">
-          Note: an Optional + Flat fee has no opt-in list in v1, so "Generate Fees" will bill nobody.
-          Use a Transport source to bill opted-in students.
+        <small class="text-color-secondary">
+          Optional fees bill only students you opt in. After saving, use
+          "Manage Opt-in" on the fee row to choose students (with an optional
+          per-student amount).
         </small>
       }
     </div>
@@ -366,6 +378,134 @@
       [loading]="saving"
       [disabled]="form.invalid || saving"
       (onClick)="saveFeeStructure()"
+    />
+  </ng-template>
+</p-dialog>
+
+<!-- Opt-in Management Dialog -->
+<p-dialog
+  [header]="optinFs ? 'Manage Opt-in — ' + optinFs.fee_type : 'Manage Opt-in'"
+  [(visible)]="optinDialogVisible"
+  [modal]="true"
+  [style]="{ width: '640px' }"
+  [closable]="true"
+  (onHide)="closeOptinDialog()"
+>
+  @if (optinFs) {
+    <div class="flex flex-column gap-4 pt-2">
+      <!-- Add students -->
+      <div class="flex flex-column gap-2">
+        <label class="font-semibold">Add students</label>
+        <p-autoComplete
+          [(ngModel)]="selectedStudents"
+          [suggestions]="studentSuggestions"
+          (completeMethod)="searchStudentsForOptin($event)"
+          [multiple]="true"
+          [forceSelection]="true"
+          field="admission_no"
+          placeholder="Search by name or admission no (min 2 chars)"
+          appendTo="body"
+          styleClass="w-full"
+        >
+          <ng-template let-student pTemplate="item">
+            {{ studentLabel(student) }}
+          </ng-template>
+          <ng-template let-student pTemplate="selectedItem">
+            {{ studentLabel(student) }}
+          </ng-template>
+        </p-autoComplete>
+
+        <div class="flex align-items-end gap-2 flex-wrap">
+          <div class="flex flex-column gap-1">
+            <label for="optinAmount" class="font-semibold text-sm">
+              Amount override (optional)
+            </label>
+            <p-inputNumber
+              inputId="optinAmount"
+              [(ngModel)]="optinAmountOverride"
+              [min]="0"
+              [minFractionDigits]="2"
+              [maxFractionDigits]="2"
+              [placeholder]="'Default: ' + (optinFs.amount | number:'1.2-2')"
+            />
+          </div>
+          <p-button
+            label="Add Selected"
+            icon="pi pi-plus"
+            [loading]="savingOptin"
+            [disabled]="selectedStudents.length === 0 || savingOptin"
+            (onClick)="addSelectedOptins()"
+          />
+        </div>
+        <small class="text-color-secondary">
+          Leave the amount blank to bill the fee's default of
+          {{ optinFs.amount | number:'1.2-2' }}. Set it to charge these students a
+          different amount (e.g. different hostel room rates).
+        </small>
+      </div>
+
+      <!-- Current opt-in list -->
+      <div class="flex flex-column gap-2">
+        <label class="font-semibold">Opted-in students</label>
+        @if (loadingOptins) {
+          <div class="flex justify-content-center py-4">
+            <p-progressSpinner strokeWidth="4" />
+          </div>
+        } @else {
+          <p-table [value]="optins" styleClass="p-datatable-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Student</th>
+                <th>Admission No</th>
+                <th>Amount</th>
+                <th></th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-o>
+              <tr>
+                <td>{{ o.student_name ?? '#' + o.student_id }}</td>
+                <td>{{ o.admission_no ?? '—' }}</td>
+                <td>
+                  @if (o.amount_override != null) {
+                    {{ o.amount_override | number:'1.2-2' }}
+                  } @else {
+                    <span class="text-color-secondary">{{ optinFs.amount | number:'1.2-2' }} (default)</span>
+                  }
+                </td>
+                <td class="text-right">
+                  <p-button
+                    icon="pi pi-trash"
+                    [rounded]="true"
+                    [text]="true"
+                    severity="danger"
+                    [loading]="removingOptinId === o.id"
+                    [disabled]="removingOptinId === o.id"
+                    (onClick)="removeOptin(o)"
+                    pTooltip="Remove from opt-in"
+                  />
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td colspan="4" class="text-center py-4 text-color-secondary">
+                  No students opted in yet. Add students above.
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        }
+      </div>
+    </div>
+  }
+
+  <ng-template pTemplate="footer">
+    <p-button
+      label="Done"
+      icon="pi pi-check"
+      severity="secondary"
+      [text]="true"
+      (onClick)="closeOptinDialog()"
     />
   </ng-template>
 </p-dialog>

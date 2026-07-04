@@ -94,6 +94,11 @@ export const ADMIN_ROUTES: Routes = [
           .then(m => m.AttendanceCalendarComponent)
       },
       {
+        path: 'attendance/bulk',
+        loadComponent: () => import('./attendance/attendance-student-bulk/attendance-student-bulk.component')
+          .then(m => m.AttendanceStudentBulkComponent)
+      },
+      {
         path: 'attendance/report',
         loadComponent: () => import('./attendance/attendance-report/attendance-report.component')
           .then(m => m.AttendanceReportComponent)

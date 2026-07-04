@@ -12,6 +12,7 @@ from app.models.student_section import StudentSection
 from app.models.section import Section
 from app.models.student_transport import StudentTransport
 from app.models.transport_route import TransportRoute
+from app.models.student_fee_optin import StudentFeeOptin
 
 
 class FeeService:
@@ -90,8 +91,8 @@ class FeeService:
         structure, branching on ``source_kind`` / ``applicability``.
 
         Returns ``(billed, skipped_no_optin)`` where ``billed`` is a list of
-        ``(student, unit_amount, freq)`` and ``skipped_no_optin`` counts
-        students that would be billed but cannot be (no opt-in source in v1).
+        ``(student, unit_amount, freq)`` and ``skipped_no_optin`` is retained
+        for the caller's counter (always 0 now that opt-in is explicit).
 
         - source_kind == 'transport': bill students with an active
           StudentTransport for the structure's academic_year_id (optionally
@@ -99,8 +100,9 @@ class FeeService:
           fare_frequency. A route with fare IS NULL still appears here with
           unit_amount=None — the caller increments skipped_no_fare and creates
           no record.
-        - applicability == 'optional' & source_kind == 'flat': no opt-in source
-          in v1 -> bill nobody (safe-by-default), counted as skipped_no_optin.
+        - applicability == 'optional' & source_kind == 'flat': bill only the
+          students explicitly opted in via ``student_fee_optins`` (v2), each at
+          their ``amount_override`` or, failing that, ``fs.amount``.
         - else (mandatory/flat): today's behaviour — active students enrolled
           in fs.class_, at fs.amount / fs.frequency.
         """
@@ -124,10 +126,25 @@ class FeeService:
             ]
             return billed, 0
 
-        if fs.applicability == "optional":
-            # Optional flat fee with no opt-in source in v1 — bills nobody.
-            active_students = cls._enrolled_active_students(db, fs)
-            return [], len(active_students)
+        if fs.applicability == "optional" and fs.source_kind == "flat":
+            # Bill only students who have been explicitly opted in via
+            # student_fee_optins. Each optin may carry an amount_override
+            # (e.g. different hostel room rates); fall back to fs.amount.
+            optins = (
+                db.query(StudentFeeOptin)
+                .filter_by(fee_structure_id=fs.id, is_active=True)
+                .all()
+            )
+            billed = [
+                (
+                    optin.student,
+                    optin.amount_override if optin.amount_override is not None else fs.amount,
+                    fs.frequency,
+                )
+                for optin in optins
+                if optin.student and optin.student.is_active
+            ]
+            return billed, 0
 
         # Mandatory flat — today's behaviour, unchanged.
         active_students = cls._enrolled_active_students(db, fs)
@@ -164,8 +181,9 @@ class FeeService:
                                active StudentTransport for fs.academic_year_id
                                (optionally filtered to fs.transport_route_id),
                                each at their route's fare / fare_frequency.
-          - optional/flat   -> nobody in v1 (no generic opt-in table yet);
-                               reported as skipped_no_optin.
+          - optional/flat   -> only students explicitly opted in via
+                               student_fee_optins, each at their amount_override
+                               or fs.amount.
 
         Idempotent: re-running only creates records for periods that don't
         already exist (keyed on student + structure + period). Existing records
@@ -386,7 +404,7 @@ class FeeService:
 
         Returns:
             List of dicts with keys:
-                student_id, student_name, roll_number,
+                student_id, student_name, admission_no, class_name,
                 fee_record_id, fee_type, due_date, net_amount,
                 total_paid, balance_due, days_overdue
         """
@@ -421,7 +439,8 @@ class FeeService:
                 {
                     "student_id": student.id,
                     "student_name": f"{student.first_name} {student.last_name}",
-                    "roll_number": getattr(student, "roll_number", None),
+                    "admission_no": student.admission_no,
+                    "class_name": fee_structure.class_.name if fee_structure.class_ else None,
                     "fee_record_id": fee_record.id,
                     "fee_type": fee_structure.fee_type,
                     "due_date": fee_record.due_date.isoformat(),

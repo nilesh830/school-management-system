@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.utils.tenant import get_db
 from app.models.timetable import Timetable
+from app.models.teacher_subject import TeacherSubject
 
 
 def _parse_time(value, field_name: str):
@@ -43,6 +44,22 @@ def _validate_conflicts(section_id: int, teacher_id: int, day_of_week: int, peri
         return "Teacher already assigned to another class at this period"
 
     return None
+
+
+def _teacher_teaches_subject(teacher_id: int, subject_id: int) -> bool:
+    """True if the teacher has a TeacherSubject assignment for this subject.
+
+    Matches on (teacher_id, subject_id) only — class scope is ignored, mirroring
+    the exam-marks authorisation check. This keeps the timetable consistent with
+    the teacher's Subjects tab (the source of truth for what they may teach).
+    """
+    return (
+        get_db()
+        .query(TeacherSubject)
+        .filter_by(teacher_id=teacher_id, subject_id=subject_id)
+        .first()
+        is not None
+    )
 
 
 class TimetableService:
@@ -116,6 +133,14 @@ class TimetableService:
         if end_time_val <= start_time_val:
             return None, {"message": "end_time must be after start_time", "status": 400}
 
+        # Teacher must be assigned to teach this subject (see teacher's Subjects tab)
+        if not _teacher_teaches_subject(teacher_id, subject_id):
+            return None, {
+                "message": "This teacher is not assigned to teach this subject. "
+                           "Assign it first under the teacher's Subjects tab.",
+                "status": 422,
+            }
+
         # Conflict checks
         conflict = _validate_conflicts(section_id, teacher_id, day_of_week, period_no)
         if conflict:
@@ -182,6 +207,14 @@ class TimetableService:
 
         if end_time_val <= start_time_val:
             return None, {"message": "end_time must be after start_time", "status": 400}
+
+        # Teacher must be assigned to teach this subject (see teacher's Subjects tab)
+        if not _teacher_teaches_subject(teacher_id, subject_id):
+            return None, {
+                "message": "This teacher is not assigned to teach this subject. "
+                           "Assign it first under the teacher's Subjects tab.",
+                "status": 422,
+            }
 
         # Conflict checks (exclude current entry)
         conflict = _validate_conflicts(section_id, teacher_id, day_of_week, period_no, exclude_id=entry_id)
