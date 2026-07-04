@@ -294,19 +294,66 @@
                 </small>
               </div>
 
-              <!-- User ID -->
+            </div>
+
+            <!-- Login account (optional) -->
+            <p-divider align="left">
+              <span class="text-sm font-semibold text-700">Login Account</span>
+            </p-divider>
+            <p class="text-500 text-sm mt-0 mb-3">
+              <i class="pi pi-info-circle mr-1"></i>Optional. Fill both fields to give the student
+              a login. Leave blank to enroll a profile-only student (no sign-in).
+            </p>
+
+            <div class="grid formgrid">
+
+              <!-- Email -->
               <div class="field col-12 md:col-6">
-                <label class="font-semibold text-sm mb-1 block" for="user_id">
-                  User ID <span class="text-500 text-xs">(optional — links to existing user account)</span>
+                <label class="font-semibold text-sm mb-1 block" for="email">
+                  Email <span class="text-500 text-xs">(login username)</span>
                 </label>
-                <p-inputNumber
-                  inputId="user_id"
-                  [formControl]="f3.user_id"
-                  [useGrouping]="false"
-                  [min]="1"
-                  placeholder="e.g. 5"
-                  styleClass="w-full"
+                <input
+                  id="email"
+                  type="email"
+                  pInputText
+                  class="w-full"
+                  [class.ng-invalid]="isInvalid(f3.email)"
+                  [class.ng-dirty]="isInvalid(f3.email)"
+                  [formControl]="f3.email"
+                  placeholder="alice.johnson@school.edu"
+                  autocomplete="off"
                 />
+                <small class="p-error block mt-1" *ngIf="isInvalid(f3.email)">
+                  Enter a valid email address.
+                </small>
+              </div>
+
+              <!-- Password -->
+              <div class="field col-12 md:col-6">
+                <label class="font-semibold text-sm mb-1 block" for="password">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  pInputText
+                  class="w-full"
+                  [class.ng-invalid]="isInvalid(f3.password)"
+                  [class.ng-dirty]="isInvalid(f3.password)"
+                  [formControl]="f3.password"
+                  placeholder="Min 8 chars, mixed case, digit & symbol"
+                  autocomplete="new-password"
+                />
+                <small class="p-error block mt-1" *ngIf="isInvalid(f3.password)">
+                  Password must be 8+ characters with uppercase, lowercase, a digit and a special character.
+                </small>
+              </div>
+
+              <!-- Cross-field: one of the pair missing -->
+              <div class="col-12" *ngIf="step3.errors?.['loginIncomplete'] && step3.touched">
+                <small class="p-error block">
+                  Email and password are both required to create a login account — or clear both to skip it.
+                </small>
               </div>
 
             </div>

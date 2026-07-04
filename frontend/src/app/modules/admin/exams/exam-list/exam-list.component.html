@@ -38,7 +38,7 @@
           <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
           <th pSortableColumn="term">Term <p-sortIcon field="term" /></th>
           <th pSortableColumn="exam_type">Type <p-sortIcon field="exam_type" /></th>
-          <th pSortableColumn="section_id">Section ID <p-sortIcon field="section_id" /></th>
+          <th pSortableColumn="section_id">Class &amp; Section <p-sortIcon field="section_id" /></th>
           <th pSortableColumn="conducted_date">Conducted Date <p-sortIcon field="conducted_date" /></th>
           <th>Status</th>
           <th>Actions</th>
@@ -50,7 +50,7 @@
           <td>{{ exam.name }}</td>
           <td>{{ exam.term }}</td>
           <td>{{ getExamTypeLabel(exam.exam_type) }}</td>
-          <td>{{ exam.section_id }}</td>
+          <td>{{ sectionLabel(exam.section_id) }}</td>
           <td>{{ exam.conducted_date ?? '—' }}</td>
           <td>
             <p-tag
@@ -159,37 +159,60 @@
       }
     </div>
 
-    <!-- Section ID -->
+    <!-- Class -->
     <div class="flex flex-column gap-1">
-      <label for="sectionId" class="font-semibold">Section ID <span class="text-red-500">*</span></label>
-      <p-inputNumber
-        inputId="sectionId"
-        formControlName="section_id"
-        [min]="1"
-        [useGrouping]="false"
-        placeholder="e.g. 3"
+      <label for="classId" class="font-semibold">Class <span class="text-red-500">*</span></label>
+      <p-dropdown
+        inputId="classId"
+        formControlName="class_id"
+        [options]="classOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select class"
+        [filter]="true"
+        filterBy="label"
         styleClass="w-full"
-        inputStyleClass="w-full"
+        [loading]="refDataLoading"
+        (onChange)="onClassChange($event.value)"
       />
-      @if (form.get('section_id')?.invalid && form.get('section_id')?.touched) {
-        <small class="text-red-500">Section ID is required.</small>
+      @if (form.get('class_id')?.invalid && form.get('class_id')?.touched) {
+        <small class="text-red-500">Class is required.</small>
       }
     </div>
 
-    <!-- Academic Year ID -->
+    <!-- Section -->
     <div class="flex flex-column gap-1">
-      <label for="academicYearId" class="font-semibold">Academic Year ID <span class="text-red-500">*</span></label>
-      <p-inputNumber
+      <label for="sectionId" class="font-semibold">Section <span class="text-red-500">*</span></label>
+      <p-dropdown
+        inputId="sectionId"
+        formControlName="section_id"
+        [options]="sectionOptions"
+        optionLabel="label"
+        optionValue="value"
+        [placeholder]="form.get('class_id')?.value ? 'Select section' : 'Select a class first'"
+        [emptyMessage]="'No sections for this class'"
+        styleClass="w-full"
+      />
+      @if (form.get('section_id')?.invalid && form.get('section_id')?.touched) {
+        <small class="text-red-500">Section is required.</small>
+      }
+    </div>
+
+    <!-- Academic Year -->
+    <div class="flex flex-column gap-1">
+      <label for="academicYearId" class="font-semibold">Academic Year <span class="text-red-500">*</span></label>
+      <p-dropdown
         inputId="academicYearId"
         formControlName="academic_year_id"
-        [min]="1"
-        [useGrouping]="false"
-        placeholder="e.g. 1"
+        [options]="yearOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select academic year"
         styleClass="w-full"
-        inputStyleClass="w-full"
+        [loading]="refDataLoading"
       />
       @if (form.get('academic_year_id')?.invalid && form.get('academic_year_id')?.touched) {
-        <small class="text-red-500">Academic Year ID is required.</small>
+        <small class="text-red-500">Academic Year is required.</small>
       }
     </div>
 

@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { MessageService } from 'primeng/api';
 import { TableModule } from 'primeng/table';
 import { DialogModule } from 'primeng/dialog';
@@ -9,13 +10,18 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { DropdownModule } from 'primeng/dropdown';
 import { CalendarModule } from 'primeng/calendar';
-import { InputNumberModule } from 'primeng/inputnumber';
 import { TagModule } from 'primeng/tag';
 import { ToolbarModule } from 'primeng/toolbar';
 import { ToastModule } from 'primeng/toast';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import { ExamService, Exam } from '../../../../core/services/exam.service';
+import { ClassesService, Section } from '../../../../core/services/classes.service';
+
+interface Option {
+  label: string;
+  value: number;
+}
 
 @Component({
   selector: 'app-exam-list',
@@ -30,7 +36,6 @@ import { ExamService, Exam } from '../../../../core/services/exam.service';
     InputTextModule,
     DropdownModule,
     CalendarModule,
-    InputNumberModule,
     TagModule,
     ToolbarModule,
     ToastModule,
@@ -41,6 +46,7 @@ import { ExamService, Exam } from '../../../../core/services/exam.service';
 })
 export class ExamListComponent implements OnInit {
   private examService = inject(ExamService);
+  private classesService = inject(ClassesService);
   private fb = inject(FormBuilder);
   private toast = inject(MessageService);
 
@@ -58,10 +64,19 @@ export class ExamListComponent implements OnInit {
     { label: 'Practical', value: 'practical' },
   ];
 
+  // Reference data for the dropdowns
+  classOptions: Option[] = [];
+  sectionOptions: Option[] = [];
+  yearOptions: Option[] = [];
+  private allSections: Section[] = [];
+  private currentYearId: number | null = null;
+  refDataLoading = false;
+
   form: FormGroup = this.fb.group({
     name: ['', Validators.required],
     term: ['', Validators.required],
     exam_type: [null, Validators.required],
+    class_id: [null, Validators.required],
     section_id: [null, Validators.required],
     academic_year_id: [null, Validators.required],
     conducted_date: [null],
@@ -69,6 +84,7 @@ export class ExamListComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadExams();
+    this.loadRefData();
   }
 
   loadExams(): void {
@@ -85,22 +101,80 @@ export class ExamListComponent implements OnInit {
     });
   }
 
+  /** Load classes, sections and academic years for the form dropdowns. */
+  loadRefData(): void {
+    this.refDataLoading = true;
+    forkJoin({
+      classes: this.classesService.getClasses(1, 200),
+      sections: this.classesService.getSections(undefined, 1, 500),
+      years: this.classesService.getAcademicYears(),
+    }).subscribe({
+      next: (res) => {
+        const classes = res.classes.data.classes ?? [];
+        this.classOptions = classes.map(c => ({ label: c.name, value: c.id }));
+
+        this.allSections = res.sections.data.sections ?? [];
+
+        const years = res.years.data.academic_years ?? [];
+        this.yearOptions = years.map(y => ({ label: y.name, value: y.id }));
+        this.currentYearId = years.find(y => y.is_current)?.id ?? null;
+
+        this.refDataLoading = false;
+      },
+      error: () => {
+        this.refDataLoading = false;
+        this.toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load classes / sections',
+        });
+      },
+    });
+  }
+
+  /** Rebuild the Section options for the chosen class. */
+  onClassChange(classId: number | null): void {
+    this.sectionOptions = this.allSections
+      .filter(s => s.class_id === classId)
+      .map(s => ({ label: s.name, value: s.id }));
+    // The previously selected section may not belong to the new class.
+    this.form.get('section_id')?.setValue(null);
+  }
+
+  /** Friendly "Class - Section" label for the table, from a section id. */
+  sectionLabel(sectionId: number): string {
+    const s = this.allSections.find(x => x.id === sectionId);
+    if (!s) return String(sectionId);
+    return s.class_name ? `${s.class_name} - ${s.name}` : s.name;
+  }
+
   openDialog(exam?: Exam): void {
     this.form.reset();
+    this.sectionOptions = [];
     this.isEdit = false;
     this.editingId = null;
 
     if (exam) {
       this.isEdit = true;
       this.editingId = exam.id;
+
+      // Derive the class from the exam's section so the cascade shows correctly.
+      const section = this.allSections.find(s => s.id === exam.section_id);
+      const classId = section?.class_id ?? null;
+      this.onClassChange(classId);
+
       this.form.patchValue({
         name: exam.name,
         term: exam.term,
         exam_type: exam.exam_type,
+        class_id: classId,
         section_id: exam.section_id,
         academic_year_id: exam.academic_year_id,
         conducted_date: exam.conducted_date ? new Date(exam.conducted_date) : null,
       });
+    } else {
+      // Default new exams to the current academic year for convenience.
+      this.form.patchValue({ academic_year_id: this.currentYearId });
     }
 
     this.dialogVisible = true;

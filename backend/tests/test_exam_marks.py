@@ -412,6 +412,33 @@ class TestNonExistentSubject:
 
 
 # ---------------------------------------------------------------------------
+# TC-7b: Non-existent section → 404
+# ---------------------------------------------------------------------------
+
+class TestNonExistentSection:
+
+    def test_nonexistent_section_returns_404(self, client, admin_token, db):
+        cls = make_class(db, 'Grade 7b', 7)
+        sec = make_section(db, cls.id, 'H')
+        ay = make_academic_year(db, '2024-2025-m7b')
+        exam = make_exam(db, sec.id, ay.id)
+        subj = make_subject(db, 'MATH_M7b', 100)
+
+        resp = client.post(
+            f'/api/v1/exams/{exam.id}/marks',
+            json={
+                'subject_id': subj.id,
+                'section_id': 77777,
+                'marks': [{'student_id': 1, 'marks_obtained': 50}],
+            },
+            headers={'Authorization': f'Bearer {admin_token}'},
+        )
+
+        assert resp.status_code == 404
+        assert resp.get_json()['success'] is False
+
+
+# ---------------------------------------------------------------------------
 # TC-8: Student cannot access endpoint → 403
 # ---------------------------------------------------------------------------
 

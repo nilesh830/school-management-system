@@ -15,6 +15,7 @@ export interface Student {
   address?: string | null;
   phone?: string | null;
   user_id?: number | null;
+  email?: string | null;
   class_name?: string | null;
   status?: string;
   photo_url?: string | null;
@@ -37,6 +38,10 @@ export interface StudentPayload {
   phone?: string | null;
   user_id?: number | null;
   section_id?: number | null;
+  // Optional login account — when both are supplied the API creates a
+  // student user and links it. Omit both for a profile-only student.
+  email?: string | null;
+  password?: string | null;
 }
 
 export interface StudentListMeta {

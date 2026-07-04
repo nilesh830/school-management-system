@@ -144,6 +144,128 @@ class TestMarkAttendance:
 
 
 # ---------------------------------------------------------------------------
+# TC-19–24: Bulk / weekly per-student attendance (admin only)
+# ---------------------------------------------------------------------------
+
+class TestMarkStudentRange:
+
+    def test_admin_marks_range_creates_rows(self, client, admin_token, db, student_user):
+        cls = make_class(db, name='Bulk 1', grade_level=1)
+        section = make_section(db, cls.id, name='BA')
+        student = make_student(db, student_user.id, admission_no='BLK001')
+        enroll(db, student.id, section.id)
+
+        resp = client.post('/api/v1/attendance/mark-range', json={
+            'student_id': student.id,
+            'entries': [
+                {'date': '2026-06-01', 'status': 'present'},
+                {'date': '2026-06-02', 'status': 'absent'},
+                {'date': '2026-06-03', 'status': 'late'},
+            ],
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+
+        assert resp.status_code == 201
+        data = resp.get_json()['data']
+        assert data['records_created'] == 3
+        assert data['records_updated'] == 0
+        assert data['records_saved'] == 3
+        assert data['section_id'] == section.id
+
+    def test_range_upserts_existing_rows(self, client, admin_token, db, student_user):
+        cls = make_class(db, name='Bulk 2', grade_level=2)
+        section = make_section(db, cls.id, name='BB')
+        student = make_student(db, student_user.id, admission_no='BLK002')
+        enroll(db, student.id, section.id)
+
+        # Seed one existing row
+        from app.models.attendance import Attendance
+        db.session.add(Attendance(
+            student_id=student.id, section_id=section.id,
+            date=date(2026, 6, 1), status='present',
+        ))
+        db.session.commit()
+
+        resp = client.post('/api/v1/attendance/mark-range', json={
+            'student_id': student.id,
+            'entries': [
+                {'date': '2026-06-01', 'status': 'absent'},   # update
+                {'date': '2026-06-02', 'status': 'present'},  # create
+            ],
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+
+        assert resp.status_code == 201
+        data = resp.get_json()['data']
+        assert data['records_created'] == 1
+        assert data['records_updated'] == 1
+
+        # Verify the update actually took effect (no duplicate row)
+        rows = (db.session.query(Attendance)
+                .filter_by(student_id=student.id, date=date(2026, 6, 1)).all())
+        assert len(rows) == 1
+        assert rows[0].status == 'absent'
+
+    def test_range_no_enrollment_returns_400(self, client, admin_token, db, student_user):
+        # Student exists but is not enrolled in any current section
+        student = make_student(db, student_user.id, admission_no='BLK003')
+
+        resp = client.post('/api/v1/attendance/mark-range', json={
+            'student_id': student.id,
+            'entries': [{'date': '2026-06-01', 'status': 'present'}],
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+
+        assert resp.status_code == 400
+
+    def test_range_invalid_status_returns_422(self, client, admin_token, db, student_user):
+        cls = make_class(db, name='Bulk 4', grade_level=4)
+        section = make_section(db, cls.id, name='BD')
+        student = make_student(db, student_user.id, admission_no='BLK004')
+        enroll(db, student.id, section.id)
+
+        resp = client.post('/api/v1/attendance/mark-range', json={
+            'student_id': student.id,
+            'entries': [{'date': '2026-06-01', 'status': 'nope'}],
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+
+        assert resp.status_code == 422
+
+    def test_teacher_forbidden_from_range(self, client, teacher_token, db, student_user):
+        cls = make_class(db, name='Bulk 5', grade_level=5)
+        section = make_section(db, cls.id, name='BE')
+        student = make_student(db, student_user.id, admission_no='BLK005')
+        enroll(db, student.id, section.id)
+
+        resp = client.post('/api/v1/attendance/mark-range', json={
+            'student_id': student.id,
+            'entries': [{'date': '2026-06-01', 'status': 'present'}],
+        }, headers={'Authorization': f'Bearer {teacher_token}'})
+
+        assert resp.status_code == 403
+
+    def test_admin_gets_student_range(self, client, admin_token, db, student_user):
+        cls = make_class(db, name='Bulk 6', grade_level=6)
+        section = make_section(db, cls.id, name='BF')
+        student = make_student(db, student_user.id, admission_no='BLK006')
+        enroll(db, student.id, section.id)
+
+        from app.models.attendance import Attendance
+        for d in [date(2026, 6, 1), date(2026, 6, 3), date(2026, 7, 1)]:
+            db.session.add(Attendance(
+                student_id=student.id, section_id=section.id, date=d, status='present',
+            ))
+        db.session.commit()
+
+        resp = client.get(
+            f'/api/v1/attendance/student-range'
+            f'?student_id={student.id}&from_date=2026-06-01&to_date=2026-06-07',
+            headers={'Authorization': f'Bearer {admin_token}'},
+        )
+        assert resp.status_code == 200
+        rows = resp.get_json()['data']['attendance']
+        # Only the two June rows within the range, not the July one
+        assert len(rows) == 2
+
+
+# ---------------------------------------------------------------------------
 # TC-5: Student views their own attendance
 # ---------------------------------------------------------------------------
 

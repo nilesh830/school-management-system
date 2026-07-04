@@ -111,12 +111,31 @@ class ExamService:
         """
         Update mutable fields of an exam.
 
-        Allowed fields: name, term, exam_type, conducted_date, is_active.
+        Allowed fields: name, term, exam_type, section_id,
+        academic_year_id, conducted_date, is_active.
         Returns (exam_dict, None) or (None, error_dict).
         """
         exam = get_db().query(Exam).filter_by(id=exam_id).first()
         if not exam:
             return None, {"message": f"Exam {exam_id} not found", "status": 404}
+
+        if data.get("section_id") is not None:
+            section = get_db().query(Section).filter_by(id=data["section_id"], is_active=True).first()
+            if not section:
+                return None, {
+                    "message": f"Section {data['section_id']} not found or is inactive",
+                    "status": 422,
+                }
+            exam.section_id = data["section_id"]
+
+        if data.get("academic_year_id") is not None:
+            academic_year = get_db().query(AcademicYear).filter_by(id=data["academic_year_id"]).first()
+            if not academic_year:
+                return None, {
+                    "message": f"AcademicYear {data['academic_year_id']} not found",
+                    "status": 422,
+                }
+            exam.academic_year_id = data["academic_year_id"]
 
         if "exam_type" in data and data["exam_type"] is not None:
             if data["exam_type"] not in VALID_EXAM_TYPES:
@@ -205,6 +224,14 @@ class ExamService:
         if not subject:
             return None, {
                 "message": f"Subject {subject_id} not found",
+                "status": 404,
+            }
+
+        # 2b. Section must exist and be active
+        section = session.query(Section).filter_by(id=section_id, is_active=True).first()
+        if not section:
+            return None, {
+                "message": f"Section {section_id} not found or is inactive",
                 "status": 404,
             }
 

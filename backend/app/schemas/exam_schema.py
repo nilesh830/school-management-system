@@ -22,6 +22,8 @@ class ExamUpdateSchema(Schema):
         load_default=None,
         validate=validate.OneOf(VALID_EXAM_TYPES),
     )
+    section_id = fields.Int(load_default=None)
+    academic_year_id = fields.Int(load_default=None)
     conducted_date = fields.Date(load_default=None)
     is_active = fields.Bool(load_default=None)
 

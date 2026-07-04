@@ -208,6 +208,30 @@ class TestSeededCounts:
         assert att['absent'] == 1
         assert att['percentage'] == round((2 / 3) * 100, 2)
 
+    def test_attendance_today_partial_marking(self, client, admin_token, db, admin_user):
+        """Only some students marked today: percentage is over ALL active students,
+        and marked/unmarked/total reflect the gap."""
+        _c, sec = make_section(db)
+        s1 = make_student(db)
+        s2 = make_student(db)
+        make_student(db)  # third active student left unmarked
+        today = date.today()
+        db.session.add_all([
+            Attendance(student_id=s1.id, section_id=sec.id, date=today, status='present'),
+            Attendance(student_id=s2.id, section_id=sec.id, date=today, status='present'),
+        ])
+        db.session.commit()
+
+        resp = client.get('/api/v1/dashboard/admin',
+                          headers={'Authorization': f'Bearer {admin_token}'})
+        att = resp.get_json()['data']['attendance_today']
+        assert att['present'] == 2
+        assert att['marked'] == 2
+        assert att['total'] == 3
+        assert att['unmarked'] == 1
+        # 2 attended out of 3 active students → not 100%
+        assert att['percentage'] == round((2 / 3) * 100, 2)
+
     def test_pending_leave_and_announcements_and_defaulters(
         self, client, admin_token, db, admin_user, parent_user
     ):

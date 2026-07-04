@@ -17,7 +17,6 @@ import { CalendarModule } from 'primeng/calendar';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputTextareaModule } from 'primeng/inputtextarea';
-import { InputNumberModule } from 'primeng/inputnumber';
 import { ToastModule } from 'primeng/toast';
 import { DividerModule } from 'primeng/divider';
 
@@ -31,6 +30,27 @@ function noFutureDate(control: AbstractControl): ValidationErrors | null {
   const today = new Date();
   today.setHours(23, 59, 59, 999);
   return selected > today ? { futureDate: true } : null;
+}
+
+/** Password must match the backend rule: 8+ chars, upper, lower, digit, special. */
+function strongPassword(control: AbstractControl): ValidationErrors | null {
+  const value = control.value;
+  if (!value) return null; // optional — presence is enforced at the group level
+  const ok =
+    value.length >= 8 &&
+    /[A-Z]/.test(value) &&
+    /[a-z]/.test(value) &&
+    /\d/.test(value) &&
+    /[!@#$%^&*()\-_=+[\]{};:'",.<>?/\\|`~]/.test(value);
+  return ok ? null : { weakPassword: true };
+}
+
+/** Email and password must be supplied together (or both left blank). */
+function loginPair(group: AbstractControl): ValidationErrors | null {
+  const email = group.get('email')?.value;
+  const password = group.get('password')?.value;
+  if (!!email !== !!password) return { loginIncomplete: true };
+  return null;
 }
 
 /** Format a JS Date to YYYY-MM-DD string */
@@ -55,7 +75,6 @@ function toIsoDate(date: Date): string {
     DropdownModule,
     InputTextModule,
     InputTextareaModule,
-    InputNumberModule,
     ToastModule,
     DividerModule
   ],
@@ -109,12 +128,17 @@ export class StudentNewComponent implements OnInit {
     section_id: [null as number | null]  // optional initial placement
   });
 
-  // ── Step 3: Contact Details ──────────────────────────────────────────────
-  step3 = this.fb.group({
-    address: [null as string | null],
-    phone: [null as string | null, Validators.maxLength(20)],
-    user_id: [null as number | null]
-  });
+  // ── Step 3: Contact Details & Login ──────────────────────────────────────
+  step3 = this.fb.group(
+    {
+      address: [null as string | null],
+      phone: [null as string | null, Validators.maxLength(20)],
+      // Optional login account. Leave both blank for a profile-only student.
+      email: [null as string | null, Validators.email],
+      password: [null as string | null, strongPassword]
+    },
+    { validators: loginPair }
+  );
 
   // ── Convenience getters ──────────────────────────────────────────────────
   get f1() { return this.step1.controls; }
@@ -175,7 +199,8 @@ export class StudentNewComponent implements OnInit {
       section_id: s2.section_id ?? null,
       address: s3.address ?? null,
       phone: s3.phone ?? null,
-      user_id: s3.user_id ?? null
+      email: s3.email?.trim() || null,
+      password: s3.password || null
     };
 
     this.loading = true;

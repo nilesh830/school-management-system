@@ -24,7 +24,14 @@
       <i class="pi pi-users text-2xl text-primary"></i>
       <div>
         <div class="text-color-secondary text-sm">Total Defaulters</div>
-        <div class="text-2xl font-bold text-primary">{{ defaulters().length }}</div>
+        <div class="text-2xl font-bold text-primary">{{ groupedDefaulters().length }}</div>
+      </div>
+    </div>
+    <div class="flex align-items-center gap-2 border-round surface-100 px-4 py-3 flex-1" style="min-width: 180px;">
+      <i class="pi pi-file text-2xl text-orange-500"></i>
+      <div>
+        <div class="text-color-secondary text-sm">Overdue Records</div>
+        <div class="text-2xl font-bold text-orange-500">{{ defaulters().length }}</div>
       </div>
     </div>
     <div class="flex align-items-center gap-2 border-round surface-100 px-4 py-3 flex-1" style="min-width: 180px;">
@@ -57,56 +64,99 @@
     />
   </div>
 
-  <!-- Defaulters table -->
+  <!-- Defaulters table (grouped by student) -->
   <p-table
-    [value]="defaulters()"
+    [value]="groupedDefaulters()"
     [loading]="loading()"
     [sortMode]="'single'"
     [paginator]="true"
     [rows]="20"
     [rowsPerPageOptions]="[10, 20, 50]"
-    dataKey="fee_record_id"
+    dataKey="student_id"
     responsiveLayout="scroll"
     styleClass="p-datatable-sm"
   >
     <ng-template pTemplate="header">
       <tr>
+        <th style="width: 3rem"></th>
         <th pSortableColumn="student_name">Student Name <p-sortIcon field="student_name" /></th>
-        <th pSortableColumn="roll_number">Roll No <p-sortIcon field="roll_number" /></th>
-        <th pSortableColumn="fee_type">Fee Type <p-sortIcon field="fee_type" /></th>
-        <th pSortableColumn="due_date">Due Date <p-sortIcon field="due_date" /></th>
-        <th pSortableColumn="net_amount" class="text-right">Net Amount <p-sortIcon field="net_amount" /></th>
-        <th pSortableColumn="total_paid" class="text-right">Total Paid <p-sortIcon field="total_paid" /></th>
-        <th pSortableColumn="balance_due" class="text-right">Balance Due <p-sortIcon field="balance_due" /></th>
-        <th pSortableColumn="days_overdue">Days Overdue <p-sortIcon field="days_overdue" /></th>
+        <th pSortableColumn="admission_no">Admission No <p-sortIcon field="admission_no" /></th>
+        <th pSortableColumn="overdue_count" class="text-center">Overdue Items <p-sortIcon field="overdue_count" /></th>
+        <th pSortableColumn="total_balance_due" class="text-right">Total Balance Due <p-sortIcon field="total_balance_due" /></th>
+        <th pSortableColumn="max_days_overdue">Oldest Overdue <p-sortIcon field="max_days_overdue" /></th>
       </tr>
     </ng-template>
 
-    <ng-template pTemplate="body" let-row>
+    <ng-template pTemplate="body" let-group let-expanded="expanded">
       <tr>
-        <td class="font-semibold">{{ row.student_name }}</td>
-        <td>{{ row.roll_number }}</td>
-        <td>{{ row.fee_type }}</td>
-        <td>{{ row.due_date }}</td>
-        <td class="text-right">{{ row.net_amount | number:'1.2-2' }}</td>
-        <td class="text-right">{{ row.total_paid | number:'1.2-2' }}</td>
+        <td>
+          <p-button
+            type="button"
+            [pRowToggler]="group"
+            [text]="true"
+            [rounded]="true"
+            severity="secondary"
+            [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+          />
+        </td>
+        <td class="font-semibold">{{ group.student_name }}</td>
+        <td>{{ group.admission_no }}</td>
+        <td class="text-center">{{ group.overdue_count }}</td>
         <td class="text-right font-semibold">
-          <span [class]="row.balance_due > 0 ? 'text-red-500' : ''">
-            {{ row.balance_due | number:'1.2-2' }}
-          </span>
+          <span class="text-red-500">{{ group.total_balance_due | number:'1.2-2' }}</span>
         </td>
         <td>
           <p-tag
-            [value]="row.days_overdue + ' days'"
-            [severity]="getSeverity(row.days_overdue)"
+            [value]="group.max_days_overdue + ' days'"
+            [severity]="getSeverity(group.max_days_overdue)"
           />
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="rowexpansion" let-group>
+      <tr>
+        <td colspan="6" class="p-0">
+          <div class="p-3 surface-50">
+            <p-table [value]="group.records" styleClass="p-datatable-sm" responsiveLayout="scroll">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Fee Type</th>
+                  <th>Due Date</th>
+                  <th class="text-right">Net Amount</th>
+                  <th class="text-right">Total Paid</th>
+                  <th class="text-right">Balance Due</th>
+                  <th>Days Overdue</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-row>
+                <tr>
+                  <td>{{ row.fee_type }}</td>
+                  <td>{{ row.due_date }}</td>
+                  <td class="text-right">{{ row.net_amount | number:'1.2-2' }}</td>
+                  <td class="text-right">{{ row.total_paid | number:'1.2-2' }}</td>
+                  <td class="text-right font-semibold">
+                    <span [class]="row.balance_due > 0 ? 'text-red-500' : ''">
+                      {{ row.balance_due | number:'1.2-2' }}
+                    </span>
+                  </td>
+                  <td>
+                    <p-tag
+                      [value]="row.days_overdue + ' days'"
+                      [severity]="getSeverity(row.days_overdue)"
+                    />
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
         </td>
       </tr>
     </ng-template>
 
     <ng-template pTemplate="emptymessage">
       <tr>
-        <td colspan="8" class="text-center py-5 text-color-secondary">
+        <td colspan="6" class="text-center py-5 text-color-secondary">
           <div class="flex flex-column align-items-center gap-2">
             <i class="pi pi-check-circle text-4xl text-green-400"></i>
             <span>No defaulters found. All fees are up to date.</span>

@@ -34,6 +34,10 @@ class StudentCreateSchema(Schema):
         allow_none=True,
     )
     user_id = fields.Int(load_default=None, allow_none=True)
+    # Optional login account — when both are supplied a User(role=student) is
+    # created and linked. Omit both to enrol a profile-only student (no login).
+    email = fields.Email(load_default=None, allow_none=True)
+    password = fields.Str(load_default=None, allow_none=True)
     # Optional initial section placement — creates the first enrollment.
     section_id = fields.Int(load_default=None, allow_none=True)
 

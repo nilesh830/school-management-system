@@ -44,14 +44,21 @@ class DashboardService:
         present = today.get("present", 0)
         absent = today.get("absent", 0)
         late = today.get("late", 0)
-        # Percentage of present (+late counts as attended) over marked-countable rows
-        denom = present + absent + late
+        # "marked" = students with any attendance row today (one row per student/day);
+        # "total" = all active students; "unmarked" = students with no row yet.
+        marked = today.get("total", present + absent + late)
+        unmarked = max(0, total_students - marked)
+        # Percentage of present (+late counts as attended) over ALL active students,
+        # so unmarked / unenrolled students pull the figure below 100%.
         attended = present + late
-        percentage = round((attended / denom) * 100, 2) if denom else 0.0
+        percentage = round((attended / total_students) * 100, 2) if total_students else 0.0
         attendance_today = {
             "present": present,
             "absent": absent,
             "late": late,
+            "marked": marked,
+            "unmarked": unmarked,
+            "total": total_students,
             "percentage": percentage,
         }
 

@@ -146,6 +146,26 @@ class StudentService:
             if not section:
                 return None, {"message": "Section not found", "status": 404}
 
+        # Optional login account. If the admin supplied email/password (or either),
+        # provision a User(role=student) and link it. Otherwise the student is a
+        # profile-only record (user_id stays null — valid for pupils who don't log in).
+        user_id = data.get("user_id")
+        if data.get("email") or data.get("password"):
+            from app.services.user_service import UserService
+
+            user, err = UserService.build_login(
+                get_db(),
+                email=data.get("email"),
+                password=data.get("password"),
+                role="student",
+                first_name=data["first_name"],
+                last_name=data["last_name"],
+            )
+            if err:
+                get_db().rollback()
+                return None, err
+            user_id = user.id
+
         student = Student(
             admission_no=data["admission_no"],
             first_name=data["first_name"],
@@ -157,7 +177,7 @@ class StudentService:
             address=data.get("address"),
             phone=data.get("phone"),
             photo_url=data.get("photo_url"),
-            user_id=data.get("user_id"),
+            user_id=user_id,
         )
         get_db().add(student)
         get_db().flush()  # assign student.id before creating the enrollment

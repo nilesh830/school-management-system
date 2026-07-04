@@ -9,6 +9,9 @@ export interface AttendanceTodaySnapshot {
   present: number;
   absent: number;
   late: number;
+  marked: number;
+  unmarked: number;
+  total: number;
   percentage: number;
 }
 

@@ -67,7 +67,7 @@ export interface FeeTypeBreakdown {
 export interface FeeDefaulter {
   student_id: number;
   student_name: string;
-  roll_number?: string;
+  admission_no?: string;
   class_name?: string;
   balance_due: number;
 }

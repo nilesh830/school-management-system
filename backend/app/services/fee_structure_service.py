@@ -1,5 +1,7 @@
 from app.utils.tenant import get_db
 from app.models.fee_structure import FeeStructure
+from app.models.student_fee_optin import StudentFeeOptin
+from app.models.student import Student
 from app.models.class_ import Class
 from app.models.academic_year import AcademicYear
 from app.models.transport_route import TransportRoute
@@ -164,3 +166,125 @@ class FeeStructureService:
         fs.is_active = False
         db.commit()
         return {"id": fee_structure_id, "deleted": True}, None
+
+    # ------------------------------------------------------------------
+    # Opt-in management (optional flat fees only)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def add_optins(cls, fee_structure_id: int, student_ids: list, amount_override, opted_in_by: int):
+        """
+        Bulk opt-in students into an optional fee structure.
+
+        - Only works for optional flat fee structures.
+        - Re-adding a previously deactivated student reactivates their row
+          (upsert semantics) and updates amount_override.
+        - Students not found in the DB are reported in 'not_found'.
+
+        Returns ({'added': [...], 'reactivated': [...], 'not_found': [...]}, None)
+        or (None, error_dict).
+        """
+        from datetime import datetime
+
+        db = get_db()
+
+        fs = db.query(FeeStructure).filter_by(id=fee_structure_id).first()
+        if not fs:
+            return None, {"message": f"FeeStructure {fee_structure_id} not found", "status": 404}
+        if fs.applicability != "optional" or fs.source_kind != "flat":
+            return None, {
+                "message": "Opt-in is only supported for optional flat fee structures.",
+                "status": 422,
+            }
+
+        # Fetch all students in one query.
+        students = db.query(Student).filter(Student.id.in_(student_ids)).all()
+        found_ids = {s.id for s in students}
+        not_found = [sid for sid in student_ids if sid not in found_ids]
+
+        added = []
+        reactivated = []
+
+        for student in students:
+            existing = (
+                db.query(StudentFeeOptin)
+                .filter_by(fee_structure_id=fee_structure_id, student_id=student.id)
+                .first()
+            )
+            if existing:
+                # Reactivate if previously deactivated; update override.
+                existing.is_active = True
+                existing.amount_override = amount_override
+                existing.opted_in_by = opted_in_by
+                existing.opted_in_at = datetime.utcnow()
+                reactivated.append(student.id)
+            else:
+                optin = StudentFeeOptin(
+                    fee_structure_id=fee_structure_id,
+                    student_id=student.id,
+                    amount_override=amount_override,
+                    opted_in_by=opted_in_by,
+                )
+                db.add(optin)
+                added.append(student.id)
+
+        db.commit()
+        return {
+            "added": added,
+            "reactivated": reactivated,
+            "not_found": not_found,
+        }, None
+
+    @classmethod
+    def remove_optins(cls, fee_structure_id: int, student_ids: list):
+        """
+        Bulk soft-delete opt-in entries (set is_active=False).
+
+        Returns ({'removed': [...], 'not_found': [...]}, None)
+        or (None, error_dict).
+        """
+        db = get_db()
+
+        fs = db.query(FeeStructure).filter_by(id=fee_structure_id).first()
+        if not fs:
+            return None, {"message": f"FeeStructure {fee_structure_id} not found", "status": 404}
+
+        optins = (
+            db.query(StudentFeeOptin)
+            .filter(
+                StudentFeeOptin.fee_structure_id == fee_structure_id,
+                StudentFeeOptin.student_id.in_(student_ids),
+                StudentFeeOptin.is_active == True,  # noqa: E712
+            )
+            .all()
+        )
+
+        found_ids = {o.student_id for o in optins}
+        not_found = [sid for sid in student_ids if sid not in found_ids]
+
+        for optin in optins:
+            optin.is_active = False
+
+        db.commit()
+        return {"removed": list(found_ids), "not_found": not_found}, None
+
+    @classmethod
+    def list_optins(cls, fee_structure_id: int):
+        """
+        Return all active opt-in entries for the given fee structure.
+
+        Returns (list_of_dicts, None) or (None, error_dict).
+        """
+        db = get_db()
+
+        fs = db.query(FeeStructure).filter_by(id=fee_structure_id).first()
+        if not fs:
+            return None, {"message": f"FeeStructure {fee_structure_id} not found", "status": 404}
+
+        optins = (
+            db.query(StudentFeeOptin)
+            .filter_by(fee_structure_id=fee_structure_id, is_active=True)
+            .order_by(StudentFeeOptin.opted_in_at)
+            .all()
+        )
+        return [o.to_dict() for o in optins], None

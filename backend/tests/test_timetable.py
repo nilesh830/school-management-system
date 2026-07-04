@@ -8,6 +8,7 @@ from app.models.class_ import Class
 from app.models.section import Section
 from app.models.subject import Subject
 from app.models.teacher import Teacher
+from app.models.teacher_subject import TeacherSubject
 from app.models.user import User
 from app.models.timetable import Timetable
 
@@ -41,12 +42,21 @@ def make_teacher(db, employee_id='EMP_TT', email='ttest@test.sms'):
     return t
 
 
+def assign_subject(db, teacher, subject):
+    """Give the teacher a TeacherSubject assignment (required to be timetabled)."""
+    ts = TeacherSubject(teacher_id=teacher.id, subject_id=subject.id)
+    db.session.add(ts)
+    db.session.commit()
+    return ts
+
+
 class TestTimetableCreate:
 
     def test_create_timetable_entry(self, client, db, admin_token):
         sec = make_section(db)
         subj = make_subject(db)
         teacher = make_teacher(db)
+        assign_subject(db, teacher, subj)
 
         resp = client.post('/api/v1/timetables', json={
             'section_id': sec.id,
@@ -73,6 +83,7 @@ class TestTimetableCreate:
 
         subj = make_subject(db)
         teacher = make_teacher(db)
+        assign_subject(db, teacher, subj)
 
         client.post('/api/v1/timetables', json={
             'section_id': sec.id,
@@ -109,6 +120,8 @@ class TestTimetableCreate:
                      first_name='B', last_name='T', joining_date=date(2022, 1, 1))
         db.session.add(t2)
         db.session.commit()
+        assign_subject(db, teacher, subj1)
+        assign_subject(db, t2, subj2)
 
         client.post('/api/v1/timetables', json={
             'section_id': sec.id,
@@ -131,6 +144,25 @@ class TestTimetableCreate:
         }, headers={'Authorization': f'Bearer {admin_token}'})
         assert resp.status_code == 409
 
+    def test_unassigned_subject_returns_422(self, client, db, admin_token):
+        """A teacher not assigned the subject cannot be timetabled for it."""
+        sec = make_section(db)
+        subj = make_subject(db)
+        teacher = make_teacher(db)
+        # NOTE: no assign_subject() call — the teacher does not teach this subject.
+
+        resp = client.post('/api/v1/timetables', json={
+            'section_id': sec.id,
+            'subject_id': subj.id,
+            'teacher_id': teacher.id,
+            'day_of_week': 0,
+            'period_no': 1,
+            'start_time': '08:00',
+            'end_time': '08:45',
+        }, headers={'Authorization': f'Bearer {admin_token}'})
+        assert resp.status_code == 422
+        assert 'not assigned' in resp.get_json()['message'].lower()
+
     def test_missing_required_field_400(self, client, db, admin_token):
         sec = make_section(db)
         resp = client.post('/api/v1/timetables', json={'section_id': sec.id},
@@ -152,6 +184,7 @@ class TestTimetableRead:
         sec = make_section(db)
         subj = make_subject(db)
         teacher = make_teacher(db)
+        assign_subject(db, teacher, subj)
 
         client.post('/api/v1/timetables', json={
             'section_id': sec.id,
@@ -172,6 +205,7 @@ class TestTimetableRead:
         sec = make_section(db)
         subj = make_subject(db)
         teacher = make_teacher(db)
+        assign_subject(db, teacher, subj)
 
         client.post('/api/v1/timetables', json={
             'section_id': sec.id,
@@ -195,6 +229,7 @@ class TestTimetableDelete:
         sec = make_section(db)
         subj = make_subject(db)
         teacher = make_teacher(db)
+        assign_subject(db, teacher, subj)
 
         create_resp = client.post('/api/v1/timetables', json={
             'section_id': sec.id,

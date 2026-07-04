@@ -176,6 +176,53 @@ class TestStudentEnrollment:
                            headers=auth(admin_token))
         assert resp.status_code == 422
 
+    def test_create_student_with_login_account(self, client, admin_token, db):
+        """Supplying email+password provisions a linked User(role=student)."""
+        payload = {**VALID_STUDENT, 'admission_no': 'ADM-LOGIN-001',
+                   'email': 'ravi.login@test.sms', 'password': 'Ravi@1234'}
+        resp = client.post('/api/v1/students', json=payload,
+                           headers=auth(admin_token))
+        assert resp.status_code == 201
+        data = resp.get_json()['data']
+        assert data['email'] == 'ravi.login@test.sms'
+        assert data['user_id'] is not None
+
+        user = db.session.query(User).filter_by(email='ravi.login@test.sms').first()
+        assert user is not None
+        assert user.role == 'student'
+        assert user.check_password('Ravi@1234')
+
+    def test_create_student_without_login_is_profile_only(self, client, admin_token):
+        """Omitting email/password leaves the student without a login account."""
+        payload = {**VALID_STUDENT, 'admission_no': 'ADM-NOLOGIN-001'}
+        resp = client.post('/api/v1/students', json=payload,
+                           headers=auth(admin_token))
+        assert resp.status_code == 201
+        data = resp.get_json()['data']
+        assert data['user_id'] is None
+        assert data['email'] is None
+
+    def test_create_student_weak_password_rejected(self, client, admin_token):
+        payload = {**VALID_STUDENT, 'admission_no': 'ADM-WEAK-001',
+                   'email': 'weak@test.sms', 'password': 'weak'}
+        resp = client.post('/api/v1/students', json=payload,
+                           headers=auth(admin_token))
+        assert resp.status_code == 422
+
+    def test_create_student_duplicate_email_rejected(self, client, admin_token, linked_parent):
+        payload = {**VALID_STUDENT, 'admission_no': 'ADM-DUPE-001',
+                   'email': 'linked_parent@test.sms', 'password': 'Ravi@1234'}
+        resp = client.post('/api/v1/students', json=payload,
+                           headers=auth(admin_token))
+        assert resp.status_code == 409
+
+    def test_create_student_email_without_password_rejected(self, client, admin_token):
+        payload = {**VALID_STUDENT, 'admission_no': 'ADM-HALF-001',
+                   'email': 'half@test.sms'}
+        resp = client.post('/api/v1/students', json=payload,
+                           headers=auth(admin_token))
+        assert resp.status_code == 400
+
     def test_create_student_forbidden_for_teacher(self, client, teacher_token):
         resp = client.post('/api/v1/students', json=VALID_STUDENT,
                            headers=auth(teacher_token))
