@@ -34,3 +34,7 @@ backend/uploads/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Deployment secrets (local only — real credentials, never commit)
+deploy/*.secrets.env
+!deploy/*.secrets.env.example
