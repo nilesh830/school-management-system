@@ -1,0 +1,60 @@
+# Render Blueprint — deploys the SMS production stack (database + backend + frontend).
+#
+# One-time setup: Render dashboard -> New -> Blueprint -> connect repo
+# nilesh830/school-management-system, branch `main`. Render reads this file and
+# creates all three resources. After the first deploy, fill in the two
+# `sync: false` env vars (see DEPLOYMENT.md "One-time: cutover from Railway").
+#
+# Everything lives in the same region so the backend reaches Postgres over
+# Render's private network (the DATABASE_URL injected below is the internal one).
+
+databases:
+  - name: sms-postgres
+    plan: basic-256mb # free plan expires after 30 days — not usable for prod
+    region: singapore
+    postgresMajorVersion: "17"
+    ipAllowList: # external access, needed to run deploy/migrate-prod-db.sh locally
+      - source: 0.0.0.0/0
+        description: everywhere — tighten to your own IP after cutover
+
+services:
+  # ---- Flask API (gunicorn) ----
+  - type: web
+    name: sms-backend
+    runtime: python
+    region: singapore
+    plan: starter # `free` works for testing but spins down after 15 min idle
+    branch: main
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Mirrors backend/Procfile (Procfile itself is only read by Railway/Heroku).
+    startCommand: gunicorn run:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - --error-logfile -
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHON_VERSION # match local dev; psycopg3 (not psycopg2) because of 3.14
+        value: 3.14.0
+      - key: FLASK_ENV
+        value: production
+      - key: DATABASE_URL # internal connection string; config.py rewrites it to +psycopg
+        fromDatabase:
+          name: sms-postgres
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS # set to the frontend URL after first deploy, e.g. https://sms-frontend-xxxx.onrender.com
+        sync: false
+
+  # ---- Angular SPA served by Caddy (also reverse-proxies /api/* to the backend) ----
+  - type: web
+    name: sms-frontend
+    runtime: docker
+    region: singapore
+    plan: starter
+    branch: main
+    rootDir: frontend
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: BACKEND_URL # set to the backend URL after first deploy, e.g. https://sms-backend-xxxx.onrender.com
+        sync: false
