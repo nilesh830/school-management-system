@@ -22,12 +22,13 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SECRETS="$REPO_ROOT/deploy/prod.secrets.env"
 
-# Prefer the portable PostgreSQL client tools in deploy/pg17/ (git-ignored)
-# when pg_dump isn't already on PATH.
-if ! command -v pg_dump >/dev/null 2>&1 && [ -d "$REPO_ROOT/deploy/pg17/pgsql/bin" ]; then
-  export PATH="$REPO_ROOT/deploy/pg17/pgsql/bin:$PATH"
+# Prefer the portable PostgreSQL client tools in deploy/pg18/ (git-ignored)
+# when pg_dump isn't already on PATH. Client major version must be >= the
+# Railway server (PostgreSQL 18.x as of 2026-07).
+if ! command -v pg_dump >/dev/null 2>&1 && [ -d "$REPO_ROOT/deploy/pg18/pgsql/bin" ]; then
+  export PATH="$REPO_ROOT/deploy/pg18/pgsql/bin:$PATH"
 fi
-command -v pg_dump >/dev/null 2>&1 || { echo "pg_dump not found — extract the PostgreSQL binaries into deploy/pg17/ or install client tools"; exit 1; }
+command -v pg_dump >/dev/null 2>&1 || { echo "pg_dump not found — extract the PostgreSQL binaries into deploy/pg18/ or install client tools"; exit 1; }
 
 [ -f "$SECRETS" ] || { echo "Missing $SECRETS (copy prod.secrets.env.example and fill it in)"; exit 1; }
 # shellcheck disable=SC1090
