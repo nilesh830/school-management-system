@@ -11,5 +11,9 @@ RUN npm run build
 
 # ---- Serve stage: Caddy serves static files + proxies /api to the backend ----
 FROM caddy:2-alpine
+# The image sets cap_net_bind_service on the caddy binary (for port 80); Render's
+# sandbox refuses to exec binaries with file capabilities ("operation not
+# permitted"). Strip it — Render assigns a port >1024 via $PORT, so it's unneeded.
+RUN apk add --no-cache libcap && setcap -r /usr/bin/caddy && apk del libcap
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /app/dist/sms-frontend/browser /usr/share/caddy
