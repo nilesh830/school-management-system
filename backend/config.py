@@ -68,7 +68,15 @@ class Config:
     JWT_BLACKLIST_ENABLED = True
     JWT_BLACKLIST_TOKEN_CHECKS = ['access', 'refresh']
 
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:4200').split(',')
+    # Strip whitespace/newlines per origin: dashboard env editors (e.g. Render's
+    # multi-line value boxes) easily smuggle a trailing "\n" in, and an origin
+    # with a newline makes werkzeug reject every response ("Header values must
+    # not contain newline characters") — a 500 on all requests.
+    CORS_ORIGINS = [
+        o.strip()
+        for o in os.environ.get('CORS_ORIGINS', 'http://localhost:4200').split(',')
+        if o.strip()
+    ]
 
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5 MB max upload
