@@ -1,21 +1,14 @@
-# Render Blueprint — deploys the SMS production stack (database + backend + frontend).
+# Render Blueprint — deploys the SMS backend + frontend on Render's FREE instance type.
+# The database is NOT on Render: it's a free Supabase Postgres (Render's own free
+# Postgres is deleted after 30 days). Set DATABASE_URL by hand — see below.
 #
 # One-time setup: Render dashboard -> New -> Blueprint -> connect repo
 # nilesh830/school-management-system, branch `main`. Render reads this file and
-# creates all three resources. After the first deploy, fill in the two
-# `sync: false` env vars (see DEPLOYMENT.md "One-time: cutover from Railway").
+# creates both services, prompting for the `sync: false` env vars
+# (see DEPLOYMENT.md "One-time: cutover from Railway").
 #
-# Everything lives in the same region so the backend reaches Postgres over
-# Render's private network (the DATABASE_URL injected below is the internal one).
-
-databases:
-  - name: sms-postgres
-    plan: basic-256mb # free plan expires after 30 days — not usable for prod
-    region: singapore
-    postgresMajorVersion: "17"
-    ipAllowList: # external access, needed to run deploy/migrate-prod-db.sh locally
-      - source: 0.0.0.0/0
-        description: everywhere — tighten to your own IP after cutover
+# Free-tier behavior: services spin down after 15 min without traffic; the next
+# request cold-starts them (~1 min). Upgrade plan to `starter` to avoid that.
 
 services:
   # ---- Flask API (gunicorn) ----
@@ -23,7 +16,7 @@ services:
     name: sms-backend
     runtime: python
     region: singapore
-    plan: starter # `free` works for testing but spins down after 15 min idle
+    plan: free
     branch: main
     rootDir: backend
     buildCommand: pip install -r requirements.txt
@@ -35,10 +28,14 @@ services:
         value: 3.14.0
       - key: FLASK_ENV
         value: production
-      - key: DATABASE_URL # internal connection string; config.py rewrites it to +psycopg
-        fromDatabase:
-          name: sms-postgres
-          property: connectionString
+      # Supabase SESSION pooler URL (IPv4), port 5432:
+      #   postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+      # MUST be the session pooler, NOT the transaction pooler (port 6543): the app
+      # pins search_path per connection for schema-per-school, which transaction
+      # pooling breaks. The direct db.<ref>.supabase.co host is IPv6-only and
+      # unreachable from Render — use the pooler host.
+      - key: DATABASE_URL
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET_KEY
@@ -51,7 +48,7 @@ services:
     name: sms-frontend
     runtime: docker
     region: singapore
-    plan: starter
+    plan: free
     branch: main
     rootDir: frontend
     dockerfilePath: ./Dockerfile
