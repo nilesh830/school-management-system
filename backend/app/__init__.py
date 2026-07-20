@@ -84,7 +84,7 @@ def create_app(config_name="default"):
     # Exempt from rate limiting: Render's health checker polls this every ~5s
     # (~720/hour), which blows past the default "100/hour" limit and returns 429.
     # Render reads a 429 as a failed health check and restarts the service — an
-    # endless term/restart loop. The check must never be throttled.
+    # endless term/restart loop that eventually suspends it. Never throttle it.
     @app.route("/api/v1/health")
     @limiter.exempt
     def health():
