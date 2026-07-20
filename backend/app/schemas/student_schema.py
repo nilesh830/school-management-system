@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, validate, validates, ValidationError
+from marshmallow import Schema, fields, validate, validates, ValidationError, EXCLUDE
 from datetime import date
 
 
@@ -40,6 +40,41 @@ class StudentCreateSchema(Schema):
     password = fields.Str(load_default=None, allow_none=True)
     # Optional initial section placement — creates the first enrollment.
     section_id = fields.Int(load_default=None, allow_none=True)
+
+    @validates("date_of_birth")
+    def validate_dob(self, value):
+        if value > date.today():
+            raise ValidationError("Date of birth cannot be in the future.")
+
+    @validates("admission_date")
+    def validate_admission_date(self, value):
+        if value > date.today():
+            raise ValidationError("Admission date cannot be in the future.")
+
+
+class StudentBulkRowSchema(Schema):
+    """One row of a bulk student import.
+
+    Same rules as StudentCreateSchema, minus password (auto-generated for rows
+    that supply an email) and photo_url/user_id (not importable). A stray `_row`
+    marker from the parser is ignored via Meta.unknown = EXCLUDE.
+    """
+
+    class Meta:
+        unknown = EXCLUDE
+
+    first_name = fields.Str(required=True, validate=validate.Length(min=1, max=100))
+    last_name = fields.Str(required=True, validate=validate.Length(min=1, max=100))
+    date_of_birth = fields.Date(required=True)
+    gender = fields.Str(required=True, validate=validate.OneOf(VALID_GENDERS))
+    admission_date = fields.Date(required=True)
+    admission_no = fields.Str(required=True, validate=validate.Length(min=1, max=20))
+
+    blood_group = fields.Str(load_default=None, validate=validate.OneOf(VALID_BLOOD_GROUPS), allow_none=True)
+    address = fields.Str(load_default=None, allow_none=True)
+    phone = fields.Str(load_default=None, validate=validate.Length(max=20), allow_none=True)
+    section_id = fields.Int(load_default=None, allow_none=True)
+    email = fields.Email(load_default=None, allow_none=True)
 
     @validates("date_of_birth")
     def validate_dob(self, value):

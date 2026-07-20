@@ -41,6 +41,7 @@ export class AdminLayoutComponent {
     { label: 'Attendance Report', icon: 'pi-chart-line', route: '/admin/reports/attendance' },
     { label: 'Grades Report', icon: 'pi-chart-bar', route: '/admin/reports/grades' },
     { label: 'Fees Report', icon: 'pi-chart-pie', route: '/admin/reports/fees' },
+    { label: 'Email Settings', icon: 'pi-envelope', route: '/admin/settings/email' },
   ];
 
   profileMenuItems = [

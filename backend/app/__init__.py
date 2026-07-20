@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -64,11 +64,29 @@ def create_app(config_name="default"):
     app.before_request(setup_tenant_db)
     app.teardown_request(teardown_tenant_db)
 
+    @app.after_request
+    def add_api_no_cache_headers(response):
+        # API responses are per-user, per-tenant, and change constantly (attendance,
+        # fees, dashboard KPIs...). Browsers — Edge/IE especially — cache GET XHRs
+        # aggressively, so in-app navigation replays a stale cached copy and users
+        # only see fresh data after a hard refresh. Force revalidation on every API
+        # response. Scoped to /api/ so static assets / Swagger docs still cache.
+        if request.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
     from app.cli import register_commands
 
     register_commands(app)
 
+    # Exempt from rate limiting: Render's health checker polls this every ~5s
+    # (~720/hour), which blows past the default "100/hour" limit and returns 429.
+    # Render reads a 429 as a failed health check and restarts the service — an
+    # endless term/restart loop. The check must never be throttled.
     @app.route("/api/v1/health")
+    @limiter.exempt
     def health():
         return jsonify({"success": True, "message": "SMS API is running", "version": "1.0.0"}), 200
 
@@ -93,6 +111,7 @@ def create_app(config_name="default"):
     from app.routes.dashboard import dashboard_bp
     from app.routes.reports import reports_bp
     from app.routes.transport import transport_bp, student_transport_bp
+    from app.routes.school_settings import school_settings_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
@@ -119,6 +138,7 @@ def create_app(config_name="default"):
     app.register_blueprint(student_transport_bp)
     app.register_blueprint(superadmin_auth_bp)
     app.register_blueprint(superadmin_schools_bp)
+    app.register_blueprint(school_settings_bp)
 
     # Ensure all tenant models are imported so Alembic autogenerate can detect them.
     from app.models.attendance import Attendance  # noqa: F401
@@ -135,6 +155,7 @@ def create_app(config_name="default"):
     from app.models.master.school import School  # noqa: F401
     from app.models.master.super_admin import SuperAdmin  # noqa: F401
     from app.models.master.super_admin_revoked_token import SuperAdminRevokedToken  # noqa: F401
+    from app.models.master.school_email_config import SchoolEmailConfig  # noqa: F401
 
     with app.app_context():
         db.create_all(bind_key=["master"])

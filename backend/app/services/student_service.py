@@ -11,9 +11,20 @@ from app.models.student_section import StudentSection
 from app.models.section import Section
 from app.models.student_document import StudentDocument
 from app.models.parent import Parent, student_parent
+from app.models.user import User
+from app.schemas.student_schema import StudentBulkRowSchema
 
 ALLOWED_DOC_EXTENSIONS = {"pdf", "jpg", "jpeg", "png"}
 MAX_DOC_BYTES = 5 * 1024 * 1024  # 5 MB
+
+# Upper bound on a single bulk import to protect the request/transaction.
+MAX_BULK_ROWS = 1000
+
+_bulk_row_schema = StudentBulkRowSchema()
+
+
+class _RowError(Exception):
+    """Raised inside a per-row savepoint to roll back just that row."""
 
 
 def _allowed_doc(filename):
@@ -200,6 +211,335 @@ class StudentService:
 
         get_db().commit()
         return student.to_dict(), None
+
+    # -------------------------------------------------------------------------
+    # Bulk student registration — screen / preview / commit
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def get_section_reference() -> list:
+        """Active sections for the bulk-import template's reference sheet.
+
+        Label matches the single-student form's dropdown ("{class} — {name}").
+        """
+        db = get_db()
+        sections = db.query(Section).filter_by(is_active=True).all()
+        ref = []
+        for s in sections:
+            d = s.to_dict()
+            class_name = d.get("class_name")
+            label = f"{class_name} — {s.name}" if class_name else s.name
+            ref.append(
+                {"id": s.id, "label": label, "class_name": class_name, "capacity": s.capacity}
+            )
+        # Sort by class then section name for a readable reference sheet.
+        ref.sort(key=lambda x: (str(x["class_name"] or ""), x["label"]))
+        return ref
+
+    @staticmethod
+    def _screen_bulk_rows(rows: list) -> list:
+        """Validate + flag each parsed row WITHOUT writing anything.
+
+        Returns a list aligned to ``rows``, each entry:
+          {index, row (1-based sheet row or ordinal), status, data, errors,
+           will_create_login, label}
+        status ∈ {"valid", "error", "duplicate"}.
+
+        Duplicate = admission_no already used (in-file OR in DB), or the login
+        email already used (in-file OR in DB) — either makes the row un-insertable.
+        Shared by preview_bulk() and create_many() so the committed set is
+        re-screened against live DB state (never trusts the client).
+        """
+        db = get_db()
+
+        # Load supplied rows through the schema, collecting per-row errors.
+        loaded = []
+        for i, raw in enumerate(rows):
+            sheet_row = raw.get("_row", i + 2) if isinstance(raw, dict) else i + 2
+            payload = {k: v for k, v in raw.items() if k != "_row"} if isinstance(raw, dict) else {}
+            errors = _bulk_row_schema.validate(payload)
+            data = _bulk_row_schema.load(payload) if not errors else None
+            loaded.append(
+                {
+                    "index": i,
+                    "row": sheet_row,
+                    "status": "error" if errors else "valid",
+                    "data": data,
+                    "errors": errors or {},
+                    "will_create_login": bool(data and data.get("email")),
+                    "label": (
+                        f"{payload.get('first_name', '')} {payload.get('last_name', '')}".strip()
+                        or payload.get("admission_no")
+                        or f"Row {sheet_row}"
+                    ),
+                }
+            )
+
+        valid = [e for e in loaded if e["status"] == "valid"]
+
+        # --- admission_no duplicates -----------------------------------------
+        adm_nos = [e["data"]["admission_no"] for e in valid]
+        db_adm = set()
+        existing = [a for a in adm_nos if a]
+        if existing:
+            db_adm = {
+                r[0]
+                for r in db.query(Student.admission_no).filter(Student.admission_no.in_(existing)).all()
+            }
+        seen_adm = {}
+        for e in valid:
+            adm = e["data"]["admission_no"]
+            if adm in db_adm:
+                e["status"] = "duplicate"
+                e["errors"]["admission_no"] = ["Admission number already exists in this school"]
+            elif adm in seen_adm:
+                e["status"] = "duplicate"
+                e["errors"]["admission_no"] = [f"Duplicate admission number in file (also row {seen_adm[adm]})"]
+            else:
+                seen_adm[adm] = e["row"]
+
+        # --- login email duplicates ------------------------------------------
+        emails = [e["data"].get("email") for e in valid if e["status"] == "valid" and e["data"].get("email")]
+        db_emails = set()
+        if emails:
+            db_emails = {
+                r[0].lower()
+                for r in db.query(User.email).filter(User.email.in_([m.lower() for m in emails])).all()
+            }
+        seen_email = {}
+        for e in valid:
+            if e["status"] != "valid":
+                continue
+            email = (e["data"].get("email") or "").lower()
+            if not email:
+                continue
+            if email in db_emails:
+                e["status"] = "error"
+                e["errors"]["email"] = ["A user with this email already exists"]
+            elif email in seen_email:
+                e["status"] = "error"
+                e["errors"]["email"] = [f"Duplicate login email in file (also row {seen_email[email]})"]
+            else:
+                seen_email[email] = e["row"]
+
+        # --- section existence -----------------------------------------------
+        section_ids = {
+            e["data"]["section_id"]
+            for e in valid
+            if e["status"] == "valid" and e["data"].get("section_id")
+        }
+        known_sections = set()
+        if section_ids:
+            known_sections = {
+                r[0]
+                for r in db.query(Section.id)
+                .filter(Section.id.in_(section_ids), Section.is_active.is_(True))
+                .all()
+            }
+        for e in valid:
+            if e["status"] != "valid":
+                continue
+            sid = e["data"].get("section_id")
+            if sid and sid not in known_sections:
+                e["status"] = "error"
+                e["errors"]["section_id"] = [f"Section {sid} not found"]
+
+        return loaded
+
+    @staticmethod
+    def _summarize(screened: list) -> dict:
+        summary = {"total": len(screened), "valid": 0, "error": 0, "duplicate": 0, "created": 0}
+        for e in screened:
+            summary[e["status"]] = summary.get(e["status"], 0) + 1
+        return summary
+
+    @staticmethod
+    def preview_bulk(rows: list):
+        """Dry-run: validate + flag every row. No DB writes.
+
+        Returns (result_dict, None) or (None, error_dict).
+        """
+        if not rows:
+            return None, {"message": "No rows found in the uploaded file", "status": 400}
+        if len(rows) > MAX_BULK_ROWS:
+            return None, {
+                "message": f"Too many rows ({len(rows)}). Split the file into batches of {MAX_BULK_ROWS} or fewer.",
+                "status": 400,
+            }
+        screened = StudentService._screen_bulk_rows(rows)
+        return {
+            "rows": [
+                {
+                    "row": e["row"],
+                    "status": e["status"],
+                    "label": e["label"],
+                    "will_create_login": e["will_create_login"] and e["status"] == "valid",
+                    "errors": e["errors"],
+                    "data": {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in (e["data"] or {}).items()},
+                }
+                for e in screened
+            ],
+            "summary": StudentService._summarize(screened),
+        }, None
+
+    @staticmethod
+    def create_many(rows: list, school_slug: str | None = None, school_name: str | None = None):
+        """Insert all valid rows in one tenant transaction (partial success).
+
+        Bad/duplicate rows are skipped, valid rows committed. Each row is wrapped
+        in a SAVEPOINT so one failing insert can't discard the rows before it.
+        Rows that supply an email get an auto-generated temp password and a
+        login account; the credentials are emailed asynchronously.
+
+        Returns (result_dict, None) or (None, error_dict).
+        """
+        from app.services.user_service import UserService
+        from app.utils.validators import generate_temp_password
+        from app.utils.email import resolve_smtp_settings, send_emails_async
+
+        if not rows:
+            return None, {"message": "No rows found in the uploaded file", "status": 400}
+        if len(rows) > MAX_BULK_ROWS:
+            return None, {
+                "message": f"Too many rows ({len(rows)}). Split the file into batches of {MAX_BULK_ROWS} or fewer.",
+                "status": 400,
+            }
+
+        # Resolve the school name for the email body (master DB lookup).
+        if school_slug and not school_name:
+            try:
+                from app.models.master.school import School
+
+                school = School.query.filter_by(slug=school_slug).first()
+                school_name = school.name if school else None
+            except Exception:
+                school_name = None
+
+        db = get_db()
+        screened = StudentService._screen_bulk_rows(rows)
+
+        email_messages = []
+        credentials = []
+
+        for e in screened:
+            if e["status"] != "valid":
+                continue
+            row = e["data"]
+            temp_password = None
+            try:
+                with db.begin_nested():  # SAVEPOINT — isolates this row
+                    user_id = None
+                    if row.get("email"):
+                        temp_password = generate_temp_password()
+                        user, err = UserService.build_login(
+                            db,
+                            email=row["email"],
+                            password=temp_password,
+                            role="student",
+                            first_name=row["first_name"],
+                            last_name=row["last_name"],
+                        )
+                        if err:
+                            raise _RowError(err["message"])
+                        user_id = user.id
+
+                    student = Student(
+                        admission_no=row["admission_no"],
+                        first_name=row["first_name"],
+                        last_name=row["last_name"],
+                        date_of_birth=row["date_of_birth"],
+                        gender=row["gender"],
+                        admission_date=row["admission_date"],
+                        blood_group=row.get("blood_group"),
+                        address=row.get("address"),
+                        phone=row.get("phone"),
+                        user_id=user_id,
+                    )
+                    db.add(student)
+                    db.flush()
+
+                    section_id = row.get("section_id")
+                    if section_id:
+                        section = db.query(Section).filter_by(id=section_id, is_active=True).first()
+                        if not section:
+                            raise _RowError(f"Section {section_id} not found")
+                        adm = row["admission_date"]
+                        academic_year = (
+                            f"{adm.year}-{adm.year + 1}" if adm.month >= 6 else f"{adm.year - 1}-{adm.year}"
+                        )
+                        db.add(
+                            StudentSection(
+                                student_id=student.id,
+                                section_id=section_id,
+                                academic_year=academic_year,
+                                start_date=adm,
+                                is_current=True,
+                            )
+                        )
+            except _RowError as exc:
+                e["status"] = "error"
+                e["errors"]["_"] = [str(exc)]
+                continue
+            except Exception as exc:  # unexpected DB error — skip row, keep batch
+                e["status"] = "error"
+                e["errors"]["_"] = [f"Could not create student: {exc}"]
+                continue
+
+            e["status"] = "created"
+            if row.get("email") and temp_password:
+                credentials.append(
+                    {
+                        "admission_no": row["admission_no"],
+                        "name": f"{row['first_name']} {row['last_name']}",
+                        "email": row["email"],
+                    }
+                )
+                email_messages.append(
+                    StudentService._build_credential_email(
+                        row, temp_password, school_slug, school_name
+                    )
+                )
+
+        db.commit()
+
+        # Fire the credential emails after the DB is durably committed.
+        settings = resolve_smtp_settings(school_slug)
+        queued = send_emails_async(settings, email_messages) if settings else 0
+
+        return {
+            "rows": [
+                {"row": e["row"], "status": e["status"], "label": e["label"], "errors": e["errors"]}
+                for e in screened
+            ],
+            "summary": StudentService._summarize(screened),
+            "emails": {
+                "with_login": len(email_messages),
+                "queued": queued,
+                "configured": bool(settings),
+            },
+        }, None
+
+    @staticmethod
+    def _build_credential_email(row: dict, temp_password: str, school_slug, school_name) -> dict:
+        """Compose one credential email dict {to, subject, body}."""
+        frontend_url = current_app.config.get("FRONTEND_URL", "http://localhost:4200")
+        login_link = f"{frontend_url}/auth/login"
+        if school_slug:
+            login_link += f"?school_slug={school_slug}"
+        school_label = school_name or "your school"
+        body = (
+            f"Hello {row['first_name']} {row['last_name']},\n\n"
+            f"An account has been created for you at {school_label}.\n\n"
+            f"Login email: {row['email']}\n"
+            f"Temporary password: {temp_password}\n\n"
+            f"Sign in here: {login_link}\n\n"
+            f"Please change your password after your first login.\n"
+        )
+        return {
+            "to": row["email"],
+            "subject": f"Your {school_label} student account",
+            "body": body,
+        }
 
     # -------------------------------------------------------------------------
     # SMS-009 — Student update

@@ -1,10 +1,11 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, Response
 from flask_jwt_extended import get_jwt, get_jwt_identity
 
 from app.services.student_service import StudentService
 from app.utils.response import success_response, error_response
 from app.utils.decorators import roles_required
 from app.utils.tenant import get_db
+from app.utils.excel import parse_xlsx, build_student_import_template
 from app.schemas.student_schema import (
     StudentCreateSchema,
     StudentUpdateSchema,
@@ -77,6 +78,72 @@ def create_student():
             status=svc_err.get("status", 400),
         )
     return success_response(data=student, message="Student created successfully", status=201)
+
+
+# ---------------------------------------------------------------------------
+# Bulk student registration — template / preview / commit
+# ---------------------------------------------------------------------------
+
+_XLSX_EXTS = {"xlsx"}
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _read_upload():
+    """Validate the uploaded .xlsx and return (parsed_rows, None) or (None, error_response)."""
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return None, error_response("An .xlsx file is required (field name 'file')", status=400)
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in _XLSX_EXTS:
+        return None, error_response("Only .xlsx files are supported", status=400)
+    try:
+        rows = parse_xlsx(file)
+    except ValueError as exc:
+        return None, error_response(str(exc), status=400)
+    return rows, None
+
+
+@students_bp.route("/bulk/template", methods=["GET"])
+@roles_required("admin")
+def bulk_template():
+    sections = StudentService.get_section_reference()
+    data = build_student_import_template(sections)
+    return Response(
+        data,
+        mimetype=_XLSX_MIME,
+        headers={"Content-Disposition": "attachment; filename=student_import_template.xlsx"},
+    )
+
+
+@students_bp.route("/bulk/preview", methods=["POST"])
+@roles_required("admin")
+def bulk_preview():
+    rows, err = _read_upload()
+    if err:
+        return err
+    result, svc_err = StudentService.preview_bulk(rows)
+    if svc_err:
+        return error_response(svc_err["message"], status=svc_err.get("status", 400))
+    return success_response(data=result, message="Bulk preview generated")
+
+
+@students_bp.route("/bulk/commit", methods=["POST"])
+@roles_required("admin")
+def bulk_commit():
+    payload = request.get_json(silent=True) or {}
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return error_response("Request body must be JSON with a 'rows' array", status=400)
+    claims = get_jwt()
+    school_slug = claims.get("school_slug")
+    result, svc_err = StudentService.create_many(rows, school_slug=school_slug)
+    if svc_err:
+        return error_response(svc_err["message"], status=svc_err.get("status", 400))
+    return success_response(
+        data=result,
+        message=f"Bulk import complete: {result['summary']['created']} created",
+        status=201,
+    )
 
 
 # ---------------------------------------------------------------------------

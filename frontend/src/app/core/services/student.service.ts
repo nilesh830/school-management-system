@@ -86,6 +86,45 @@ export interface StatusUpdatePayload {
   leaving_date?: string | null;
 }
 
+// ── Bulk import ──────────────────────────────────────────────────────────────
+
+export type BulkRowStatus = 'valid' | 'error' | 'duplicate' | 'created';
+
+export interface BulkPreviewRow {
+  row: number;                       // 1-based sheet row (header = row 1)
+  status: BulkRowStatus;
+  label: string;                     // student name / admission no for display
+  will_create_login: boolean;
+  errors: Record<string, string[]>;
+  data: Record<string, any>;         // cleaned row data (sent back on commit)
+}
+
+export interface BulkSummary {
+  total: number;
+  valid: number;
+  error: number;
+  duplicate: number;
+  created: number;
+}
+
+export interface BulkPreviewData {
+  rows: BulkPreviewRow[];
+  summary: BulkSummary;
+}
+
+export interface BulkCommitRow {
+  row: number;
+  status: BulkRowStatus;
+  label: string;
+  errors: Record<string, string[]>;
+}
+
+export interface BulkCommitData {
+  rows: BulkCommitRow[];
+  summary: BulkSummary;
+  emails: { with_login: number; queued: number; configured: boolean };
+}
+
 @Injectable({ providedIn: 'root' })
 export class StudentService {
   private readonly apiUrl = '/api/v1/students';
@@ -179,5 +218,24 @@ export class StudentService {
 
   deleteDocument(studentId: number, docId: number): Observable<ApiResponse<any>> {
     return this.http.delete<ApiResponse<any>>(`${this.apiUrl}/${studentId}/documents/${docId}`);
+  }
+
+  // ── Bulk import ──────────────────────────────────────────────────────────
+
+  /** Download the .xlsx import template (includes a Sections reference sheet). */
+  downloadBulkTemplate(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/bulk/template`, { responseType: 'blob' });
+  }
+
+  /** Upload a filled .xlsx for validation. No students are created. */
+  bulkPreview(file: File): Observable<ApiResponse<BulkPreviewData>> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<ApiResponse<BulkPreviewData>>(`${this.apiUrl}/bulk/preview`, form);
+  }
+
+  /** Commit the chosen rows. The backend re-validates before inserting. */
+  bulkCommit(rows: Record<string, any>[]): Observable<ApiResponse<BulkCommitData>> {
+    return this.http.post<ApiResponse<BulkCommitData>>(`${this.apiUrl}/bulk/commit`, { rows });
   }
 }

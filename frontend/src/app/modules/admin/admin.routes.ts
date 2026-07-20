@@ -38,6 +38,10 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./students/student-new/student-new.component').then(m => m.StudentNewComponent)
       },
       {
+        path: 'students/import',
+        loadComponent: () => import('./students/student-import/student-import.component').then(m => m.StudentImportComponent)
+      },
+      {
         path: 'students/:id',
         loadComponent: () => import('./students/student-detail/student-detail.component').then(m => m.StudentDetailComponent)
       },
@@ -188,6 +192,11 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'leave-requests',
         loadComponent: () => import('./leave-review/leave-review.component').then(m => m.LeaveReviewComponent)
+      },
+      // ── Settings ─────────────────────────────────────────────────────────
+      {
+        path: 'settings/email',
+        loadComponent: () => import('./settings/email-settings.component').then(m => m.EmailSettingsComponent)
       },
       // ── Profile ────────────────────────────────────────────────────────────
       {

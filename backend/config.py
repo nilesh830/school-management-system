@@ -99,7 +99,10 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    MAIL_SUPPRESS_SEND = True  # Log instead of send in dev
+    # Suppressed by default so dev never spams real inboxes, but honour an
+    # explicit opt-in: set MAIL_SUPPRESS_SEND=false in .env (plus real SMTP —
+    # per-school Email Settings or MAIL_* vars) to test actual delivery locally.
+    MAIL_SUPPRESS_SEND = os.environ.get('MAIL_SUPPRESS_SEND', 'true').lower() == 'true'
 
 
 class ProductionConfig(Config):

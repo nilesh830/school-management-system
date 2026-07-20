@@ -37,6 +37,14 @@ import { StudentService, Student } from '../../../../core/services/student.servi
         </ng-template>
         <ng-template pTemplate="right">
           <p-button
+            label="Bulk Import"
+            icon="pi pi-upload"
+            severity="secondary"
+            [outlined]="true"
+            routerLink="/admin/students/import"
+            styleClass="mr-2"
+          />
+          <p-button
             label="Enroll Student"
             icon="pi pi-plus"
             routerLink="/admin/students/new"
